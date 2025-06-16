@@ -6,3 +6,17 @@
 <p>
   <strong>💨🌏🌊 Geophysical fluid dynamics pseudospectral solvers with Julia and <a href="http://github.com/FourierFlows/FourierFlows.jl">FourierFlows.jl</a>. https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable</strong>
 </p>
+
+
+## Installation
+
+To install, use Julia's  built-in package manager (accessed by pressing `]` in the Julia REPL command prompt) to add the package and also to instantiate/build all the required dependencies
+
+```julia
+julia> ]
+(v1.10) pkg> add BiGSTARS
+(v1.10) pkg> instantiate
+```
+
+BiGSTARS.jl requires Julia v1.6 or later. However, the package has continuous integration testing on
+Julia v1.10 (the current long-term release) and v1.11. 
