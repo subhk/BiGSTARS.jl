@@ -14,8 +14,8 @@ To install, use Julia's  built-in package manager (accessed by pressing `]` in t
 
 ```julia
 julia> ]
-(v1.10) pkg> add BiGSTARS
-(v1.10) pkg> instantiate
+(@v1.11) pkg> add BiGSTARS
+(@v1.11) pkg> instantiate
 ```
 
 BiGSTARS.jl requires Julia v1.6 or later. However, the package has continuous integration testing on
