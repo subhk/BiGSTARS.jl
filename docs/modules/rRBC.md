@@ -2,11 +2,6 @@
 
 ### Basic Equations
 
-This module solves the *quasi-linear* quasi-geostrophic barotropic vorticity equation on a beta
-plane of variable fluid depth ``H - h(x, y)``. Quasi-linear refers to the dynamics that *neglects*
-the eddy--eddy interactions in the eddy evolution equation after an eddy--mean flow decomposition,
-e.g.,
+In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain is periodic in the ``y``-direction, 
+in the ``x``-direction is of infinite extent and vertically bounded. The reason to choose this simple case is because we can find an analytical solution for this case. Here we seek stationary solutions at the marginal state, i.e., ``\sigma = 0``. The background temperature profile is given by ``\overline{\theta} = 1 - z``.
 
-```math
-\phi(x, y, t) = \overline{\phi}(y, t) + \phi'(x, y, t) ,
-```
