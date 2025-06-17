@@ -18,5 +18,5 @@ The non-dimensional form of the equations governing the perturbation is given by
     = \mathbf{u}^\prime \cdot \hat{z} + \nabla^2 \theta^\prime,
 ```
 ```math
-    \nabla \cdot \mathbf{u}^\prime &= 0,
+    \nabla \cdot \mathbf{u}^\prime = 0,
 ```
