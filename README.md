@@ -11,7 +11,8 @@
 
 ## Installation
 
-To install, use Julia's  built-in package manager (accessed by pressing `]` in the Julia REPL command prompt) to add the package and also to instantiate/build all the required dependencies
+Open the Julia REPL, press ] to enter **package-manager** mode, and then run the commands below.
+This will add the package and automatically build (instantiate) all of its dependencies:
 
 ```julia
 julia> ]
