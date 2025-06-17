@@ -9,19 +9,19 @@ in the ``x``-direction is of infinite extent and vertically bounded. The reason 
 ```
 The non-dimensional form of the equations governing the perturbation is given by 
 ```math
-    \frac{E}{Pr} \frac{\partial \mathbf{u}^\prime}{\partial t} 
-    + \hat{z} \times \mathbf{u}^\prime =
-    -\nabla p + Ra \theta^\prime \hat{z} + E \nabla^2 \mathbf{u}^\prime,
+    \frac{E}{Pr} \frac{\partial \mathbf{u}}{\partial t} 
+    + \hat{z} \times \mathbf{u} =
+    -\nabla p + Ra \theta \hat{z} + E \nabla^2 \mathbf{u},
 ```
 ```math
-    \frac{\partial \theta^\prime}{\partial t} 
-    = \mathbf{u}^\prime \cdot \hat{z} + \nabla^2 \theta^\prime,
+    \frac{\partial \theta}{\partial t} 
+    = \mathbf{u} \cdot \hat{z} + \nabla^2 \theta,
 ```
 ```math
-    \nabla \cdot \mathbf{u}^\prime = 0,
+    \nabla \cdot \mathbf{u} = 0,
 ```
 where ```E=\nu/(fH^2)``` is the Ekman number and ```Ra = g\alpha \Delta T/(f \kappa)```, ```\Delta T``` is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
-By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```w^\prime```, vertical vorticity ```\zeta^\prime``` and temperature ```\theta^\prime```,
+By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```w^```, vertical vorticity ```\zeta``` and temperature ```\theta```,
 ```math
 \begin{align}
     E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_H^2 \theta,
