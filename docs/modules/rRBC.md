@@ -21,20 +21,20 @@ The non-dimensional form of the equations governing the perturbation is given by
     \nabla \cdot \mathbf{u}^\prime = 0,
 ```
 where ```E=\nu/(fH^2)``` is the Ekman number and ```Ra = g\alpha \Delta T/(f \kappa)```, ```\Delta T``` is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
-By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```u_z^\prime```, vertical vorticity ```\omega_z^\prime``` and temperature ```\theta^\prime```,
+By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```w^\prime```, vertical vorticity ```\zeta^\prime``` and temperature ```\theta^\prime```,
 ```math
 \begin{align}
-    E \mathcal{D}^4 u_z - \partial_z \omega_z &= -Ra \mathcal{D}_H^2 \theta,
+    E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_H^2 \theta,
 \\
-    E \mathcal{D}^2 \omega_z + \partial_z u_z &= 0,
+    E \mathcal{D}^2 \zeta + \partial_z w &= 0,
 \\
-    \mathcal{D}^2 b + u_z &= 0.
+    \mathcal{D}^2 b + w &= 0.
 \end{align}
 ```
 The boundary conditions are: 
 ```math
 \begin{align}
-    u_z = \partial_z^2 u_z = \partial_z \omega_z = \theta = 0
+    w = \partial_z^2 w = \partial_z \zeta = \theta = 0
     \,\,\,\,\,\ \text{at} \,\,\, z=0,1
 \end{align}
 ```
