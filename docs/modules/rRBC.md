@@ -20,3 +20,5 @@ The non-dimensional form of the equations governing the perturbation is given by
 ```math
     \nabla \cdot \mathbf{u}^\prime = 0,
 ```
+where ```E=\nu/(fH^2)``` is the Ekman number and ```Ra = g\alpha \Delta T/(f \kappa)```, ```\Delta T``` is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
+By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```u_z^\prime```, vertical vorticity ```\omega_z^\prime``` and temperature ```\theta^\prime```,
