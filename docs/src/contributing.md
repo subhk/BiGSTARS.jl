@@ -1,6 +1,6 @@
 # Contributors' Guide
 
-This is a short guide for potential GeophysicalFlows.jl contributors.
+This is a short guide for potential BiGSTARS.jl contributors.
 
 Please feel free to ask us questions and chat, either by raising an [issue](https://github.com/FourierFlows/GeophysicalFlows.jl/issues) or starting a [discussion](https://github.com/FourierFlows/GeophysicalFlows.jl/discussions).
 
