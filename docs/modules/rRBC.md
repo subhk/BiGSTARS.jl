@@ -47,11 +47,11 @@ where ```\lambda=Ra``` is the eigenvalue.
 
 ### Result
 
-For the parameter of ```E=10^{-4}```, the obtained critical Rayleigh number $Ra_c=189.7$ (matched with [Chandrasekhar](@citet)) analysis for horizontally infinite domain). Due to the finite aspect ratio, our stability analysis shows a finite number of convective rolls (below figure) with ```y```-wavenumber ```m_c=28```, i.e., there are ```28``` pairs of rolls in the horizontal direction. According to [Chandrasekhar](@citet) analysis, the resultant wavenumber ```a_c=28.02``` for this parameter regime, and it can be shown that for a finite ```L_x```, the resultant wavenumber ```a``` is related as
+For the parameter of ```E=10^{-4}```, the obtained critical Rayleigh number $Ra_c=189.7$ (matched with [Chandrasekhar](@citet)) analysis for horizontally infinite domain). Due to the finite aspect ratio, our stability analysis shows a finite number of convective rolls (below figure shows vertical velocity ``w``) with ``y``-wavenumber ``m_c=28``, i.e., there are ``28`` pairs of rolls in the horizontal direction. According to [Chandrasekhar](@citet) analysis, the resultant wavenumber ``a_c=28.02`` for this parameter regime, and it can be shown that for a finite ```L_x```, the resultant wavenumber ``a`` is related as
 ```math
     a^2 = \Big( \frac{2m\pi}{L_y} \Big)^2 + k^2,
 ```
-where ```k``` is the ```x```-wavenumber and in this analysis ```k=0```. 
-So for ```L_y=2\pi``` and ```a_c=28.02```, we obtained ```m \approx 28``` which we also get from stability analysis.
+where ``k`` is the ``x``-wavenumber and in this analysis ``k=0``. 
+So for ```L_y=2\pi``` and ```a_c=28.02```, we obtained ``m \approx 28`` which we also get from stability analysis.
 
 ![Alt text](images/rRBC.png)
