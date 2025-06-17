@@ -31,3 +31,15 @@ By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \ti
     \mathcal{D}^2 b + u_z &= 0.
 \end{align}
 ```
+The boundary conditions are: 
+```math
+\begin{align}
+    u_z = \partial_z^2 u_z = \partial_z \omega_z = \theta = 0
+    \,\,\,\,\,\ \text{at} \,\,\, z=0,1
+\end{align}
+```
+The above governing equations with the boundary conditions are transformed into the form 
+```math
+\mathcal{L} \mathbf{X} = \lambda \mathcal{M} \mathbf{X}
+```
+where ```\lambda=Ra``` is the eigenvalue. 
