@@ -53,3 +53,5 @@ For the parameter of ```E=10^{-4}```, the obtained critical Rayleigh number $Ra_
 ```
 where ```k``` is the ```x```-wavenumber and in this analysis ```k=0```. 
 So for ```L_y=2\pi``` and ```a_c=28.02```, we obtained ```m \approx 28``` which we also get from stability analysis.
+
+![Alt text](images/rRBC.png)
