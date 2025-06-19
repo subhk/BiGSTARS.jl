@@ -51,15 +51,13 @@ where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `til
 Finally following systems of differential equations are obtained,
 ```math
 \begin{align}
-    - E \mathcal{D}^4  \tilde{w}
-    + \epsilon^{-2} \partial_z \tilde{\zeta} &= - \epsilon^{-2} \mathcal{D}_h^2 \tilde{\theta},
+    E \mathcal{D}^4  \tilde{w} - \partial_z \tilde{\zeta} &= - Ra \mathcal{D}_h^2 \tilde{\theta},
 \\
     - \partial_z U \partial_y \tilde{w}
     - \partial_z \tilde{w}
-    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= -\sigma \tilde{\zeta},
+    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= 0,
 \\
-    \partial_z B \tilde{w} + \partial_y B  \tilde{v} + 
-    \left[ik U - E \mathcal{D}^2 \right] \tilde{b} &= -\sigma \tilde{b}, 
+    \tilde{w} + \mathcal{D}^2 \tilde{\theta} &= 0, 
 \end{align}
 ```
 where 
