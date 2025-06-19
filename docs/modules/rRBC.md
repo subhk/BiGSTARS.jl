@@ -2,8 +2,7 @@
 
 ### Problem setup
 
-In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain is periodic in the ``y``-direction, 
-in the ``x``-direction is of infinite extent and vertically bounded. The reason to choose this simple case is because we can find an analytical solution for this case. Here we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```. The background temperature profile is given by 
+In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. The reason to choose this simple case is because we can find an analytical solution for this case. The background temperature profile is given by 
 ```math
 \overline{\theta} = 1 - z.
 ```
@@ -40,11 +39,11 @@ The boundary conditions are:
 ```
 
 ## Normal mode 
-Next we consider normal-mode perturbation solutions in the form of 
+Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```),
 ```math
 \begin{align}
     [w, \zeta, \theta](x,y,z,t) =
-\mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{\theta}](y, z) \, e^{i k x}\big),
+\mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{\theta}](y, z) \, e^{i k x + \sigma t}\big),
 \end{align}
 ```
 where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. 
