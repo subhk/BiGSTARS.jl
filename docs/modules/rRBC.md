@@ -43,13 +43,11 @@ The boundary conditions are:
 Next we consider normal-mode perturbation solutions in the form of 
 ```math
 \begin{align}
-    [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{b}](y, z) \, e^{i kx + \sigma t}\big),
+    [w, \zeta, \theta](x,y,z,t) =
+\mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{\theta}](y, z) \, e^{i k x}\big),
 \end{align}
 ```
-where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. The variable 
-``\sigma=\sigma_r + i \sigma_i``. The real part represents the growth rate, and the imaginary part 
-shows the frequency of the  perturbation. 
-
+where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. 
 Finally following systems of differential equations are obtained,
 ```math
 \begin{align}
