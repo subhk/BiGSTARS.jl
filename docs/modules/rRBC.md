@@ -38,9 +38,59 @@ The boundary conditions are:
     \,\,\,\,\,\ \text{at} \,\,\, z=0,1
 \end{align}
 ```
-The above governing equations with the boundary conditions are transformed into the form 
+
+## Normal mode 
+Next we consider normal-mode perturbation solutions in the form of 
 ```math
-\mathcal{L} \mathbf{X} = \lambda \mathcal{M} \mathbf{X}
+\begin{align}
+    [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{b}](y, z) \, e^{i kx + \sigma t}\big),
+\end{align}
+```
+where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. The variable 
+``\sigma=\sigma_r + i \sigma_i``. The real part represents the growth rate, and the imaginary part 
+shows the frequency of the  perturbation. 
+
+Finally following systems of differential equations are obtained,
+```math
+\begin{align}
+    (i k U - E \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
+    + \epsilon^{-2} \partial_z \tilde{\zeta}
+    - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &= -\sigma \mathcal{D}^2 \tilde{w},
+\\
+    - \partial_z U \partial_y \tilde{w}
+    - \partial_z \tilde{w}
+    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= -\sigma \tilde{\zeta},
+\\
+    \partial_z B \tilde{w} + \partial_y B  \tilde{v} + 
+    \left[ik U - E \mathcal{D}^2 \right] \tilde{b} &= -\sigma \tilde{b}, 
+\end{align}
+```
+where 
+```math
+\mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 +
+(1/\epsilon^2)\partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+```
+The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations 
+```math
+\begin{align}
+    -\mathcal{D}_h^2 \tilde{u} &= i k \partial_{z} \tilde{w} + \partial_y \tilde{\zeta},
+\\   
+    -\mathcal{D}_h^2 \tilde{v} &= \partial_{yz} \tilde{w} -  i k \tilde{\zeta}.
+\end{align}
+```
+We choose periodic boundary conditions in the ``y``-direction and free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
+```math
+\begin{align}
+    \tilde{w} = \partial_{zz} \tilde{w} = 
+    \partial_z \tilde{\zeta} = \partial_z \tilde{b} = 0, 
+    \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
+\end{align}
+```
+The above sets of equations with the boundary conditions can be expressed as a standard generalized eigenvalue problem,
+```math
+\begin{align}
+    \mathsfit{A} \mathsf{X}= \lambda \mathsfit{B} \mathsf{X},   
+\end{align}
 ```
 where ```\lambda=Ra``` is the eigenvalue. 
 
