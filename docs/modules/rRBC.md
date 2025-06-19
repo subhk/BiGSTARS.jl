@@ -51,7 +51,7 @@ where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `til
 Finally following systems of differential equations are obtained,
 ```math
 \begin{align}
-    (i k U - E \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
+    - E \mathcal{D}^4  \tilde{w}
     + \epsilon^{-2} \partial_z \tilde{\zeta}
     - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &= -\sigma \mathcal{D}^2 \tilde{w},
 \\
@@ -65,8 +65,7 @@ Finally following systems of differential equations are obtained,
 ```
 where 
 ```math
-\mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 +
-(1/\epsilon^2)\partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+\mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + \partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
 ```
 The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations 
 ```math
