@@ -24,7 +24,7 @@ where ```E=\nu/(fH^2)``` is the Ekman number and ```Ra = g\alpha \Delta T/(f \ka
 By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```w^```, vertical vorticity ```\zeta``` and temperature ```\theta```,
 ```math
 \begin{align}
-    E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_H^2 \theta,
+    E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_h^2 \theta,
 \\
     E \mathcal{D}^2 \zeta + \partial_z w &= 0,
 \\
