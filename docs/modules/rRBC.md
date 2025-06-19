@@ -52,8 +52,7 @@ Finally following systems of differential equations are obtained,
 ```math
 \begin{align}
     - E \mathcal{D}^4  \tilde{w}
-    + \epsilon^{-2} \partial_z \tilde{\zeta}
-    - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &= -\sigma \mathcal{D}^2 \tilde{w},
+    + \epsilon^{-2} \partial_z \tilde{\zeta} &= - \epsilon^{-2} \mathcal{D}_h^2 \tilde{\theta},
 \\
     - \partial_z U \partial_y \tilde{w}
     - \partial_z \tilde{w}
