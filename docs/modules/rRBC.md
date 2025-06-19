@@ -53,9 +53,7 @@ Finally following systems of differential equations are obtained,
 \begin{align}
     E \mathcal{D}^4  \tilde{w} - \partial_z \tilde{\zeta} &= - Ra \mathcal{D}_h^2 \tilde{\theta},
 \\
-    - \partial_z U \partial_y \tilde{w}
-    - \partial_z \tilde{w}
-    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= 0,
+    E \mathcal{D}^2 \tilde{\zeta} + \partial_z \tilde{w} &= 0,
 \\
     \tilde{w} + \mathcal{D}^2 \tilde{\theta} &= 0, 
 \end{align}
