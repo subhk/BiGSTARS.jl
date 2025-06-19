@@ -54,7 +54,7 @@ Finally following systems of differential equations are obtained,
 \\
     E \mathcal{D}^2 \tilde{\zeta} + \partial_z \tilde{w} &= 0,
 \\
-    \tilde{w} + \mathcal{D}^2 \tilde{\theta} &= 0, 
+    \mathcal{D}^2 \tilde{\theta} + \tilde{w} &= 0, 
 \end{align}
 ```
 where 
