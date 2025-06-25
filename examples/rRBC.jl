@@ -316,3 +316,5 @@ end
 
 #end #module
 # ========== end of the module ==========================
+
+solve_rRBC(0.0)
