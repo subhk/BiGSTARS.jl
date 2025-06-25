@@ -58,7 +58,9 @@ bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
 bib = CitationBibliography(bib_filepath, style=:authoryear)
 
 
-makedocs = Documenter.make_docs(
+#makedocs = Documenter.make_docs(
+
+make_docs(
      authors = "Subhajit Kar, and contributors",
     sitename = "BiGSTARS.jl",
      modules = [BiGSTARS],
