@@ -16,14 +16,24 @@ examples = [
     "rRBC.jl"
 ]
 
+# for example in examples
+#     input_file = joinpath(EXAMPLES_DIR, example)
+#     output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
+#     Literate.markdown(input_file, output_file; 
+#                       documenter=true, 
+#                       include_comments=true, 
+#                       include_code=true, 
+#                       include_output=true)
+# end
+
 for example in examples
-    input_file = joinpath(EXAMPLES_DIR, example)
-    output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
-    Literate.markdown(input_file, output_file; 
-                      documenter=true, 
-                      include_comments=true, 
-                      include_code=true, 
-                      include_output=true)
+  withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
+    example_filepath = joinpath(EXAMPLES_DIR, example)
+    withenv("JULIA_DEBUG" => "Literate") do
+      Literate.markdown(example_filepath, OUTPUT_DIR;
+                        flavor = Literate.DocumenterFlavor(), execute = true)
+    end
+  end
 end
 
 #####
@@ -94,13 +104,13 @@ end
 
 if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
     deploydocs(repo = "github.com/BiGSTARS/BiGSTARS.jl",
-               repo_previews = "github.com/FourierFlows/GeophysicalFlowsDocumentation",
+               repo_previews = "github.com/BiGSTARS/BiGSTARSDocumentation",
                devbranch = "main",
                forcepush = true,
                push_preview = true,
                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
 else
-    repo = "github.com/FourierFlows/GeophysicalFlowsDocumentation"
+    repo = "github.com/BiGSTARS/BiGSTARSDocumentation"
     withenv("GITHUB_REPOSITORY" => repo) do
         deploydocs(; repo,
                      devbranch = "main",
