@@ -40,11 +40,19 @@ end
 ##### Build and deploy docs
 #####
 
+# format = Documenter.HTML(
+#     title = "BiGSTARS.jl",
+#     authors = "BiGSTARS developers",
+#     repo = ""
+#     )
+
 format = Documenter.HTML(
-    title = "BiGSTARS.jl",
-    authors = "BiGSTARS developers",
-    repo = ""
-    )
+   collapselevel = 2,
+      prettyurls = get(ENV, "CI", nothing) == "true",
+  size_threshold = 2^21,
+       canonical = "https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/"
+)
+
 
 bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
 bib = CitationBibliography(bib_filepath, style=:authoryear)
