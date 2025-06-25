@@ -60,7 +60,7 @@ bib = CitationBibliography(bib_filepath, style=:authoryear)
 
 #makedocs = Documenter.make_docs(
 
-make_docs(
+makedocs(
      authors = "Subhajit Kar, and contributors",
     sitename = "BiGSTARS.jl",
      modules = [BiGSTARS],
