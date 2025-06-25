@@ -73,9 +73,6 @@ makedocs(
                 "Home" => "index.md",
                 "Installation" => "installation_instructions.md",
                 "Examples" => [
-                    "Literated examples" => Any[
-                        "literated/index.md"
-                        ],
                     "Stone_1971" =>  Any[
                         "literated/Stone_1971.md"
                         ],
