@@ -72,7 +72,21 @@ makedocs(
     pages = Any[
                 "Home" => "index.md",
                 "Installation" => "installation_instructions.md",
-                "Examples" => "examples.md",
+                "Examples" => [
+                    "Literated examples" => Any[
+                        "literated/index.md"
+                        ],
+                    "Stone_1971" =>  Any[
+                        "literated/Stone_1971.md"
+                        ],
+                    "rRBC" => Any[
+                        "literated/rRBC.md"
+                        ]
+                ],
+                "Modules" => Any[
+                    "modules/BiGSTARS.md",
+                    "modules/BiGSTARS.Chain.md",
+                ],
                 "Contributor's guide" => "contributing.md",
                 "References" => "references.md"
     ]
