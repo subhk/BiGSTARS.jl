@@ -49,12 +49,12 @@ makedocs = Documenter.make_docs(
      doctest = true,
        clean = true,
    checkdocs = :all,
-    pages = [
-        "Home" => "index.md",
-        "Installation" => "installation.md",
-        "Examples" => "examples.md",
-        "Contributor's guide" => "contributing.md",
-        "References" => "references.md"
+    pages = Any[
+                "Home" => "index.md",
+                "Installation" => "installation.md",
+                "Examples" => "examples.md",
+                "Contributor's guide" => "contributing.md",
+                "References" => "references.md"
     ]
 )
 
@@ -82,18 +82,29 @@ end
 
 
 # Replace with below once https://github.com/JuliaDocs/Documenter.jl/pull/2692 is merged and available.
-#  deploydocs(repo = "github.com/FourierFlows/FourierFlows.jl",
-#    deploy_repo = "github.com/FourierFlows/FourierFlowsDocumentation",
-#    devbranch = "main",
-#    forcepush = true,
-#    push_preview = true,
-#    versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+# deploydocs(
+#     repo = "github.com/BiGSTARS/BiGSTARS.jl",
+#     deploy_repo = "github.com/BiGSTARS/BiGSTARSDocumentation",
+#     devbranch = "main",
+#     forcepush = true,
+#     push_preview = true,
+#     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
+# )
 
-deploydocs(
-    repo = "github.com/BiGSTARS/BiGSTARS.jl",
-    deploy_repo = "github.com/BiGSTARS/BiGSTARSDocumentation",
-    devbranch = "main",
-    forcepush = true,
-    push_preview = true,
-    versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
-)
+
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+    deploydocs(repo = "github.com/BiGSTARS/BiGSTARS.jl",
+               repo_previews = "github.com/FourierFlows/GeophysicalFlowsDocumentation",
+               devbranch = "main",
+               forcepush = true,
+               push_preview = true,
+               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+else
+    repo = "github.com/FourierFlows/GeophysicalFlowsDocumentation"
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(; repo,
+                     devbranch = "main",
+                     forcepush = true,
+                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    end
+end
