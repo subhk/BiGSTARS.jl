@@ -5,7 +5,7 @@
 <!-- description -->
 <p>
   <strong> A linear stability analysis tool for Geophysical flows with Julia. 
-    https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable</strong>
+     </strong>
 </p>
 
 
