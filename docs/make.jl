@@ -84,8 +84,8 @@ makedocs(
                         ]
                 ],
                 "Modules" => Any[
-                    "modules/BiGSTARS.md",
-                    "modules/BiGSTARS.Chain.md",
+                    "modules/Ou1971.md",
+                    "modules/rRBC.md",
                 ],
                 "Contributor's guide" => "contributing.md",
                 "References" => "references.md"
