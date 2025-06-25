@@ -71,7 +71,7 @@ makedocs(
    checkdocs = :all,
     pages = Any[
                 "Home" => "index.md",
-                "Installation" => "installation.md",
+                "Installation" => "installation_instructions.md",
                 "Examples" => "examples.md",
                 "Contributor's guide" => "contributing.md",
                 "References" => "references.md"
