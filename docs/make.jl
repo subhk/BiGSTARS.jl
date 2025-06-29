@@ -46,6 +46,7 @@ end
 #     repo = ""
 #     )
 
+
 format = Documenter.HTML(
    collapselevel = 2,
       prettyurls = get(ENV, "CI", nothing) == "true",
@@ -60,7 +61,7 @@ bib = CitationBibliography(bib_filepath, style=:authoryear)
 
 #makedocs = Documenter.make_docs(
 
-make_docs(
+makedocs(
      authors = "Subhajit Kar, and contributors",
     sitename = "BiGSTARS.jl",
      modules = [BiGSTARS],
@@ -71,8 +72,19 @@ make_docs(
    checkdocs = :all,
     pages = Any[
                 "Home" => "index.md",
-                "Installation" => "installation.md",
-                "Examples" => "examples.md",
+                "Installation" => "installation_instructions.md",
+                "Examples" => [
+                    "Stone_1971" =>  Any[
+                        "literated/Stone_1971.md"
+                        ],
+                    "rRBC" => Any[
+                        "literated/rRBC.md"
+                        ]
+                ],
+                "Modules" => Any[
+                    "modules/Ou1971.md",
+                    "modules/rRBC.md",
+                ],
                 "Contributor's guide" => "contributing.md",
                 "References" => "references.md"
     ]
@@ -80,6 +92,7 @@ make_docs(
 
 
 @info "Clean up temporary .jld2 and .nc output created by doctests or literated examples..."
+
 
 """
     recursive_find(directory, pattern)
