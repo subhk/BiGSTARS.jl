@@ -1,4 +1,4 @@
-""""
+"""
 This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
 where the domain is periodic in y-direction.
 The code is benchmarked against Chandrashekar's theoretical results.
@@ -72,9 +72,7 @@ end
     𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 end
 
-"""
-Construct the derivative operator
-"""
+# Construct the derivative operator
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 

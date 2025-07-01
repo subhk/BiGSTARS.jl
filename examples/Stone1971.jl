@@ -84,9 +84,8 @@ end
 end
 
 
-"""
-Construct the derivative operator
-"""
+
+# Construct the derivative operator
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 
@@ -366,9 +365,8 @@ function construct_matrices(Op, mf, params)
     return 𝓛, ℳ
 end
 
-"""
-Parameters:
-"""
+
+# Parameters:
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0          # vertical domain size
