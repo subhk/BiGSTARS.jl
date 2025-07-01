@@ -1,6 +1,6 @@
 name = "BiGSTARS"
 uuid = "55e6fa54-20b2-4a8e-ba84-e72db1c430e6"
-authors = ["Subhajit Kar <subhajitkar@mail.tau.ac.il>"]
+authors = ["Subhajit Kar <subhajitkar19@gmail.com>"]
 version = "1.0.0"
 
 [deps]
