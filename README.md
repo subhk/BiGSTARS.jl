@@ -4,7 +4,7 @@
 
 <!-- description -->
 <p>
-  <strong> Bi-Global <strong>boldSt<\strong>ability **A**nalayis of **R**otating **S**tarified flows: A linear stability analysis tool for Geophysical flows with Julia. 
+  <strong> Bi-Global Stability **A**nalayis of **R**otating **S**tarified flows: A linear stability analysis tool for Geophysical flows with Julia. 
      </strong>
 </p>
 
