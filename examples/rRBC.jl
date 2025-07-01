@@ -329,4 +329,7 @@ end
 #end #module
 # ========== end of the module ==========================
 
-solve_rRBC(0.0)
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    solve_rRBC(0.0)
+end
