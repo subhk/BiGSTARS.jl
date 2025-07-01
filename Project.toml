@@ -30,6 +30,7 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 Pardiso = "46dd5b70-b6fb-5a00-ae2d-e8fea33afaf2"
 MKL = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
+LazyGrids = "7031d0ef-c40d-4431-b2f8-61a8d2f650db"
 
 [compat]
 ArnoldiMethod = "0.4.0"
@@ -57,6 +58,7 @@ julia = "1.6.7"
 VectorInterface = "0.5"
 Pardiso = "1.0.1"
 MKL = "0.9.0"
+LazyGrids = "1.1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
