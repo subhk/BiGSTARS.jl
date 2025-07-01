@@ -19,22 +19,22 @@
 
 using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM
 
-struct ShiftAndInvert{TA,TB,TT}
-    A_lu::TA
-    B::TB
-    temp::TT
-end
+# struct ShiftAndInvert{TA,TB,TT}
+#     A_lu::TA
+#     B::TB
+#     temp::TT
+# end
 
-function (M::ShiftAndInvert)(y, x)
-    mul!(M.temp, M.B, x)
-    ldiv!(y, M.A_lu, M.temp)
-end
+# function (M::ShiftAndInvert)(y, x)
+#     mul!(M.temp, M.B, x)
+#     ldiv!(y, M.A_lu, M.temp)
+# end
 
 
-function construct_linear_map(A, B)
-    a = ShiftAndInvert( factorize(A), B, Vector{eltype(A)}(undef, size(A,1)) )
-    LinearMap{eltype(A)}(a, size(A,1), ismutating=true)
-end
+# function construct_linear_map(A, B)
+#     a = ShiftAndInvert( factorize(A), B, Vector{eltype(A)}(undef, size(A,1)) )
+#     LinearMap{eltype(A)}(a, size(A,1), ismutating=true)
+# end
 
 
 function Eigs_Arnoldi(𝓛, ℳ; σ::Float64, maxiter::Int, which)
