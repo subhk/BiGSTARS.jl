@@ -86,6 +86,7 @@ end
 """
 ```julia
     function Construct_DerivativeOperator!(diffMatrix, grid, params)
+        N = params.Ny * params.Nz
 ```
 """
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
@@ -93,14 +94,14 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
 
     # ------------- setup differentiation matrices  -------------------
     # Fourier in y-direction: y ∈ [0, L)
-    # y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
-    # _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
-    # _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
+    y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
+    _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
+    _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
 
     # 2nd order accurate finite difference method
-    y1, diffMatrix.𝒟ʸ  = FourierDiff_fdm(params.Ny, 1)
-    _,  diffMatrix.𝒟²ʸ = FourierDiff_fdm(params.Ny, 2)
-    _,  diffMatrix.𝒟⁴ʸ = FourierDiff_fdm(params.Ny, 4)
+    # y1, diffMatrix.𝒟ʸ  = FourierDiff_fdm(params.Ny, 1)
+    # _,  diffMatrix.𝒟²ʸ = FourierDiff_fdm(params.Ny, 2)
+    # _,  diffMatrix.𝒟⁴ʸ = FourierDiff_fdm(params.Ny, 4)
 
     # 4th order accurate finite difference method
     # y1, diffMatrix.𝒟ʸ  = FourierDiff_fdm_4th(params.Ny, 1)
