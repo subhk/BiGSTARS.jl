@@ -14,8 +14,8 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 mkpath(OUTPUT_DIR)
 
 examples = [
-    "Stone1971.jl",
-    "rRBC.jl"
+    "Stone_1971.jl",
+    "rRBC_2d.jl"
 ]
 
 @info "EXAMPLES_DIR: $EXAMPLES_DIR"
@@ -102,7 +102,7 @@ makedocs(
                         ]
                 ],
                 "Modules" => Any[
-                    "modules/Ston1971.md",
+                    "modules/Stone1971.md",
                     "modules/rRBC.md",
                 ],
                 "Contributor's guide" => "contributing.md",
