@@ -24,11 +24,16 @@ examples = [
 for example in examples
     input_file = joinpath(EXAMPLES_DIR, example)
     output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
-    Literate.markdown(input_file, output_file; 
-                      documenter=true, 
-                      include_comments=true, 
-                      include_code=true, 
-                      include_output=true)
+    try
+        Literate.markdown(input_file, output_file; 
+                          documenter=true, 
+                          include_comments=true, 
+                          include_code=true, 
+                          include_output=true)
+    catch e
+        @error "Failed to literate $input_file" exception=(e, catch_backtrace())
+        rethrow()
+    end
 end
 
 # for example in examples
