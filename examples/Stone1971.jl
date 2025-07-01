@@ -212,10 +212,6 @@ function BasicState!(diffMatrix, mf, grid, params)
     ∂ʸᶻU₀   = zeros(size(Y))
     ∂ᶻᶻU₀   = zeros(size(Y))
 
-    # @printf "min/max values of ∂ᶻU₀: %f %f\n" minimum(∂ᶻU₀) maximum(∂ᶻU₀)
-    # @printf "min/max values of ∂ᶻB₀: %f %f\n" minimum(∂ᶻB₀) maximum(∂ᶻB₀)
-    # @printf "min/max values of ∂ʸB₀: %f %f\n" minimum(∂ʸB₀) maximum(∂ʸB₀)
-
       B₀  = B₀[:];
       U₀  = U₀[:];
     ∂ʸB₀  = ∂ʸB₀[:]; 
