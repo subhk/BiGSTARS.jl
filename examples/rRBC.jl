@@ -1,4 +1,3 @@
-```julia
 """
 This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
 where the domain is periodic in y-direction.
