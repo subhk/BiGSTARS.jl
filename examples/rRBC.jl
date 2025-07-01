@@ -26,7 +26,6 @@ using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
     z = @SVector zeros(Float64, Nz)
 end
 
-
 @with_kw mutable struct ChebMarix{Ny, Nz} 
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
@@ -52,7 +51,6 @@ end
 #         after kronker product
 # """
 @with_kw mutable struct Operator{N}
-
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
