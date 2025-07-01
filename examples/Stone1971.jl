@@ -88,8 +88,8 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 
     y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
-    y1, diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
-    y1, diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
+    y2, diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
+    y3, diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
 
     # Transform the domain and derivative operators from [0, 2π) → [0, L)
     grid.y         = params.L/2π  * y1
@@ -97,10 +97,10 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
     diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
 
-    z1, D1z = chebdif(params.Nz, 1)
-    z1,  D2z = chebdif(params.Nz, 2)
-    z1,  D3z = chebdif(params.Nz, 3)
-    z1,  D4z = chebdif(params.Nz, 4)
+    z1,  D1z = chebdif(params.Nz, 1)
+    z2,  D2z = chebdif(params.Nz, 2)
+    z3,  D3z = chebdif(params.Nz, 3)
+    z4,  D4z = chebdif(params.Nz, 4)
 
     ## Transform the domain and derivative operators from [-1, 1] → [0, H]
     grid.z, diffMatrix.𝒟ᶻ, diffMatrix.𝒟²ᶻ  = chebder_transform(z1,  D1z, 
