@@ -3,10 +3,9 @@
 [![Build Status](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 <!-- description -->
-<p>
-  <strong> Bi-Global Stability Analayis of Rotating Starified flows: A linear stability analysis tool for Geophysical flows with Julia. 
-     </strong>
-</p>
+<p>    
+  Bi-Global Stability Analayis of Rotating Starified flows: A linear stability analysis tool for Geophysical flows with Julia. 
+ </p>
 
 
 ## Installation
