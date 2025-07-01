@@ -83,12 +83,7 @@ end
   ∇ʸᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
 end
 
-"""
-    ```julia
-        function Construct_DerivativeOperator!(diffMatrix, grid, params)
-            N = params.Ny * params.Nz
-    ```
-"""
+
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 
@@ -143,11 +138,7 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     return nothing
 end
 
-"""
-    ```julia
-        function ImplementBCs_cheb!(Op, diffMatrix, params)
-    ```
-"""
+
 function ImplementBCs_cheb!(Op, diffMatrix, params)
     Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
     Iᶻ = sparse(Matrix(1.0I, params.Nz, params.Nz)) 
@@ -217,11 +208,7 @@ function ImplementBCs_cheb!(Op, diffMatrix, params)
     return nothing
 end
 
-"""
-```julia
-    function BasicState!(diffMatrix, mf, grid, params)
-```
-"""
+
 function BasicState!(diffMatrix, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
