@@ -519,6 +519,8 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
     solve_Stone1971(0.1)
 end
+
+println("Example runs OK")
 ````
 
 ---

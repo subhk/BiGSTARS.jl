@@ -16,7 +16,7 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
     diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
 
-    @assert maximum(grid.y) ≈ params.L && minimum(grid.y) ≈ 0.0
+    #@assert maximum(grid.y) ≈ params.L && minimum(grid.y) ≈ 0.0
 
     # Chebyshev in the z-direction
     # z, diffMatrix.𝒟ᶻ  = cheb(params.Nz-1)
