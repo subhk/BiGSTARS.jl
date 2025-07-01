@@ -4,7 +4,7 @@
 
 <!-- description -->
 <p>    
-  Bi-Global Stability Analayis of Rotating Starified flows: A linear stability analysis tool for Geophysical flows with Julia. 
+  Bi-Global **St**ability **A**nalayis of **R**otating **S**tarified flows: A linear stability analysis tool for Geophysical flows with Julia. 
  </p>
 
 
