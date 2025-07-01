@@ -61,43 +61,43 @@ function ImplementBCs_cheb!(Op, diffMatrix, params)
     @. diffMatrix.𝒟ᶻᴺ  = diffMatrix.𝒟ᶻ  
     @. diffMatrix.𝒟²ᶻᴺ = diffMatrix.𝒟²ᶻ 
 
-    # n = params.Nz
-    # for iter ∈ 1:n-1
-    #     diffMatrix.𝒟⁴ᶻᴰ[1,iter+1] = (diffMatrix.𝒟⁴ᶻᴰ[1,iter+1] + 
-    #                             -1.0 * diffMatrix.𝒟⁴ᶻᴰ[1,1] * diffMatrix.𝒟²ᶻᴰ[1,iter+1])
+    n = params.Nz
+    for iter ∈ 1:n-1
+        diffMatrix.𝒟⁴ᶻᴰ[1,iter+1] = (diffMatrix.𝒟⁴ᶻᴰ[1,iter+1] + 
+                                -1.0 * diffMatrix.𝒟⁴ᶻᴰ[1,1] * diffMatrix.𝒟²ᶻᴰ[1,iter+1])
 
-    #       diffMatrix.𝒟⁴ᶻᴰ[n,iter] = (diffMatrix.𝒟⁴ᶻᴰ[n,iter] + 
-    #                             -1.0 * diffMatrix.𝒟⁴ᶻᴰ[n,n] * diffMatrix.𝒟²ᶻᴰ[n,iter])
-    # end
+          diffMatrix.𝒟⁴ᶻᴰ[n,iter] = (diffMatrix.𝒟⁴ᶻᴰ[n,iter] + 
+                                -1.0 * diffMatrix.𝒟⁴ᶻᴰ[n,n] * diffMatrix.𝒟²ᶻᴰ[n,iter])
+    end
 
-    # diffMatrix.𝒟ᶻᴰ[1,1]  = 0.0
-    # diffMatrix.𝒟ᶻᴰ[n,n]  = 0.0
+    diffMatrix.𝒟ᶻᴰ[1,1]  = 0.0
+    diffMatrix.𝒟ᶻᴰ[n,n]  = 0.0
 
-    # diffMatrix.𝒟²ᶻᴰ[1,1] = 0.0
-    # diffMatrix.𝒟²ᶻᴰ[n,n] = 0.0   
+    diffMatrix.𝒟²ᶻᴰ[1,1] = 0.0
+    diffMatrix.𝒟²ᶻᴰ[n,n] = 0.0   
 
-    # diffMatrix.𝒟⁴ᶻᴰ[1,1] = 0.0
-    # diffMatrix.𝒟⁴ᶻᴰ[n,n] = 0.0  
+    diffMatrix.𝒟⁴ᶻᴰ[1,1] = 0.0
+    diffMatrix.𝒟⁴ᶻᴰ[n,n] = 0.0  
 
-    # # Neumann boundary condition
-    # @. diffMatrix.𝒟ᶻᴺ  = diffMatrix.𝒟ᶻ 
-    # @. diffMatrix.𝒟²ᶻᴺ = diffMatrix.𝒟²ᶻ
-    # for iter ∈ 1:n-1
-    #     diffMatrix.𝒟²ᶻᴺ[1,iter+1] = (diffMatrix.𝒟²ᶻᴺ[1,iter+1] + 
-    #                             -1.0 * diffMatrix.𝒟²ᶻᴺ[1,1] * diffMatrix.𝒟ᶻᴺ[1,iter+1]/diffMatrix.𝒟ᶻᴺ[1,1])
+    # Neumann boundary condition
+    @. diffMatrix.𝒟ᶻᴺ  = diffMatrix.𝒟ᶻ 
+    @. diffMatrix.𝒟²ᶻᴺ = diffMatrix.𝒟²ᶻ
+    for iter ∈ 1:n-1
+        diffMatrix.𝒟²ᶻᴺ[1,iter+1] = (diffMatrix.𝒟²ᶻᴺ[1,iter+1] + 
+                                -1.0 * diffMatrix.𝒟²ᶻᴺ[1,1] * diffMatrix.𝒟ᶻᴺ[1,iter+1]/diffMatrix.𝒟ᶻᴺ[1,1])
 
-    #     diffMatrix.𝒟²ᶻᴺ[n,iter]   = (diffMatrix.𝒟²ᶻᴺ[n,iter] + 
-    #                             -1.0 * diffMatrix.𝒟²ᶻᴺ[n,n] * diffMatrix.𝒟ᶻᴺ[n,iter]/diffMatrix.𝒟ᶻᴺ[n,n])
-    # end
+        diffMatrix.𝒟²ᶻᴺ[n,iter]   = (diffMatrix.𝒟²ᶻᴺ[n,iter] + 
+                                -1.0 * diffMatrix.𝒟²ᶻᴺ[n,n] * diffMatrix.𝒟ᶻᴺ[n,iter]/diffMatrix.𝒟ᶻᴺ[n,n])
+    end
 
-    # diffMatrix.𝒟²ᶻᴺ[1,1] = 0.0
-    # diffMatrix.𝒟²ᶻᴺ[n,n] = 0.0
+    diffMatrix.𝒟²ᶻᴺ[1,1] = 0.0
+    diffMatrix.𝒟²ᶻᴺ[n,n] = 0.0
 
-    # @. diffMatrix.𝒟ᶻᴺ[1,1:end] = 0.0
-    # @. diffMatrix.𝒟ᶻᴺ[n,1:end] = 0.0
+    @. diffMatrix.𝒟ᶻᴺ[1,1:end] = 0.0
+    @. diffMatrix.𝒟ᶻᴺ[n,1:end] = 0.0
 
-    setBCs!(diffMatrix, params, "dirchilet")
-    setBCs!(diffMatrix, params, "neumann"  )
+    # setBCs!(diffMatrix, params, "dirchilet")
+    # setBCs!(diffMatrix, params, "neumann"  )
     
     kron!( Op.𝒟ᶻᴰ  ,  Iʸ , diffMatrix.𝒟ᶻᴰ  )
     kron!( Op.𝒟²ᶻᴰ ,  Iʸ , diffMatrix.𝒟²ᶻᴰ )
