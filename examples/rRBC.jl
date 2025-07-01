@@ -212,7 +212,9 @@ function construct_matrices(Op, params)
     return 𝓛, ℳ
 end
 
-
+"""
+Parameters:
+"""
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 2π      # horizontal domain size
     H::T        = 1.0       # vertical   domain size
@@ -221,8 +223,8 @@ end
     Ny::Int64   = 240       # no. of y-grid points
     Nz::Int64   = 30        # no. of Chebyshev points
     #method::String    = "shift_invert"
-    #method::String    = "krylov"
-    method::String   = "arnoldi"
+    method::String    = "krylov"
+    #method::String   = "arnoldi"
 end
 
 function EigSolver(Op, params, σ₀)
