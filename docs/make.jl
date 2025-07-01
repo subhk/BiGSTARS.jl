@@ -11,6 +11,8 @@ using BiGSTARS
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
+mkpath(OUTPUT_DIR)
+
 examples = [
     "Stone1971.jl",
     "rRBC.jl"
