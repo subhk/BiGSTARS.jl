@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "38dcd7b2d1bc62fa6028ec893d384ad11c144997"
+project_hash = "996148e29f8eb6c88a223a12778ba3ec12cb02a0"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -1301,6 +1301,12 @@ version = "1.2.1"
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 version = "1.11.0"
+
+[[deps.SparseMatrixDicts]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "496f3057920f5282e4a9166d415f513d20f1588b"
+uuid = "5cb6c4b0-9b79-11e8-24c9-f9621d252589"
+version = "0.3.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
