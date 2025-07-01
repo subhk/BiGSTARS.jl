@@ -44,13 +44,14 @@ end
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
 
-# """
-#     subperscript with N means Operator with Neumann boundary condition 
-#         after kronker product
-#     subperscript with D means Operator with Dirichilet boundary condition
-#         after kronker product
-# """
 @with_kw mutable struct Operator{N}
+"""
+    `subperscript with N' means Operator with Neumann boundary condition 
+        after kronker product
+    `subperscript with D' means Operator with Dirchilet boundary condition
+        after kronker product
+""" 
+
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -63,6 +64,7 @@ end
     𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 
     𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟ʸᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
     𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 
