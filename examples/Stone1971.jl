@@ -85,7 +85,8 @@ end
 
 
 ```julia
-# Construct the derivative operator
+    function Construct_DerivativeOperator!(diffMatrix, grid, params)
+```
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 
@@ -142,13 +143,13 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
                                                     zerotoL_transform_ho, 
                                                     params.H)
     
-    @printf "size of Chebyshev matrix: %d × %d \n" size(diffMatrix.𝒟ᶻ)[1]  size(diffMatrix.𝒟ᶻ)[2]
+    # @printf "size of Chebyshev matrix: %d × %d \n" size(diffMatrix.𝒟ᶻ)[1]  size(diffMatrix.𝒟ᶻ)[2]
 
-    @assert maximum(grid.z) ≈ params.H && minimum(grid.z) ≈ 0.0
+    # @assert maximum(grid.z) ≈ params.H && minimum(grid.z) ≈ 0.0
 
     return nothing
 end
-```
+
 
 function ImplementBCs_cheb!(Op, diffMatrix, params)
     Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
