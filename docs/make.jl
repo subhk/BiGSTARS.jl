@@ -21,15 +21,15 @@ examples = [
 @info "EXAMPLES_DIR: $EXAMPLES_DIR"
 @info "OUTPUT_DIR: $OUTPUT_DIR"
 
-# for example in examples
-#     input_file = joinpath(EXAMPLES_DIR, example)
-#     output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
-#     Literate.markdown(input_file, output_file; 
-#                       documenter=true, 
-#                       include_comments=true, 
-#                       include_code=true, 
-#                       include_output=true)
-# end
+for example in examples
+    input_file = joinpath(EXAMPLES_DIR, example)
+    output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
+    Literate.markdown(input_file, output_file; 
+                      documenter=true, 
+                      include_comments=true, 
+                      include_code=true, 
+                      include_output=true)
+end
 
 # for example in examples
 #   withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
@@ -41,20 +41,20 @@ examples = [
 #   end
 # end
 
-for example in examples
-  try
-    withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
-      example_filepath = joinpath(EXAMPLES_DIR, example)
-      withenv("JULIA_DEBUG" => "Literate") do
-        Literate.markdown(example_filepath, OUTPUT_DIR;
-                          flavor = Literate.DocumenterFlavor(), execute = true)
-      end
-    end
-  catch e
-    @error "Failed to process $example" exception=(e, catch_backtrace())
-    rethrow()
-  end
-end
+# for example in examples
+#   try
+#     withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
+#       example_filepath = joinpath(EXAMPLES_DIR, example)
+#       withenv("JULIA_DEBUG" => "Literate") do
+#         Literate.markdown(example_filepath, OUTPUT_DIR;
+#                           flavor = Literate.DocumenterFlavor(), execute = true)
+#       end
+#     end
+#   catch e
+#     @error "Failed to process $example" exception=(e, catch_backtrace())
+#     rethrow()
+#   end
+# end
 
 #####
 ##### Build and deploy docs
