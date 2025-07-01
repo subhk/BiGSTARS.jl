@@ -199,7 +199,7 @@ function BasicState!(diffMatrix, mf, grid, params)
     ∂ʸB₀ = - 1.0 .* ones(size(Y))  
     ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))  
 
-    # along-front profile (using thermal wind balance)
+
     U₀      = @. 1.0 * Z - 0.5params.H
     ∂ᶻU₀    = ones( size(Y)) 
     ∂ʸU₀    = zeros(size(Y)) 
