@@ -235,8 +235,8 @@ end
     Ny::Int64   = 240          # no. of y-grid points
     Nz::Int64   = 20           # no. of z-grid points
     #method::String    = "shift_invert"
-    method::String    = "krylov"
-    #method::String   = "arnoldi"
+    #method::String    = "krylov"
+    method::String   = "arnoldi"
 end
 
 function EigSolver(Op, params, σ₀)
