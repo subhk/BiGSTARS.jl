@@ -2,6 +2,7 @@
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LazyGrids = "7031d0ef-c40d-4431-b2f8-61a8d2f650db"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
