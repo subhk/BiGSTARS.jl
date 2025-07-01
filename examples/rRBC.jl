@@ -212,9 +212,7 @@ function construct_matrices(Op, params)
     return 𝓛, ℳ
 end
 
-"""
-Parameters:
-"""
+
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0          # vertical domain size
