@@ -216,12 +216,12 @@ end
 Parameters:
 """
 @with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 2π      # horizontal domain size
-    H::T        = 1.0       # vertical   domain size
-    E::T        = 1.0e-4    # inverse of Reynolds number 
-    kₓ::T       = 0.0       # x-wavenumber
-    Ny::Int64   = 240       # no. of y-grid points
-    Nz::Int64   = 30        # no. of Chebyshev points
+    L::T        = 1.0        # horizontal domain size
+    H::T        = 1.0          # vertical domain size
+    kₓ::T       = 0.0          # x-wavenumber
+    E::T        = 1.0e-4       # Ekman number 
+    Ny::Int64   = 48          # no. of y-grid points
+    Nz::Int64   = 24           # no. of z-grid points
     #method::String    = "shift_invert"
     method::String    = "krylov"
     #method::String   = "arnoldi"
