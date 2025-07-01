@@ -232,7 +232,7 @@ end
     ε::T        = 0.1         # aspect ratio ε ≡ H/L
     kₓ::T       = 0.0          # x-wavenumber
     E::T        = 1.0e-4       # Ekman number 
-    Ny::Int64   = 240          # no. of y-grid points
+    Ny::Int64   = 180          # no. of y-grid points
     Nz::Int64   = 20           # no. of z-grid points
     #method::String    = "shift_invert"
     #method::String    = "krylov"
@@ -315,7 +315,7 @@ function solve_rRBC(kₓ::Float64)
     Construct_DerivativeOperator!(diffMatrix, grid, params)
     ImplementBCs_cheb!(Op, diffMatrix, params)
     
-    σ₀   = 50.0
+    σ₀   = 0.0
     params.kₓ = kₓ
     
     λₛ = EigSolver(Op, params, σ₀)
