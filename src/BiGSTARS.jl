@@ -43,6 +43,10 @@ module BiGSTARS
        FourierDiff,
        FourierDiff_fdm,
 
+       # Constructing derivative operators
+       Construct_DerivativeOperator!,
+       ImplementBCs_cheb!,  
+
        # Setting boundary conditions
        setBCs!,
     
@@ -83,5 +87,6 @@ module BiGSTARS
     include("shift_invert.jl")
     include("setBCs.jl")
     include("utils.jl")
+    include("derivative_operators.jl")
 
 end

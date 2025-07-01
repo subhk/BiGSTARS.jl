@@ -74,86 +74,87 @@ end
     𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 end
 
-# Construct the derivative operator
-function Construct_DerivativeOperator!(diffMatrix, grid, params)
-    N = params.Ny * params.Nz
+# # Construct the derivative operator
+# function Construct_DerivativeOperator!(diffMatrix, grid, params)
+#     N = params.Ny * params.Nz
 
-    # ------------- setup differentiation matrices  -------------------
-    # Fourier in y-direction: y ∈ [0, L)
-    y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
-    _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
-    _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
+#     # ------------- setup differentiation matrices  -------------------
+#     # Fourier in y-direction: y ∈ [0, L)
+#     y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
+#     _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
+#     _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
 
-    # Transform the domain and derivative operators from [0, 2π) → [0, L)
-    grid.y         = params.L/2π  * y1
-    diffMatrix.𝒟ʸ  = (2π/params.L)^1 * diffMatrix.𝒟ʸ
-    diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
-    diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
+#     # Transform the domain and derivative operators from [0, 2π) → [0, L)
+#     grid.y         = params.L/2π  * y1
+#     diffMatrix.𝒟ʸ  = (2π/params.L)^1 * diffMatrix.𝒟ʸ
+#     diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
+#     diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
 
-    #@assert maximum(grid.y) ≈ params.L && minimum(grid.y) ≈ 0.0
+#     #@assert maximum(grid.y) ≈ params.L && minimum(grid.y) ≈ 0.0
 
-    # Chebyshev in the z-direction
-    z, diffMatrix.𝒟ᶻ  = cheb(params.Nz-1)
-    grid.z = z
-    diffMatrix.𝒟²ᶻ = diffMatrix.𝒟ᶻ  * diffMatrix.𝒟ᶻ
-    diffMatrix.𝒟⁴ᶻ = diffMatrix.𝒟²ᶻ * diffMatrix.𝒟²ᶻ
+#     # Chebyshev in the z-direction
+#     z, diffMatrix.𝒟ᶻ  = cheb(params.Nz-1)
+#     grid.z = z
+#     diffMatrix.𝒟²ᶻ = diffMatrix.𝒟ᶻ  * diffMatrix.𝒟ᶻ
+#     diffMatrix.𝒟⁴ᶻ = diffMatrix.𝒟²ᶻ * diffMatrix.𝒟²ᶻ
 
 
-    # z1, D1z = chebdif(params.Nz, 1)
-    # _,  D2z = chebdif(params.Nz, 2)
-    # _,  D3z = chebdif(params.Nz, 3)
-    # _,  D4z = chebdif(params.Nz, 4)
-    # # Transform the domain and derivative operators from [-1, 1] → [0, H]
-    # grid.z, diffMatrix.𝒟ᶻ, diffMatrix.𝒟²ᶻ  = chebder_transform(z1,  D1z, 
-    #                                                                 D2z, 
-    #                                                                 zerotoL_transform, 
-    #                                                                 params.H)
-    # _, _, diffMatrix.𝒟⁴ᶻ = chebder_transform_ho(z1, D1z, 
-    #                                                 D2z, 
-    #                                                 D3z, 
-    #                                                 D4z, 
-    #                                                 zerotoL_transform_ho, 
-    #                                                 params.H)
+#     # z1, D1z = chebdif(params.Nz, 1)
+#     # _,  D2z = chebdif(params.Nz, 2)
+#     # _,  D3z = chebdif(params.Nz, 3)
+#     # _,  D4z = chebdif(params.Nz, 4)
+#     # # Transform the domain and derivative operators from [-1, 1] → [0, H]
+#     # grid.z, diffMatrix.𝒟ᶻ, diffMatrix.𝒟²ᶻ  = chebder_transform(z1,  D1z, 
+#     #                                                                 D2z, 
+#     #                                                                 zerotoL_transform, 
+#     #                                                                 params.H)
+#     # _, _, diffMatrix.𝒟⁴ᶻ = chebder_transform_ho(z1, D1z, 
+#     #                                                 D2z, 
+#     #                                                 D3z, 
+#     #                                                 D4z, 
+#     #                                                 zerotoL_transform_ho, 
+#     #                                                 params.H)
     
-    #@printf "size of Chebyshev matrix: %d × %d \n" size(diffMatrix.𝒟ᶻ)[1]  size(diffMatrix.𝒟ᶻ)[2]
+#     #@printf "size of Chebyshev matrix: %d × %d \n" size(diffMatrix.𝒟ᶻ)[1]  size(diffMatrix.𝒟ᶻ)[2]
 
-    @assert maximum(grid.z) ≈ params.H && minimum(grid.z) ≈ 0.0
+#     @assert maximum(grid.z) ≈ params.H && minimum(grid.z) ≈ 0.0
 
-    return nothing
-end
+#     return nothing
+# end
 
-function ImplementBCs_cheb!(Op, diffMatrix, params)
-    Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) #Eye{Float64}(params.Ny)
-    Iᶻ = sparse(Matrix(1.0I, params.Nz, params.Nz)) #Eye{Float64}(params.Nz)
+# function ImplementBCs_cheb!(Op, diffMatrix, params)
+#     Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) #Eye{Float64}(params.Ny)
+#     Iᶻ = sparse(Matrix(1.0I, params.Nz, params.Nz)) #Eye{Float64}(params.Nz)
 
-    # Cheb matrix with Dirichilet boundary condition
-    diffMatrix.𝒟ᶻᴰ  = deepcopy( diffMatrix.𝒟ᶻ  )
-    diffMatrix.𝒟²ᶻᴰ = deepcopy( diffMatrix.𝒟²ᶻ )
-    diffMatrix.𝒟⁴ᶻᴰ = deepcopy( diffMatrix.𝒟⁴ᶻ )
+#     # Cheb matrix with Dirichilet boundary condition
+#     diffMatrix.𝒟ᶻᴰ  = deepcopy( diffMatrix.𝒟ᶻ  )
+#     diffMatrix.𝒟²ᶻᴰ = deepcopy( diffMatrix.𝒟²ᶻ )
+#     diffMatrix.𝒟⁴ᶻᴰ = deepcopy( diffMatrix.𝒟⁴ᶻ )
 
-    # Cheb matrix with Neumann boundary condition
-    diffMatrix.𝒟ᶻᴺ  = deepcopy( diffMatrix.𝒟ᶻ  )
-    diffMatrix.𝒟²ᶻᴺ = deepcopy( diffMatrix.𝒟²ᶻ )
+#     # Cheb matrix with Neumann boundary condition
+#     diffMatrix.𝒟ᶻᴺ  = deepcopy( diffMatrix.𝒟ᶻ  )
+#     diffMatrix.𝒟²ᶻᴺ = deepcopy( diffMatrix.𝒟²ᶻ )
 
-    setBCs!(diffMatrix, params, "dirchilet")
-    setBCs!(diffMatrix, params, "neumann"  )
+#     setBCs!(diffMatrix, params, "dirchilet")
+#     setBCs!(diffMatrix, params, "neumann"  )
     
-    kron!( Op.𝒟ᶻᴰ  ,  Iʸ , diffMatrix.𝒟ᶻᴰ  )
-    kron!( Op.𝒟²ᶻᴰ ,  Iʸ , diffMatrix.𝒟²ᶻᴰ )
-    kron!( Op.𝒟⁴ᶻᴰ ,  Iʸ , diffMatrix.𝒟⁴ᶻᴰ )
+#     kron!( Op.𝒟ᶻᴰ  ,  Iʸ , diffMatrix.𝒟ᶻᴰ  )
+#     kron!( Op.𝒟²ᶻᴰ ,  Iʸ , diffMatrix.𝒟²ᶻᴰ )
+#     kron!( Op.𝒟⁴ᶻᴰ ,  Iʸ , diffMatrix.𝒟⁴ᶻᴰ )
 
-    kron!( Op.𝒟ᶻᴺ  ,  Iʸ , diffMatrix.𝒟ᶻᴺ )
-    kron!( Op.𝒟²ᶻᴺ ,  Iʸ , diffMatrix.𝒟²ᶻᴺ)
+#     kron!( Op.𝒟ᶻᴺ  ,  Iʸ , diffMatrix.𝒟ᶻᴺ )
+#     kron!( Op.𝒟²ᶻᴺ ,  Iʸ , diffMatrix.𝒟²ᶻᴺ)
 
-    kron!( Op.𝒟ʸ   ,  diffMatrix.𝒟ʸ  ,  Iᶻ ) 
-    kron!( Op.𝒟²ʸ  ,  diffMatrix.𝒟²ʸ ,  Iᶻ )
-    kron!( Op.𝒟⁴ʸ  ,  diffMatrix.𝒟⁴ʸ ,  Iᶻ ) 
+#     kron!( Op.𝒟ʸ   ,  diffMatrix.𝒟ʸ  ,  Iᶻ ) 
+#     kron!( Op.𝒟²ʸ  ,  diffMatrix.𝒟²ʸ ,  Iᶻ )
+#     kron!( Op.𝒟⁴ʸ  ,  diffMatrix.𝒟⁴ʸ ,  Iᶻ ) 
 
-    kron!( Op.𝒟ʸ²ᶻᴰ  ,  diffMatrix.𝒟ʸ  ,  diffMatrix.𝒟²ᶻᴰ )
-    kron!( Op.𝒟²ʸ²ᶻᴰ ,  diffMatrix.𝒟²ʸ ,  diffMatrix.𝒟²ᶻᴰ )
+#     kron!( Op.𝒟ʸ²ᶻᴰ  ,  diffMatrix.𝒟ʸ  ,  diffMatrix.𝒟²ᶻᴰ )
+#     kron!( Op.𝒟²ʸ²ᶻᴰ ,  diffMatrix.𝒟²ʸ ,  diffMatrix.𝒟²ᶻᴰ )
 
-    return nothing
-end
+#     return nothing
+# end
+
 
 function construct_matrices(Op, params)
     N  = params.Ny * params.Nz
@@ -211,19 +212,6 @@ function construct_matrices(Op, params)
 
     return 𝓛, ℳ
 end
-
-
-# @with_kw mutable struct Params{T1<:Real} @deftype T1
-#     L::T1        = 1.0        # horizontal domain size
-#     H::T1        = 1.0          # vertical domain size
-#     kₓ::T1       = 0.0          # x-wavenumber
-#     E::T1        = 1.0e-4       # Ekman number 
-#     Ny::Int64   = 48          # no. of y-grid points
-#     Nz::Int64   = 24           # no. of z-grid points
-#     #method::String    = "shift_invert"
-#     method::String    = "krylov"
-#     #method::String   = "arnoldi"
-# end
 
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 2π        # horizontal domain size
