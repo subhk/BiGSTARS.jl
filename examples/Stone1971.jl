@@ -84,7 +84,7 @@ end
 end
 
 
-
+```julia
 # Construct the derivative operator
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
@@ -105,11 +105,11 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     # _,  diffMatrix.𝒟²ʸ = FourierDiff_fdm_4th(params.Ny, 2)
     # _,  diffMatrix.𝒟⁴ʸ = FourierDiff_fdm_4th(params.Ny, 4)
 
-    t1 = @. sin(y1)
-    t2 = diffMatrix.𝒟ʸ * t1
+    # t1 = @. sin(y1)
+    # t2 = diffMatrix.𝒟ʸ * t1
 
-    println(t1[1])
-    println(t2[1])
+    # println(t1[1])
+    # println(t2[1])
 
     # Transform the domain and derivative operators from [0, 2π) → [0, L)
     grid.y         = params.L/2π  * y1
@@ -148,6 +148,7 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
 
     return nothing
 end
+```
 
 function ImplementBCs_cheb!(Op, diffMatrix, params)
     Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
