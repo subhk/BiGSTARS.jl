@@ -353,10 +353,12 @@ end
 
 ========== end of the module ==========================
 
-````@example rRBC
 if abspath(PROGRAM_FILE) == @__FILE__
     solve_rRBC(0.0)
 end
+
+````@example rRBC
+solve_rRBC(0.0)
 ````
 
 ---

@@ -373,7 +373,7 @@ Parameters:
     Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
     ε::T        = 0.1         # aspect ratio ε ≡ H/L
     kₓ::T       = 0.0          # x-wavenumber
-    E::T        = 1.0e-8       # Ekman number
+    E::T        = 1.0e-9       # Ekman number
     Ny::Int64   = 48          # no. of y-grid points
     Nz::Int64   = 24           # no. of z-grid points
     #method::String    = "shift_invert"
@@ -514,11 +514,14 @@ Analytical solution of Stone (1971) for the growth rate
     return abs(λₛ.re - λₛₜ) < 1e-3
 
 end
-
+````
 
 if abspath(PROGRAM_FILE) == @__FILE__
     solve_Stone1971(0.1)
 end
+
+````@example Stone1971
+solve_Stone1971(0.1)
 
 println("Example runs OK")
 ````

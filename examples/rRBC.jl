@@ -320,6 +320,8 @@ end
 # ========== end of the module ==========================
 
 
-if abspath(PROGRAM_FILE) == @__FILE__
-    solve_rRBC(0.0)
-end
+# if abspath(PROGRAM_FILE) == @__FILE__
+#     solve_rRBC(0.0)
+# end
+
+solve_rRBC(0.0)
