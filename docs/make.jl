@@ -14,8 +14,8 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 mkpath(OUTPUT_DIR)
 
 examples = [
-    "Stone_1971.jl",
-    "rRBC_2d.jl"
+    "Stone1971.jl",
+    "rRBC.jl"
 ]
 
 @info "EXAMPLES_DIR: $EXAMPLES_DIR"
