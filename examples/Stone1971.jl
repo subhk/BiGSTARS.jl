@@ -18,6 +18,8 @@ using JLD2
 using ModelingToolkit
 using NonlinearSolve
 
+using BiGSTARS
+
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)

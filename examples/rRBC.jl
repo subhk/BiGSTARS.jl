@@ -21,6 +21,8 @@ using BenchmarkTools
 
 using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
 
+using BiGSTARS
+
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
