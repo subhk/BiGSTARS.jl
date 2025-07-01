@@ -1,7 +1,7 @@
 using Documenter, DocumenterCitations, Literate
 
 using CairoMakie
-
+using Printf
 using BiGSTARS
 
 #####
@@ -84,6 +84,8 @@ bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
 bib = CitationBibliography(bib_filepath, style=:authoryear)
 
 
+@printf "making makedocs... \n"
+
 #makedocs = Documenter.make_docs(
 try
     makedocs(
@@ -99,7 +101,7 @@ try
                     "Home" => "index.md",
                     "Installation" => "installation_instructions.md",
                     "Examples" => [
-                        "Ou1971" =>  Any[
+                        "Stone1971" =>  Any[
                             "literated/Stone1971.md"
                             ],
                         "rRBC" => Any[
