@@ -4,7 +4,7 @@
 
 <!-- description -->
 <p>
-  <strong> A linear stability analysis tool for Geophysical flows with Julia. 
+  <strong> **Bi**-**G**lobal Stability Analayis of Rotating Starified flows: A linear stability analysis tool for Geophysical flows with Julia. 
      </strong>
 </p>
 
