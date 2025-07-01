@@ -87,36 +87,15 @@ end
 function Construct_DerivativeOperator!(diffMatrix, grid, params)
     N = params.Ny * params.Nz
 
-    
-    # Fourier in y-direction: y ∈ [0, L)
     y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
     _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
     _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
-
-    # 2nd order accurate finite difference method
-    # y1, diffMatrix.𝒟ʸ  = FourierDiff_fdm(params.Ny, 1)
-    # _,  diffMatrix.𝒟²ʸ = FourierDiff_fdm(params.Ny, 2)
-    # _,  diffMatrix.𝒟⁴ʸ = FourierDiff_fdm(params.Ny, 4)
-
-    # 4th order accurate finite difference method
-    # y1, diffMatrix.𝒟ʸ  = FourierDiff_fdm_4th(params.Ny, 1)
-    # _,  diffMatrix.𝒟²ʸ = FourierDiff_fdm_4th(params.Ny, 2)
-    # _,  diffMatrix.𝒟⁴ʸ = FourierDiff_fdm_4th(params.Ny, 4)
-
 
     # Transform the domain and derivative operators from [0, 2π) → [0, L)
     grid.y         = params.L/2π  * y1
     diffMatrix.𝒟ʸ  = (2π/params.L)^1 * diffMatrix.𝒟ʸ
     diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
     diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
-
-    #@assert maximum(grid.y) ≈ params.L && minimum(grid.y) ≈ 0.0
-
-    # Chebyshev in the z-direction
-    # z, diffMatrix.𝒟ᶻ  = cheb(params.Nz-1)
-    # grid.z = z
-    # diffMatrix.𝒟²ᶻ = diffMatrix.𝒟ᶻ  * diffMatrix.𝒟ᶻ
-    # diffMatrix.𝒟⁴ᶻ = diffMatrix.𝒟²ᶻ * diffMatrix.𝒟²ᶻ
 
     z1, D1z = chebdif(params.Nz, 1)
     _,  D2z = chebdif(params.Nz, 2)
