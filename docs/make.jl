@@ -80,36 +80,39 @@ bib = CitationBibliography(bib_filepath, style=:authoryear)
 
 
 #makedocs = Documenter.make_docs(
-
-makedocs(
-     authors = "Subhajit Kar, and contributors",
-    sitename = "BiGSTARS.jl",
-     modules = [BiGSTARS],
-     plugins = [bib],
-      format = format,
-     doctest = true,
-       clean = true,
-   checkdocs = :all,
-    pages = Any[
-                "Home" => "index.md",
-                "Installation" => "installation_instructions.md",
-                "Examples" => [
-                    "Ou1971" =>  Any[
-                        "literated/Stone1971.md"
-                        ],
-                    "rRBC" => Any[
-                        "literated/rRBC.md"
-                        ]
-                ],
-                "Modules" => Any[
-                    "modules/Stone1971.md",
-                    "modules/rRBC.md",
-                ],
-                "Contributor's guide" => "contributing.md",
-                "References" => "references.md"
-    ]
-)
-
+try
+    makedocs(
+        authors = "Subhajit Kar, and contributors",
+        sitename = "BiGSTARS.jl",
+        modules = [BiGSTARS],
+        plugins = [bib],
+        format = format,
+        doctest = true,
+        clean = true,
+    checkdocs = :all,
+        pages = Any[
+                    "Home" => "index.md",
+                    "Installation" => "installation_instructions.md",
+                    "Examples" => [
+                        "Ou1971" =>  Any[
+                            "literated/Stone1971.md"
+                            ],
+                        "rRBC" => Any[
+                            "literated/rRBC.md"
+                            ]
+                    ],
+                    "Modules" => Any[
+                        "modules/Stone1971.md",
+                        "modules/rRBC.md",
+                    ],
+                    "Contributor's guide" => "contributing.md",
+                    "References" => "references.md"
+        ]
+    )
+catch e
+    @error "makedocs failed" exception = (e, catch_backtrace())
+    rethrow()
+end
 
 # makedocs(
 #      authors = "Subhajit Kar, and contributors",
