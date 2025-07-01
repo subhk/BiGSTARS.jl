@@ -46,11 +46,11 @@ end
 end
 
 """
-    `subperscript with N' means Operator with Neumann boundary condition 
+    subperscript with N means Operator with Neumann boundary condition 
         after kronker product
-    `subperscript with D' means Operator with Dirchilet boundary condition
+    subperscript with D means Operator with Dirichilet boundary condition
         after kronker product
-""" 
+"""
 @with_kw mutable struct Operator{N}
 
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
