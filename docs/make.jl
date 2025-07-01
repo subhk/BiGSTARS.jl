@@ -91,6 +91,36 @@ makedocs(
 )
 
 
+makedocs(
+     authors = "Subhajit Kar, and contributors",
+    sitename = "BiGSTARS.jl",
+     modules = [BiGSTARS],
+     plugins = [bib],
+      format = format,
+     doctest = true,
+       clean = true,
+   checkdocs = :all,
+    pages = Any[
+                "Home" => "index.md",
+                "Installation" => "installation_instructions.md",
+                "Examples" => [
+                    "Stone_1971" =>  Any[
+                        "literated/Stone_1971.md"
+                        ],
+                    "rRBC" => Any[
+                        "literated/rRBC.md"
+                        ]
+                ],
+                "Modules" => Any[
+                    "modules/Ou1971.md",
+                    "modules/rRBC.md",
+                ],
+                "Contributor's guide" => "contributing.md",
+                "References" => "references.md"
+    ]
+)
+
+
 @info "Clean up temporary .jld2 and .nc output created by doctests or literated examples..."
 
 
