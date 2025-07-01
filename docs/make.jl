@@ -74,7 +74,7 @@ makedocs(
                 "Home" => "index.md",
                 "Installation" => "installation_instructions.md",
                 "Examples" => [
-                    "Stone_1971" =>  Any[
+                    "Ou1971" =>  Any[
                         "literated/Ou1971.md"
                         ],
                     "rRBC" => Any[
