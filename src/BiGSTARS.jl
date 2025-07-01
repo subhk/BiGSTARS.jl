@@ -19,9 +19,9 @@ module BiGSTARS
     using LinearAlgebra
     using Statistics
     using VectorInterface
-    using Pardiso
+    #using Pardiso
     #using MKL_jll
-    using MKL
+    #using MKL
 
     # 
     export
@@ -71,7 +71,7 @@ module BiGSTARS
        MinimalVec,
 
        # pardiso_solver to construct linear map
-       construct_linear_map_pardiso,
+       #construct_linear_map_pardiso,
        construct_linear_map
 
 

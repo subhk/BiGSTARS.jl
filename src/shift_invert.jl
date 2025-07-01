@@ -21,27 +21,27 @@
 # using Pardiso: PardisoSolver, pardisoinit, set_phase!, set_nprocs!, 
 #     set_matrixtype!, fix_iparm!, get_matrix, pardiso, set_msglvl!, Pardiso
 
-function construct_linear_map_pardiso(H, S, num_thread=40)
-    ps = PardisoSolver()
-    set_matrixtype!(ps, Pardiso.COMPLEX_NONSYM)
-    pardisoinit(ps)
-    fix_iparm!(ps, :N)
-    H_pardiso = get_matrix(ps, H, :N)
-    b = rand(Float64, size(H, 1))
-    set_phase!(ps, Pardiso.ANALYSIS)
-    #set_msglvl!(ps, Pardiso.MESSAGE_LEVEL_ON)
-    set_nprocs!(ps, num_thread) 
-    pardiso(ps, H_pardiso, b)
-    set_phase!(ps, Pardiso.NUM_FACT)
-    pardiso(ps, H_pardiso, b)
-    return (LinearMap{eltype(H)}(
-            (y, x) -> begin
-                set_phase!(ps, Pardiso.SOLVE_ITERATIVE_REFINE)
-                pardiso(ps, y, H_pardiso, S * x)
-            end,
-            size(H, 1);
-            ismutating=true), ps)
-end
+# function construct_linear_map_pardiso(H, S, num_thread=40)
+#     ps = PardisoSolver()
+#     set_matrixtype!(ps, Pardiso.COMPLEX_NONSYM)
+#     pardisoinit(ps)
+#     fix_iparm!(ps, :N)
+#     H_pardiso = get_matrix(ps, H, :N)
+#     b = rand(Float64, size(H, 1))
+#     set_phase!(ps, Pardiso.ANALYSIS)
+#     #set_msglvl!(ps, Pardiso.MESSAGE_LEVEL_ON)
+#     set_nprocs!(ps, num_thread) 
+#     pardiso(ps, H_pardiso, b)
+#     set_phase!(ps, Pardiso.NUM_FACT)
+#     pardiso(ps, H_pardiso, b)
+#     return (LinearMap{eltype(H)}(
+#             (y, x) -> begin
+#                 set_phase!(ps, Pardiso.SOLVE_ITERATIVE_REFINE)
+#                 pardiso(ps, y, H_pardiso, S * x)
+#             end,
+#             size(H, 1);
+#             ismutating=true), ps)
+# end
 
 
 function sort_evals_(λₛ, Χ, which, sorting="lm")
