@@ -9,9 +9,11 @@ Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SparseMatrixDicts = "5cb6c4b0-9b79-11e8-24c9-f9621d252589"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 CairoMakie = "0.11, 0.12, 0.13"
 Documenter = "1"
 DocumenterCitations = "1.2"
 Literate = "≥2.9.0"
+SpecialFunctions = "2.5.1"
