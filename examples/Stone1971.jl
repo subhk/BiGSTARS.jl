@@ -90,7 +90,7 @@ function Construct_DerivativeOperator!(diffMatrix, grid, params)
     y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
     y2, d2y = FourierDiff(params.Ny, 2)
     diffMatrix.𝒟²ʸ = d2y
-    y3, d4y = FourierDiff(params.Ny, 4)
+    y4, d4y = FourierDiff(params.Ny, 4)
     diffMatrix.𝒟⁴ʸ = d4y
 
     # Transform the domain and derivative operators from [0, 2π) → [0, L)
