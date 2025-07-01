@@ -213,13 +213,27 @@ function construct_matrices(Op, params)
 end
 
 
-@with_kw mutable struct Params{T1<:Real} @deftype T1
-    L::T1        = 1.0        # horizontal domain size
-    H::T1        = 1.0          # vertical domain size
-    kₓ::T1       = 0.0          # x-wavenumber
-    E::T1        = 1.0e-4       # Ekman number 
-    Ny::Int64   = 48          # no. of y-grid points
-    Nz::Int64   = 24           # no. of z-grid points
+# @with_kw mutable struct Params{T1<:Real} @deftype T1
+#     L::T1        = 1.0        # horizontal domain size
+#     H::T1        = 1.0          # vertical domain size
+#     kₓ::T1       = 0.0          # x-wavenumber
+#     E::T1        = 1.0e-4       # Ekman number 
+#     Ny::Int64   = 48          # no. of y-grid points
+#     Nz::Int64   = 24           # no. of z-grid points
+#     #method::String    = "shift_invert"
+#     method::String    = "krylov"
+#     #method::String   = "arnoldi"
+# end
+
+@with_kw mutable struct Params{T<:Real} @deftype T
+    L::T        = 2π        # horizontal domain size
+    H::T        = 1.0          # vertical domain size
+    Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
+    ε::T        = 0.1         # aspect ratio ε ≡ H/L
+    kₓ::T       = 0.0          # x-wavenumber
+    E::T        = 1.0e-4       # Ekman number 
+    Ny::Int64   = 240          # no. of y-grid points
+    Nz::Int64   = 20           # no. of z-grid points
     #method::String    = "shift_invert"
     method::String    = "krylov"
     #method::String   = "arnoldi"
