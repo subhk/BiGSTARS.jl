@@ -1,5 +1,5 @@
 ```@meta
-EditURL = "../../../../examples/Stone1971.jl"
+EditURL = "../../../examples/Stone1971.jl"
 ```
 
 Stability of a 2D front based on Stone (1971)

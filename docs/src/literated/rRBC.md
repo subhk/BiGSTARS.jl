@@ -1,5 +1,5 @@
 ```@meta
-EditURL = "../../../../examples/rRBC.jl"
+EditURL = "../../../examples/rRBC.jl"
 ```
 
 ````@example rRBC

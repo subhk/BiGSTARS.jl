@@ -13,22 +13,22 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src", "literated")
 
 mkpath(OUTPUT_DIR)
 
-examples = [
-    "Stone1971.jl",
-    "rRBC.jl"
-]
+examples = ["Stone1971.jl", "rRBC.jl"]
 
 @info "EXAMPLES_DIR: $EXAMPLES_DIR"
 @info "OUTPUT_DIR: $OUTPUT_DIR"
 
 for example in examples
+    # Input and target output file paths
     input_file  = joinpath(EXAMPLES_DIR, example)
-    output_file = joinpath(OUTPUT_DIR, replace(example, ".jl" => ".md"))
+    output_file = joinpath(OUTPUT_DIR, "") #, replace(example, ".jl" => ".md"))
+    @info "output_file: $output_file"
     try
+        # Generate a Documenter-compatible markdown file
         Literate.markdown(
             input_file,
             output_file;
-            documenter      = true,
+            documenter       = true,
             include_comments = true,
             include_code     = true,
             include_output   = true
@@ -51,33 +51,33 @@ format = Documenter.HTML(
 )
 
 bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
-bib          = CitationBibliography(bib_filepath, style=:authoryear)
+bib          = CitationBibliography(bib_filepath, style = :authoryear)
 
 @printf "making makedocs... \n"
 
 try
     makedocs(
-        authors    = ["Subhajit Kar", "Contributors"],
-        sitename   = "BiGSTARS.jl",
-        modules    = [BiGSTARS],
-        plugins    = [bib],
-        format     = format,
-        doctest    = true,
-        clean      = true,
-        checkdocs  = :all,
-        pages      = Any[
-            "Home"           => "index.md",
-            "Installation"   => "installation_instructions.md",
-            "Examples"       => Any[
-                "Stone1971" => "literated/Stone1971.md",
-                "rRBC"       => "literated/rRBC.md"
+        format    = format,
+        authors   = "Subhajit Kar and contributors",
+        sitename  = "BiGSTARS.jl",
+        modules   = [BiGSTARS],
+        plugins   = [bib],
+        doctest   = true,
+        clean     = true,
+        checkdocs = :all,
+        pages     = [
+            "Home"                => "index.md",
+            "Installation"        => "installation_instructions.md",
+            "Examples"            => [
+                "Stone1971"       => "literated/Stone1971.md",
+                "rRBC"            => "literated/rRBC.md"
             ],
-            "Modules"        => Any[
-                "Stone1971 API" => "modules/Stone1971.md",
-                "rRBC API"      => "modules/rRBC.md"
+            "Modules"             => [
+                "Stone1971 API"   => "modules/Stone1971.md",
+                "rRBC API"        => "modules/rRBC.md"
             ],
             "Contributor's Guide" => "contributing.md",
-            "References"      => "references.md"
+            "References"          => "references.md"
         ]
     )
 catch e
@@ -93,13 +93,13 @@ function recursive_find(directory, pattern)
     end
 end
 
-files = []
-for pattern in [r"\.jld2", r"\.nc"]
+files = String[]
+for pattern in [r"\\.jld2", r"\\.nc"]
     append!(files, recursive_find(@__DIR__, pattern))
 end
 
 for file in files
-    rm(file; force=true)
+    rm(file; force = true)
 end
 
 # deploydocs setup remains as-is...
