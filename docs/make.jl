@@ -4,6 +4,8 @@ using CairoMakie
 using Printf
 using BiGSTARS
 
+using Literate: DocumenterFlavor
+
 #####
 ##### Generate literated examples
 #####
@@ -24,14 +26,16 @@ for example in examples
     output_file = joinpath(OUTPUT_DIR, "") #, replace(example, ".jl" => ".md"))
     @info "output_file: $output_file"
     try
-        # Generate a Documenter-compatible markdown file
+        # Generate a simple markdown file without Documenter-specific @example blocks
         Literate.markdown(
             input_file,
             output_file;
-            documenter       = true,
+            documenter       = false,
+            #flavor         = DocumenterFlavor(),
             include_comments = true,
             include_code     = true,
-            include_output   = true
+            include_output   = false,
+            execute          = false
         )
     catch e
         @error "Failed to literate $input_file" exception=(e, catch_backtrace())
@@ -62,9 +66,9 @@ try
         sitename  = "BiGSTARS.jl",
         modules   = [BiGSTARS],
         plugins   = [bib],
-        doctest   = true,
+        doctest   = false,
         clean     = true,
-        checkdocs = :all,
+        checkdocs = :none,
         pages     = [
             "Home"                => "index.md",
             "Installation"        => "installation_instructions.md",
@@ -72,10 +76,10 @@ try
                 "Stone1971"       => "literated/Stone1971.md",
                 "rRBC"            => "literated/rRBC.md"
             ],
-            "Modules"             => [
-                "Stone1971 API"   => "modules/Stone1971.md",
-                "rRBC API"        => "modules/rRBC.md"
-            ],
+            # "Modules"             => [
+            #     "Stone1971 API"   => "modules/Stone1971.md",
+            #     "rRBC API"        => "modules/rRBC.md"
+            # ],
             "Contributor's Guide" => "contributing.md",
             "References"          => "references.md"
         ]

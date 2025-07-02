@@ -19,6 +19,7 @@ using ModelingToolkit
 using NonlinearSolve
 
 using BiGSTARS
+using BiGSTARS : FourierDiff, cheb_coord_transform_ho, 
 
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
@@ -192,17 +193,61 @@ end
 # end
 
 
-function BasicState!(diffMatrix, mf, grid, params)
+# function BasicState!(diffMatrix, mf, grid, params)
+#     Y, Z = ndgrid(grid.y, grid.z)
+#     Y    = transpose(Y)
+#     Z    = transpose(Z)
+
+#     # imposed buoyancy profile
+#     B₀   = @. 1.0/params.Γ * Z - Y  
+#     ∂ʸB₀ = - 1.0 .* ones(size(Y))  
+#     ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))  
+
+#     U₀      = @. 1.0 * Z - 0.5params.H
+#     ∂ᶻU₀    = ones( size(Y)) 
+#     ∂ʸU₀    = zeros(size(Y)) 
+
+#     ∂ʸʸU₀   = zeros(size(Y)) 
+#     ∂ʸᶻU₀   = zeros(size(Y))
+#     ∂ᶻᶻU₀   = zeros(size(Y))
+
+#       B₀  = B₀[:];
+#       U₀  = U₀[:];
+#     ∂ʸB₀  = ∂ʸB₀[:]; 
+#     ∂ᶻB₀  = ∂ᶻB₀[:];
+
+#     ∂ᶻU₀  = ∂ᶻU₀[:];
+#     ∂ʸU₀  = ∂ʸU₀[:];
+    
+#     ∂ʸʸU₀ = ∂ʸʸU₀[:];
+#     ∂ʸᶻU₀ = ∂ʸᶻU₀[:];
+#     ∂ᶻᶻU₀ = ∂ᶻᶻU₀[:];  
+
+#     mf.B₀[diagind(mf.B₀)] = B₀
+#     mf.U₀[diagind(mf.U₀)] = U₀
+
+#     mf.∇ᶻU₀[diagind(mf.∇ᶻU₀)] = ∂ᶻU₀
+#     mf.∇ʸU₀[diagind(mf.∇ʸU₀)] = ∂ʸU₀
+
+#     mf.∇ʸB₀[diagind(mf.∇ʸB₀)] = ∂ʸB₀
+#     mf.∇ᶻB₀[diagind(mf.∇ᶻB₀)] = ∂ᶻB₀
+
+#     mf.∇ʸʸU₀[diagind(mf.∇ʸʸU₀)] = ∂ʸʸU₀;
+#     mf.∇ᶻᶻU₀[diagind(mf.∇ᶻᶻU₀)] = ∂ᶻᶻU₀;
+#     mf.∇ʸᶻU₀[diagind(mf.∇ʸᶻU₀)] = ∂ʸᶻU₀;
+
+#     return nothing
+# end
+
+function construct_matrices(Op, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
     Z    = transpose(Z)
-    @printf "size of Y: %s \n" size(Y)
 
     # imposed buoyancy profile
     B₀   = @. 1.0/params.Γ * Z - Y  
     ∂ʸB₀ = - 1.0 .* ones(size(Y))  
     ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))  
-
 
     U₀      = @. 1.0 * Z - 0.5params.H
     ∂ᶻU₀    = ones( size(Y)) 
@@ -237,10 +282,6 @@ function BasicState!(diffMatrix, mf, grid, params)
     mf.∇ᶻᶻU₀[diagind(mf.∇ᶻᶻU₀)] = ∂ᶻᶻU₀;
     mf.∇ʸᶻU₀[diagind(mf.∇ʸᶻU₀)] = ∂ʸᶻU₀;
 
-    return nothing
-end
-
-function construct_matrices(Op, mf, params)
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
     s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
@@ -254,45 +295,16 @@ function construct_matrices(Op, mf, params)
     ℳ₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
     ℳ₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
 
-    @printf "Start constructing matrices \n"
-    # -------------------- construct matrix  ------------------------
-    # lhs of the matrix (size := 3 × 3)
-    # eigenvectors: [uᶻ ωᶻ b]ᵀ
-    """
-        inverse of the horizontal Laplacian: 
-        ∇ₕ² ≡ ∂xx + ∂yy 
-        H = (∇ₕ²)⁻¹
-        Two methods have been implemented here:
-        Method 1: SVD 
-        Method 2: QR decomposition 
-        Note - Method 2 is probably the `best' option 
-                if the matrix, ∇ₕ², is close singular.
-    """
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     H   = SparseMatrixCSC(Zeros(N, N))
 
     ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
 
-    ####
-    # Calculating the inverse of the horizontal Laplacian
-    ####
-    # QR decomposition
-    # Qm, Rm = qr(∇ₕ²)
-    # invR   = inv(Rm) 
-    # Qm     = sparse(Qm) # by sparsing the matrix speeds up matrix-matrix multiplication 
-    # Qᵀ     = transpose(Qm)
-    # H      = (invR * Qᵀ)
-
-    # # difference in L2-norm should be small: ∇ₕ² * (∇ₕ²)⁻¹ - I⁰ ≈ 0 
-    # @assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-6 "difference in L2-norm should be small"
-    #@printf "||∇ₕ² * (∇ₕ²)⁻¹ - I||₂ =  %f \n" norm(∇ₕ² * H - I⁰) 
 
     H = inverse_Lap_hor(∇ₕ²)
-    # difference in L2-norm should be small: ∇ₕ² * (∇ₕ²)⁻¹ - I⁰ ≈ 0 
-    #@assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-4 "difference in L2-norm should be small"
-    @printf "||∇ₕ² * (∇ₕ²)⁻¹ - I||₂ =  %f \n" norm(∇ₕ² * H - I⁰) 
+    @assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-4 "difference in L2-norm should be small"
 
-    
+
     D⁴  = (1.0 * Op.𝒟⁴ʸ 
         + 1.0/params.ε^4 * Op.𝒟⁴ᶻᴰ 
         + 1.0params.kₓ^4 * I⁰ 
@@ -323,8 +335,8 @@ function construct_matrices(Op, mf, params)
                     + 1.0im * params.kₓ * mf.U₀ * I⁰) 
 
     𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
-##############
-    # [uz, wz, b] ~ [uz, wz, b] exp(σt), growth rate = real(σ)
+
+    
     cnst = -1.0 #1.0im #* params.kₓ
     ℳ₁[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
     ℳ₂[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
@@ -351,11 +363,11 @@ end
 end
 
 
-function EigSolver(Op, mf, params, σ₀)
+function EigSolver(Op, mf, grid, params, σ₀)
 
-    printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
+    #printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
 
-    𝓛, ℳ = construct_matrices(Op, mf, params)
+    𝓛, ℳ = construct_matrices(Op, mf, grid, params)
     
     N = params.Ny * params.Nz 
     MatrixSize = 3N
@@ -365,8 +377,8 @@ function EigSolver(Op, mf, params, σ₀)
             size(ℳ, 2)  == MatrixSize "matrix size does not match!"
 
     if params.method == "shift_invert"
-        printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
-                    color=:red)
+        #printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
+        #            color=:red)
 
         λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
@@ -375,7 +387,7 @@ function EigSolver(Op, mf, params, σ₀)
         # print_evals(λₛ, length(λₛ))
 
     elseif params.method == "krylov"
-        printstyled("KrylovKit Method ... \n"; color=:red)
+        #printstyled("KrylovKit Method ... \n"; color=:red)
 
         # looking for the largest real part of the eigenvalue (:LR)
         λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
@@ -385,8 +397,8 @@ function EigSolver(Op, mf, params, σ₀)
         # print_evals(λₛ, length(λₛ))
 
     elseif params.method == "arnoldi"
-        printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
-                        color=:red)
+        #printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
+        #                color=:red)
 
         # looking for the largest real part of the eigenvalue (:LR)
         λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
@@ -413,10 +425,10 @@ function EigSolver(Op, mf, params, σ₀)
     # end
 
 
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+    #@printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
     
     #print_evals(λₛ, length(λₛ))
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
 
     # 𝓛 = nothing
     # ℳ = nothing
@@ -437,18 +449,18 @@ function solve_Stone1971(kₓ::Float64=0.0)
     ImplementBCs_cheb!(Op, diffMatrix, params)
 
     # Construct the mean flow
-    BasicState!(diffMatrix, mf, grid, params)
+    #BasicState!(diffMatrix, mf, grid, params)
 
     σ₀   = 0.01
     params.kₓ = kₓ
     
-    λₛ = EigSolver(Op, mf, params, σ₀)
+    λₛ = EigSolver(Op, mf, grid, params, σ₀)
 
     # Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0/params.Γ + 5.0*params.ε^2 * params.kₓ^2/42.0 
     λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
 
-    @printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
+    #@printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
 
     return abs(λₛ.re - λₛₜ) < 1e-3
 

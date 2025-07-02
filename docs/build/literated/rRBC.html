@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>rRBC · BiGSTARS.jl</title><meta name="title" content="rRBC · BiGSTARS.jl"/><meta property="og:title" content="rRBC · BiGSTARS.jl"/><meta property="twitter:title" content="rRBC · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/rRBC.html"/><meta property="twitter:url" content="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/rRBC.html"/><link rel="canonical" href="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/rRBC.html"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><a class="tocitem" href="../installation_instructions.html">Installation</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="Stone1971.html">Stone1971</a></li><li class="is-active"><a class="tocitem" href="rRBC.html">rRBC</a></li></ul></li><li><a class="tocitem" href="../contributing.html">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../references.html">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="rRBC.html">rRBC</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="rRBC.html">rRBC</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/docs/src/literated/rRBC.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">&quot;&quot;&quot;
+This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
+where the domain is periodic in y-direction.
+The code is benchmarked against Chandrashekar&#39;s theoretical results.</code></pre><p>Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)</p><pre><code class="language-julia hljs">parameter: Ek (Ekman number) = 10⁻⁴
+eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
+&quot;&quot;&quot;</code></pre><p>load required packages</p><pre><code class="language-julia hljs">using LazyGrids
+using LinearAlgebra
+using Printf
+using StaticArrays
+using SparseArrays
+using SparseMatrixDicts
+using FillArrays
+using SpecialFunctions
+using Parameters
+using Test
+using BenchmarkTools
+
+using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
+
+using BiGSTARS
+
+@with_kw mutable struct TwoDimGrid{Ny, Nz}
+    y = @SVector zeros(Float64, Ny)
+    z = @SVector zeros(Float64, Nz)
+end
+
+@with_kw mutable struct ChebMarix{Ny, Nz}
+    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+
+    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+
+    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+
+    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+end
+
+@with_kw mutable struct Operator{N}
+&quot;&quot;&quot;
+    `subperscript with N&#39; means Operator with Neumann boundary condition
+        after kronker product
+    `subperscript with D&#39; means Operator with Dirchilet boundary condition
+        after kronker product
+&quot;&quot;&quot;
+
+    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟ʸᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+end</code></pre><h1 id="Construct-the-derivative-operator"><a class="docs-heading-anchor" href="#Construct-the-derivative-operator">Construct the derivative operator</a><a id="Construct-the-derivative-operator-1"></a><a class="docs-heading-anchor-permalink" href="#Construct-the-derivative-operator" title="Permalink"></a></h1><p>function Construct_DerivativeOperator!(diffMatrix, grid, params)     N = params.Ny * params.Nz</p><pre><code class="nohighlight hljs"># ------------- setup differentiation matrices  -------------------
+# Fourier in y-direction: y ∈ [0, L)
+y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
+_,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
+_,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
+
+# Transform the domain and derivative operators from [0, 2π) → [0, L)
+grid.y         = params.L/2π  * y1
+diffMatrix.𝒟ʸ  = (2π/params.L)^1 * diffMatrix.𝒟ʸ
+diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
+diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
+
+#@assert maximum(grid.y) ≈ params.L &amp;&amp; minimum(grid.y) ≈ 0.0
+
+# Chebyshev in the z-direction
+z, diffMatrix.𝒟ᶻ  = cheb(params.Nz-1)
+grid.z = z
+diffMatrix.𝒟²ᶻ = diffMatrix.𝒟ᶻ  * diffMatrix.𝒟ᶻ
+diffMatrix.𝒟⁴ᶻ = diffMatrix.𝒟²ᶻ * diffMatrix.𝒟²ᶻ
+
+# z1, D1z = chebdif(params.Nz, 1)
+# _,  D2z = chebdif(params.Nz, 2)
+# _,  D3z = chebdif(params.Nz, 3)
+# _,  D4z = chebdif(params.Nz, 4)
+# # Transform the domain and derivative operators from [-1, 1] → [0, H]
+# grid.z, diffMatrix.𝒟ᶻ, diffMatrix.𝒟²ᶻ  = chebder_transform(z1,  D1z,
+#                                                                 D2z,
+#                                                                 zerotoL_transform,
+#                                                                 params.H)
+# _, _, diffMatrix.𝒟⁴ᶻ = chebder_transform_ho(z1, D1z,
+#                                                 D2z,
+#                                                 D3z,
+#                                                 D4z,
+#                                                 zerotoL_transform_ho,
+#                                                 params.H)
+
+#@printf &quot;size of Chebyshev matrix: %d × %d \n&quot; size(diffMatrix.𝒟ᶻ)[1]  size(diffMatrix.𝒟ᶻ)[2]
+
+@assert maximum(grid.z) ≈ params.H &amp;&amp; minimum(grid.z) ≈ 0.0
+
+return nothing</code></pre><p>end</p><p>function ImplementBCs_cheb!(Op, diffMatrix, params)     Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) #Eye{Float64}(params.Ny)     Iᶻ = sparse(Matrix(1.0I, params.Nz, params.Nz)) #Eye{Float64}(params.Nz)</p><pre><code class="nohighlight hljs"># Cheb matrix with Dirichilet boundary condition
+diffMatrix.𝒟ᶻᴰ  = deepcopy( diffMatrix.𝒟ᶻ  )
+diffMatrix.𝒟²ᶻᴰ = deepcopy( diffMatrix.𝒟²ᶻ )
+diffMatrix.𝒟⁴ᶻᴰ = deepcopy( diffMatrix.𝒟⁴ᶻ )
+
+# Cheb matrix with Neumann boundary condition
+diffMatrix.𝒟ᶻᴺ  = deepcopy( diffMatrix.𝒟ᶻ  )
+diffMatrix.𝒟²ᶻᴺ = deepcopy( diffMatrix.𝒟²ᶻ )
+
+setBCs!(diffMatrix, params, &quot;dirchilet&quot;)
+setBCs!(diffMatrix, params, &quot;neumann&quot;  )
+
+kron!( Op.𝒟ᶻᴰ  ,  Iʸ , diffMatrix.𝒟ᶻᴰ  )
+kron!( Op.𝒟²ᶻᴰ ,  Iʸ , diffMatrix.𝒟²ᶻᴰ )
+kron!( Op.𝒟⁴ᶻᴰ ,  Iʸ , diffMatrix.𝒟⁴ᶻᴰ )
+
+kron!( Op.𝒟ᶻᴺ  ,  Iʸ , diffMatrix.𝒟ᶻᴺ )
+kron!( Op.𝒟²ᶻᴺ ,  Iʸ , diffMatrix.𝒟²ᶻᴺ)
+
+kron!( Op.𝒟ʸ   ,  diffMatrix.𝒟ʸ  ,  Iᶻ )
+kron!( Op.𝒟²ʸ  ,  diffMatrix.𝒟²ʸ ,  Iᶻ )
+kron!( Op.𝒟⁴ʸ  ,  diffMatrix.𝒟⁴ʸ ,  Iᶻ )
+
+kron!( Op.𝒟ʸ²ᶻᴰ  ,  diffMatrix.𝒟ʸ  ,  diffMatrix.𝒟²ᶻᴰ )
+kron!( Op.𝒟²ʸ²ᶻᴰ ,  diffMatrix.𝒟²ʸ ,  diffMatrix.𝒟²ᶻᴰ )
+
+return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">function construct_matrices(Op, params)
+    N  = params.Ny * params.Nz
+    I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
+    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)</code></pre><p>allocating memory for the LHS and RHS matrices</p><pre><code class="language-julia hljs">    𝓛₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    𝓛₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    𝓛₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+
+    ℳ₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    ℳ₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    ℳ₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+
+    @printf &quot;Start constructing matrices \n&quot;</code></pre><p>–––––––––– construct matrix  –––––––––––– lhs of the matrix (size := 3 × 3) eigenvectors: [uᶻ ωᶻ b]ᵀ</p><pre><code class="language-julia hljs">    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
+    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
+
+    D⁴ = (1.0 * Op.𝒟⁴ʸ + 1.0 * Op.𝒟⁴ᶻᴰ + 2.0 * Op.𝒟²ʸ²ᶻᴰ
+        + 1.0 * params.kₓ^4 * I⁰
+        - 2.0 * params.kₓ^2 * Op.𝒟²ʸ
+        - 2.0 * params.kₓ^2 * Op.𝒟²ᶻᴰ)
+
+    D²  = 1.0 * Op.𝒟²ᶻᴰ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰
+    Dₙ² = 1.0 * Op.𝒟²ᶻᴺ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰
+
+    #* 1. uᶻ equation
+    𝓛₁[:,    1:1s₂] =  1.0 * params.E * D⁴
+    𝓛₁[:,1s₂+1:2s₂] = -1.0 * Op.𝒟ᶻᴺ
+    𝓛₁[:,2s₂+1:3s₂] =  0.0 * I⁰
+
+    #* 2. ωᶻ equation
+    𝓛₂[:,    1:1s₂] = 1.0 * Op.𝒟ᶻᴰ
+    𝓛₂[:,1s₂+1:2s₂] = 1.0 * params.E * Dₙ²
+    𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
+
+    #* 3. b equation
+    𝓛₃[:,    1:1s₂] = 1.0 * I⁰
+    𝓛₃[:,1s₂+1:2s₂] = 0.0 * I⁰
+    𝓛₃[:,2s₂+1:3s₂] = 1.0 * D²
+
+    𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
+
+##############
+    ℳ₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
+
+    ℳ = ([ℳ₁; ℳ₂; ℳ₃])
+
+    #@printf &quot;Done constructing matrices \n&quot;
+
+    return 𝓛, ℳ
+end
+
+@with_kw mutable struct Params{T&lt;:Real} @deftype T
+    L::T        = 2π        # horizontal domain size
+    H::T        = 1.0          # vertical domain size
+    Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
+    ε::T        = 0.1         # aspect ratio ε ≡ H/L
+    kₓ::T       = 0.0          # x-wavenumber
+    E::T        = 1.0e-4       # Ekman number
+    Ny::Int64   = 180          # no. of y-grid points
+    Nz::Int64   = 20           # no. of z-grid points
+    #method::String    = &quot;shift_invert&quot;
+    #method::String    = &quot;krylov&quot;
+    method::String   = &quot;arnoldi&quot;
+end
+
+function EigSolver(Op, params, σ₀)
+
+    printstyled(&quot;kₓ: $(params.kₓ) \n&quot;; color=:blue)
+
+    𝓛, ℳ = construct_matrices(Op,  params)
+
+    N = params.Ny * params.Nz
+    MatrixSize = 3N
+    @assert size(𝓛, 1)  == MatrixSize &amp;&amp;
+            size(𝓛, 2)  == MatrixSize &amp;&amp;
+            size(ℳ, 1)  == MatrixSize &amp;&amp;
+            size(ℳ, 2)  == MatrixSize &quot;matrix size does not match!&quot;
+
+    if params.method == &quot;shift_invert&quot;</code></pre><p>printstyled(&quot;Eigensolver using Arpack eigs with shift and invert method ...\n&quot;;             color=:red)</p><pre><code class="language-julia hljs">        λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
+
+        #@printf &quot;found eigenvalue (at first): %f + im %f \n&quot; λₛ[1].re λₛ[1].im
+
+    elseif params.method == &quot;krylov&quot;
+        #printstyled(&quot;KrylovKit Method ... \n&quot;; color=:red)</code></pre><p>look for the largest magnitude of eigenvalue (:LM)</p><pre><code class="language-julia hljs">         λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
+
+        #@printf &quot;found eigenvalue (at first): %f + im %f \n&quot; λₛ[1].re λₛ[1].im
+
+    elseif params.method == &quot;arnoldi&quot;</code></pre><p>printstyled(&quot;Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n&quot;;                 color=:red)</p><p>decomp, history = partialschur(construct<em>linear</em>map(𝓛, ℳ),                             nev=20,                             tol=0.0,                             restarts=50000,                             which=LM())</p><p>println(history)</p><p>λₛ⁻¹, Χ = partialeigen(decomp) λₛ = @. 1.0 / λₛ⁻¹</p><pre><code class="language-julia hljs">        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ,
+                                            σ₀=0.0,
+                                            maxiter=50000,
+                                            which=LM())
+
+        λₛ, Χ = remove_evals(λₛ, Χ, 10.0, 1.0e15, &quot;R&quot;)
+        λₛ, Χ = sort_evals(λₛ, Χ, &quot;R&quot;, &quot;&quot;)
+
+    end</code></pre><p>======================================================================</p><pre><code class="language-julia hljs">    #@printf &quot;||𝓛Χ - λₛℳΧ||₂: %f \n&quot; norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+
+    #print_evals(λₛ, length(λₛ))
+    #@printf &quot;largest growth rate : %1.4e%+1.4eim\n&quot; real(λₛ[1]) imag(λₛ[1])</code></pre><p>𝓛 = nothing ℳ = nothing</p><pre><code class="language-julia hljs">    #return nothing #
+    return λₛ[1] #, Χ[:,1]
+end
+
+function solve_rRBC(kₓ::Float64)
+    params      = Params{Float64}(kₓ=0.5)
+    grid        = TwoDimGrid{params.Ny,  params.Nz}()
+    diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
+    Op          = Operator{params.Ny * params.Nz}()
+    Construct_DerivativeOperator!(diffMatrix, grid, params)
+    ImplementBCs_cheb!(Op, diffMatrix, params)
+
+    σ₀   = 0.0
+    params.kₓ = kₓ
+
+    λₛ = EigSolver(Op, params, σ₀)</code></pre><p>Theoretical results from Chandrashekar (1961)</p><pre><code class="language-julia hljs">    λₛₜ = 189.7
+    #@printf &quot;Analytical solution of Stone (1971): %1.4e \n&quot; λₛₜ
+
+    return abs(real(λₛ) - λₛₜ)/λₛₜ &lt; 1e-4
+
+end
+
+#end #module</code></pre><p>========== end of the module ==========================</p><p>if abspath(PROGRAM<em>FILE) == @<strong>FILE</strong>     solve</em>rRBC(0.0) end</p><pre><code class="language-julia hljs">solve_rRBC(0.0)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Stone1971.html">« Stone1971</a><a class="docs-footer-nextpage" href="../contributing.html">Contributor&#39;s Guide »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Wednesday 2 July 2025 16:11">Wednesday 2 July 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

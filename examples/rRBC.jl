@@ -208,7 +208,7 @@ function construct_matrices(Op, params)
 
     ℳ = ([ℳ₁; ℳ₂; ℳ₃])
 
-    @printf "Done constructing matrices \n"
+    #@printf "Done constructing matrices \n"
 
     return 𝓛, ℳ
 end
@@ -241,15 +241,15 @@ function EigSolver(Op, params, σ₀)
             size(ℳ, 2)  == MatrixSize "matrix size does not match!"
 
     if params.method == "shift_invert"
-        printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
-                    color=:red)
+        # printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
+        #             color=:red)
 
         λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
         
         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
 
     elseif params.method == "krylov"
-        printstyled("KrylovKit Method ... \n"; color=:red)
+        #printstyled("KrylovKit Method ... \n"; color=:red)
 
         # look for the largest magnitude of eigenvalue (:LM)
          λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
@@ -258,8 +258,8 @@ function EigSolver(Op, params, σ₀)
 
     elseif params.method == "arnoldi"
 
-        printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
-                        color=:red)
+        # printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
+        #                 color=:red)
 
         # decomp, history = partialschur(construct_linear_map(𝓛, ℳ), 
         #                             nev=20, 
@@ -283,10 +283,10 @@ function EigSolver(Op, params, σ₀)
     end
     # ======================================================================
 
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+    #@printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
     
     #print_evals(λₛ, length(λₛ))
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
 
     # 𝓛 = nothing
     # ℳ = nothing
@@ -310,7 +310,7 @@ function solve_rRBC(kₓ::Float64)
 
     # Theoretical results from Chandrashekar (1961)
     λₛₜ = 189.7 
-    @printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
+    #@printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
 
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
     

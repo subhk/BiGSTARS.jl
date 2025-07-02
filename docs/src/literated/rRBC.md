@@ -1,8 +1,4 @@
-```@meta
-EditURL = "../../../examples/rRBC.jl"
-```
-
-````@example rRBC
+````julia
 """
 This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
 where the domain is periodic in y-direction.
@@ -11,7 +7,7 @@ The code is benchmarked against Chandrashekar's theoretical results.
 
 Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
 
-````@example rRBC
+````julia
 parameter: Ek (Ekman number) = 10⁻⁴
 eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
 """
@@ -19,7 +15,7 @@ eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
 
 load required packages
 
-````@example rRBC
+````julia
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -168,7 +164,7 @@ function ImplementBCs_cheb!(Op, diffMatrix, params)
     return nothing
 end
 
-````@example rRBC
+````julia
 function construct_matrices(Op, params)
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
@@ -177,7 +173,7 @@ function construct_matrices(Op, params)
 
 allocating memory for the LHS and RHS matrices
 
-````@example rRBC
+````julia
     𝓛₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
     𝓛₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
     𝓛₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
@@ -193,7 +189,7 @@ allocating memory for the LHS and RHS matrices
 lhs of the matrix (size := 3 × 3)
 eigenvectors: [uᶻ ωᶻ b]ᵀ
 
-````@example rRBC
+````julia
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
 
@@ -227,7 +223,7 @@ eigenvectors: [uᶻ ωᶻ b]ᵀ
 
     ℳ = ([ℳ₁; ℳ₂; ℳ₃])
 
-    @printf "Done constructing matrices \n"
+    #@printf "Done constructing matrices \n"
 
     return 𝓛, ℳ
 end
@@ -260,29 +256,32 @@ function EigSolver(Op, params, σ₀)
             size(ℳ, 2)  == MatrixSize "matrix size does not match!"
 
     if params.method == "shift_invert"
-        printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n";
-                    color=:red)
+````
 
+printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n";
+            color=:red)
+
+````julia
         λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
 
         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
 
     elseif params.method == "krylov"
-        printstyled("KrylovKit Method ... \n"; color=:red)
+        #printstyled("KrylovKit Method ... \n"; color=:red)
 ````
 
 look for the largest magnitude of eigenvalue (:LM)
 
-````@example rRBC
+````julia
          λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
 
         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
 
     elseif params.method == "arnoldi"
-
-        printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n";
-                        color=:red)
 ````
+
+printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n";
+                color=:red)
 
 decomp, history = partialschur(construct_linear_map(𝓛, ℳ),
                             nev=20,
@@ -295,7 +294,7 @@ println(history)
 λₛ⁻¹, Χ = partialeigen(decomp)
 λₛ = @. 1.0 / λₛ⁻¹
 
-````@example rRBC
+````julia
         λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ,
                                             σ₀=0.0,
                                             maxiter=50000,
@@ -309,17 +308,17 @@ println(history)
 
 ======================================================================
 
-````@example rRBC
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+````julia
+    #@printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
 
     #print_evals(λₛ, length(λₛ))
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
 ````
 
 𝓛 = nothing
 ℳ = nothing
 
-````@example rRBC
+````julia
     #return nothing #
     return λₛ[1] #, Χ[:,1]
 end
@@ -340,9 +339,9 @@ function solve_rRBC(kₓ::Float64)
 
 Theoretical results from Chandrashekar (1961)
 
-````@example rRBC
+````julia
     λₛₜ = 189.7
-    @printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ
+    #@printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ
 
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
 
@@ -357,7 +356,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     solve_rRBC(0.0)
 end
 
-````@example rRBC
+````julia
 solve_rRBC(0.0)
 ````
 
