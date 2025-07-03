@@ -76,10 +76,10 @@ try
                 "Stone1971"       => "literated/Stone1971.md",
                 "rRBC"            => "literated/rRBC.md"
             ],
-            # "Modules"             => [
-            #     "Stone1971 API"   => "modules/Stone1971.md",
-            #     "rRBC API"        => "modules/rRBC.md"
-            # ],
+            "Modules"             => [
+                "Stone1971 API"   => "modules/Stone1971.md",
+                "rRBC API"        => "modules/rRBC.md"
+            ],
             "Contributor's Guide" => "contributing.md",
             "References"          => "references.md"
         ]
@@ -104,6 +104,23 @@ end
 
 for file in files
     rm(file; force = true)
+end
+
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+    deploydocs(repo = "github.com/BiGSTARS/BiGSTARS.jl",
+               repo_previews = "github.com/BiGSTARS/BiGSTARSDocumentation",
+               devbranch = "main",
+               forcepush = true,
+               push_preview = true,
+               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+else
+    repo = "github.com/BiGSTARS/BiGSTARSDocumentation"
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(; repo,
+                     devbranch = "main",
+                     forcepush = true,
+                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    end
 end
 
 # deploydocs setup remains as-is...
