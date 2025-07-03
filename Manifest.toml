@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "45aaeb2ae58e940aa5454e4c032217a46705f8ab"
+project_hash = "f3c1e71e2b7c8abff013888e3ec573458be5a91f"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
@@ -1031,12 +1031,6 @@ version = "0.3.29"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
-[[deps.MKL]]
-deps = ["Artifacts", "Libdl", "LinearAlgebra", "Logging", "MKL_jll"]
-git-tree-sha1 = "fc3df8a0c3447fefe3607e5576de8c69ec6800ea"
-uuid = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
-version = "0.9.0"
-
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
 git-tree-sha1 = "5de60bc6cb3899cd318d80d627560fae2e2d99ae"
@@ -1294,12 +1288,6 @@ deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
 uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 version = "0.12.3"
-
-[[deps.Pardiso]]
-deps = ["Libdl", "LinearAlgebra", "MKL_jll", "SparseArrays"]
-git-tree-sha1 = "75a4ab716b076fe92d76fd3a7db08ab984c2d34a"
-uuid = "46dd5b70-b6fb-5a00-ae2d-e8fea33afaf2"
-version = "1.0.1"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
