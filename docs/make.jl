@@ -31,7 +31,7 @@ for example in examples
             input_file,
             output_file;
             documenter       = false,
-            #flavor         = DocumenterFlavor(),
+            flavor            = DocumenterFlavor(),
             include_comments = true,
             include_code     = true,
             include_output   = false,
