@@ -106,15 +106,16 @@ for file in files
     rm(file; force = true)
 end
 
+
 if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-    deploydocs(repo = "github.com/BiGSTARS/BiGSTARS.jl",
-               repo_previews = "github.com/BiGSTARS/BiGSTARSDocumentation",
+    deploydocs(repo = "https://github.com/subhk/BiGSTARS.jl",
+               repo_previews = "https://github.com/subhk/BiGSTARSDocumentation.git",
                devbranch = "main",
                forcepush = true,
                push_preview = true,
                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
 else
-    repo = "github.com/BiGSTARS/BiGSTARSDocumentation"
+    repo = "https://github.com/subhk/BiGSTARSDocumentation.git"
     withenv("GITHUB_REPOSITORY" => repo) do
         deploydocs(; repo,
                      devbranch = "main",
