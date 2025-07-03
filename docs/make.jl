@@ -10,6 +10,8 @@ using StaticArrays
 using SpecialFunctions
 using CairoMakie
 
+using Printf
+
 using Literate: DocumenterFlavor
 
 #####
@@ -154,13 +156,26 @@ end
 # Documenter can also automatically deploy documentation to gh-pages.
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
-deploydocs(;
-    repo = "https://github.com/subhk/BiGSTARSDocumentation.git",
-    branch = "gh-pages",
-    devbranch = "master",
-    forcepush = true,
-    push_preview = true,
-    versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
-)
+# deploydocs(;
+#     repo = "https://github.com/subhk/BiGSTARSDocumentation.git",
+#     branch = "gh-pages",
+#     devbranch = "master",
+#     forcepush = true,
+#     push_preview = true,
+#     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
+# )
+
+
+# Deploy documentation explicitly
+@info "Deploying documentation to GitHub Pages..."
+withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation.git") do
+    deploydocs(
+        repo       = "github.com/subhk/BiGSTARSDocumentation.git",
+        devbranch  = "main",
+        forcepush  = true,
+        push_preview = false,
+        versions   = ["stable" => "v^", "dev" => "dev"]
+    )
+end
 
 # deploydocs setup remains as-is...
