@@ -154,15 +154,13 @@ end
 # Documenter can also automatically deploy documentation to gh-pages.
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
-if haskey(ENV, "GITHUB_REPOSITORY")  # if we're on github
-    deploydocs(;
-        repo = "subhk/BiGSTARSDocumentation.git",
-        branch = "gh-pages",
-        devbranch = "master",
-        forcepush = true,
-        push_preview = true,
-        versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-    )
-end
+deploydocs(;
+    repo = "github.com/subhk/BiGSTARSDocumentation.git",
+    branch = "gh-pages",
+    devbranch = "master",
+    forcepush = true,
+    push_preview = true,
+    versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
+)
 
 # deploydocs setup remains as-is...
