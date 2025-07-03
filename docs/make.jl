@@ -57,7 +57,7 @@ format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    canonical      = "github.com/subhk/BiGSTARSDocumentation/stable/"
+    #canonical      = "github.com/subhk/BiGSTARSDocumentation/stable/"
 )
 
 bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
@@ -155,7 +155,7 @@ end
 # See "Hosting Documentation" and deploydocs() in the Documenter manual
 # for more information.
 deploydocs(;
-    repo = "github.com/subhk/BiGSTARSDocumentation.git",
+    repo = "https://github.com/subhk/BiGSTARSDocumentation.git",
     branch = "gh-pages",
     devbranch = "master",
     forcepush = true,
