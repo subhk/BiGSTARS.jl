@@ -170,7 +170,7 @@ end
 @info "Deploying documentation to GitHub Pages..."
 withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation.git") do
     deploydocs(
-        repo       = "github.com/subhk/BiGSTARSDocumentation.git",
+        repo       = "https://github.com/subhk/BiGSTARSDocumentation.git",
         devbranch  = "main",
         forcepush  = true,
         push_preview = false,
