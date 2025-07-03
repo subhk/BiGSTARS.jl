@@ -1,4 +1,4 @@
-# rotating Rayleigh Benard convection (rRBC)
+# Rotating Rayleigh Benard convection (RRBC)
 
 ### Problem setup
 
