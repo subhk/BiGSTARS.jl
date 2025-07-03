@@ -156,11 +156,12 @@ end
 # for more information.
 if haskey(ENV, "GITHUB_REPOSITORY")  # if we're on github
     deploydocs(;
-        repo = "github.com/subhk/BiGSTARSDocumentation.git",
+        repo = "subhk/BiGSTARSDocumentation.git",
         branch = "gh-pages",
         devbranch = "master",
         forcepush = true,
         push_preview = true,
+        versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
     )
 end
 
