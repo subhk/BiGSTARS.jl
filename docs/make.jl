@@ -1,8 +1,14 @@
-using Documenter, DocumenterCitations, Literate
+using Documenter 
+using DocumenterCitations
+using Literate
 
-using CairoMakie
-using Printf
+using Documenter: Remotes
+
 using BiGSTARS
+
+using StaticArrays
+using SpecialFunctions
+using CairoMakie
 
 using Literate: DocumenterFlavor
 
@@ -125,22 +131,37 @@ end
 # end
 
 
-if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-    deploydocs(
-        repo = "git@github.com:subhk/BiGSTARSDocumentation.git",
-        devbranch = "main",
+# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+#     deploydocs(
+#         repo = "git@github.com:subhk/BiGSTARSDocumentation.git",
+#         devbranch = "main",
+#         forcepush = true,
+#         push_preview = true,
+#         versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
+#     )
+# else
+#     repo = "git@github.com:subhk/BiGSTARSDocumentation.git"
+#     withenv("GITHUB_REPOSITORY" => repo) do
+#         deploydocs(; repo,
+#                      devbranch = "main",
+#                      forcepush = true,
+#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+#     end
+# end
+
+
+
+# Documenter can also automatically deploy documentation to gh-pages.
+# See "Hosting Documentation" and deploydocs() in the Documenter manual
+# for more information.
+if haskey(ENV, "GITHUB_REPOSITORY")  # if we're on github
+    deploydocs(;
+        repo = "github.com/subhk/BiGSTARS.jl.git",
+        branch = "gh-pages",
+        devbranch = "master",
         forcepush = true,
         push_preview = true,
-        versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
     )
-else
-    repo = "git@github.com:subhk/BiGSTARSDocumentation.git"
-    withenv("GITHUB_REPOSITORY" => repo) do
-        deploydocs(; repo,
-                     devbranch = "main",
-                     forcepush = true,
-                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-    end
 end
 
 # deploydocs setup remains as-is...
