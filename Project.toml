@@ -29,7 +29,6 @@ ToeplitzMatrices = "c751599d-da0a-543b-9d20-d0a503d91d24"
 Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
-
 [compat]
 ArnoldiMethod = "0.4.0"
 Arpack = "0.5.3"
@@ -42,7 +41,7 @@ KrylovKit = "0.9.5"
 LazyGrids = "1.1.0"
 LinearAlgebra = "1.6"
 LinearMaps = "3.11.3"
-ModelingToolkit = "9.79.1"
+ModelingToolkit = "9.79.1, 10"
 NonlinearSolve = "4.8.5"
 Parameters = "0.12.1"
 Random = "1.6"
@@ -52,9 +51,8 @@ StaticArrays = "0.12, 1"
 Statistics = "1.6"
 ToeplitzMatrices = "0.8.4"
 Tullio = "0.3.6"
-julia = "1.10, 1.11"
 VectorInterface = "0.5"
-
+julia = "1.10, 1.11"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
