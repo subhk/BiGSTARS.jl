@@ -108,14 +108,14 @@ end
 
 
 if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-    deploydocs(repo = "https://github.com/subhk/BiGSTARS.jl",
-               repo_previews = "https://github.com/subhk/BiGSTARSDocumentation.git",
+    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+               repo_previews = "github.com/subhk/BiGSTARSDocumentation.git",
                devbranch = "main",
                forcepush = true,
                push_preview = true,
                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
 else
-    repo = "https://github.com/subhk/BiGSTARSDocumentation.git"
+    repo = "github.com/subhk/BiGSTARSDocumentation.git"
     withenv("GITHUB_REPOSITORY" => repo) do
         deploydocs(; repo,
                      devbranch = "main",
