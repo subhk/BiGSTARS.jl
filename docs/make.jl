@@ -76,10 +76,10 @@ try
                 "Stone1971"       => "literated/Stone1971.md",
                 "rRBC"            => "literated/rRBC.md"
             ],
-            "Modules"             => [
-                "Stone1971 API"   => "modules/Stone1971.md",
-                "rRBC API"        => "modules/rRBC.md"
-            ],
+            # "Modules"             => [
+            #     "Stone1971 API"   => "src/Stone1971.md",
+            #     "rRBC API"        => "rRBC.md"
+            # ],
             "Contributor's Guide" => "contributing.md",
             "References"          => "references.md"
         ]
