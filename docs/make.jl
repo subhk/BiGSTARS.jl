@@ -62,7 +62,7 @@ format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    #canonical      = "github.com/subhk/BiGSTARSDocumentation/stable/"
+    canonical      = "https://github.com/subhk/BiGSTARSDocumentation.git/stable/"
 )
 
 bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
@@ -155,29 +155,32 @@ end
 # end
 
 
+# # Deploy documentation explicitly
+# @info "Deploying documentation to GitHub Pages..."
+# withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation.git") do
+#     deploydocs(
+#         repo       = "github.com/subhk/BiGSTARSDocumentation.git",
+#         devbranch  = "main",
+#         forcepush  = true,
+#         push_preview = true,
+#         versions   = ["stable" => "v^", "dev" => "dev"]
+#     )
+# end
 
-# Documenter can also automatically deploy documentation to gh-pages.
-# See "Hosting Documentation" and deploydocs() in the Documenter manual
-# for more information.
-# deploydocs(;
-#     repo = "https://github.com/subhk/BiGSTARSDocumentation.git",
-#     branch = "gh-pages",
-#     devbranch = "master",
-#     forcepush = true,
-#     push_preview = true,
-#     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
-# )
 
 
-# Deploy documentation explicitly
+# Deploy documentation to GitHub Pages
 @info "Deploying documentation to GitHub Pages..."
-withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation.git") do
+# Ensure GITHUB_REPOSITORY is set to "owner/repo" (e.g. "BiGSTARS/BiGSTARSDocumentation")
+withenv("GITHUB_REPOSITORY" => "BiGSTARS/BiGSTARSDocumentation") do
+    # Provide the `repo` keyword explicitly so Documenter can push correctly
     deploydocs(
-        repo       = "github.com/subhk/BiGSTARSDocumentation.git",
-        devbranch  = "main",
-        forcepush  = true,
-        push_preview = true,
-        versions   = ["stable" => "v^", "dev" => "dev"]
+        repo         = ENV["GITHUB_REPOSITORY"],
+        branch       = "gh-pages",    # branch to push
+        devbranch    = "main",        # default branch of the docs source
+        forcepush    = true,
+        push_preview = false,
+        versions     = ["stable" => "v^", "dev" => "dev"]
     )
 end
 
