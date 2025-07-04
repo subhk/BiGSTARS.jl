@@ -14,6 +14,8 @@ using Printf
 
 using Literate: DocumenterFlavor
 
+DocumenterTools.genkeys("subhk", "BiGSTARSDocumentation.jl")
+
 #####
 ##### Generate literated examples
 #####
@@ -168,12 +170,12 @@ end
 
 # Deploy documentation explicitly
 @info "Deploying documentation to GitHub Pages..."
-withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation.git") do
+withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation.git") do
     deploydocs(
-        repo       = "https://github.com/subhk/BiGSTARSDocumentation.git",
+        repo       = "github.com/subhk/BiGSTARSDocumentation.git",
         devbranch  = "main",
         forcepush  = true,
-        push_preview = false,
+        push_preview = true,
         versions   = ["stable" => "v^", "dev" => "dev"]
     )
 end
