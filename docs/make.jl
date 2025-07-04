@@ -14,6 +14,7 @@ using Printf
 
 using Literate: DocumenterFlavor
 
+using DocumenterTools
 DocumenterTools.genkeys("subhk", "BiGSTARSDocumentation.jl")
 
 #####
