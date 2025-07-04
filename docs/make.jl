@@ -137,9 +137,9 @@ end
 
 @info "Deploying documentation to GitHub Pages..."
 # Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
-withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation") do
+withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
     deploydocs(
-        repo         = "github.com/subhk/BiGSTARSDocumentation",
+        repo         = "subhk/BiGSTARSDocumentation",
         branch       = "gh-pages",
         devbranch    = "main",
         forcepush    = true,
