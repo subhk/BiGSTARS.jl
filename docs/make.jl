@@ -156,16 +156,27 @@ end
 
 
 
-@info "Deploying documentation to GitHub Pages..."
-# Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
-withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
-    deploydocs(
-        repo         = "subhk/BiGSTARSDocumentation.git",
-        branch       = "gh-pages",
-        devbranch    = "main",
-        forcepush    = true,
-        push_preview = false,
-        versions     = ["stable" => "v^", "dev" => "dev"]
+# @info "Deploying documentation to GitHub Pages..."
+# # Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
+# withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
+#     deploydocs(
+#         repo         = "subhk/BiGSTARSDocumentation.git",
+#         branch       = "gh-pages",
+#         devbranch    = "main",
+#         forcepush    = true,
+#         push_preview = false,
+#         versions     = ["stable" => "v^", "dev" => "dev"]
+#     )
+# end
+
+
+if haskey(ENV, "GITHUB_REPOSITORY")  # if we're on github
+    deploydocs(;
+        repo = "github.com/subhk/BiGSTARS.jl.git",
+        branch = "gh-pages",
+        devbranch = "master",
+        forcepush = true,
+        push_preview = true,
     )
 end
 
