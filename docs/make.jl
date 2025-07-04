@@ -14,8 +14,10 @@ using Printf
 
 using Literate: DocumenterFlavor
 
-#using DocumenterTools
+using DocumenterTools
 #DocumenterTools.genkeys("subhk", "BiGSTARSDocumentation.jl")
+
+DocumenterTools.genkeys(user="subhk", repo="BiGSTARSDocumentation.jl")
 
 #####
 ##### Generate literated examples
