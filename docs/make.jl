@@ -168,8 +168,6 @@ end
 # end
 
 
-
-
 @info "Deploying documentation to GitHub Pages..."
 # Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
 withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
