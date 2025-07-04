@@ -117,36 +117,36 @@ for file in files
     rm(file; force = true)
 end
 
-if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
-               repo_previews = "github.com/subhk/BiGSTARSDocumentation",
-               devbranch = "main",
-               forcepush = true,
-               push_preview = true,
-               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-else
-    repo = "github.com/subhk/BiGSTARSDocumentation"
-    withenv("GITHUB_REPOSITORY" => repo) do
-        deploydocs(; repo,
-                     devbranch = "main",
-                     forcepush = true,
-                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-    end
-end
-
-
-# @info "Deploying documentation to GitHub Pages..."
-# # Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
-# withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
-#     deploydocs(
-#         repo         = "subhk/BiGSTARSDocumentation.git",
-#         branch       = "gh-pages",
-#         devbranch    = "main",
-#         forcepush    = true,
-#         push_preview = false,
-#         versions     = ["stable" => "v^", "dev" => "dev"]
-#     )
+# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+#     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+#                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+#                devbranch = "main",
+#                forcepush = true,
+#                push_preview = true,
+#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+# else
+#     repo = "github.com/subhk/BiGSTARSDocumentation"
+#     withenv("GITHUB_REPOSITORY" => repo) do
+#         deploydocs(; repo,
+#                      devbranch = "main",
+#                      forcepush = true,
+#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+#     end
 # end
+
+
+@info "Deploying documentation to GitHub Pages..."
+# Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
+withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation") do
+    deploydocs(
+        repo         = "github.com/subhk/BiGSTARSDocumentation",
+        branch       = "gh-pages",
+        devbranch    = "main",
+        forcepush    = true,
+        push_preview = false,
+        versions     = ["stable" => "v^", "dev" => "dev"]
+    )
+end
 
 
 # if haskey(ENV, "GITHUB_REPOSITORY")  # if we're on github
