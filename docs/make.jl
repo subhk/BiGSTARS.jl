@@ -17,8 +17,6 @@ using Literate: DocumenterFlavor
 using DocumenterTools
 #DocumenterTools.genkeys("subhk", "BiGSTARSDocumentation.jl")
 
-DocumenterTools.genkeys(user="subhk", repo="BiGSTARSDocumentation.jl")
-
 #####
 ##### Generate literated examples
 #####
@@ -64,7 +62,7 @@ format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    canonical      = "github.com/subhk/BiGSTARSDocumentation.git/stable/"
+    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable/"
 )
 
 bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
@@ -120,22 +118,22 @@ for file in files
 end
 
 
-# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-#     deploydocs(repo = "subhk/BiGSTARS.jl",
-#                repo_previews = "subhk/BiGSTARSDocumentation.git",
-#                devbranch = "main",
-#                forcepush = true,
-#                push_preview = true,
-#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-# else
-#     repo = "subhk/BiGSTARSDocumentation.git"
-#     withenv("GITHUB_REPOSITORY" => repo) do
-#         deploydocs(; repo,
-#                      devbranch = "main",
-#                      forcepush = true,
-#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-#     end
-# end
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+               repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+               devbranch = "main",
+               forcepush = true,
+               push_preview = true,
+               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+else
+    repo = "github.com/subhk/BiGSTARSDocumentation"
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(; repo,
+                     devbranch = "main",
+                     forcepush = true,
+                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    end
+end
 
 
 # if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
@@ -157,30 +155,18 @@ end
 # end
 
 
-# # Deploy documentation explicitly
+
 # @info "Deploying documentation to GitHub Pages..."
-# withenv("GITHUB_REPOSITORY" => "github.com/subhk/BiGSTARSDocumentation.git") do
+# # Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
+# withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
 #     deploydocs(
-#         repo       = "github.com/subhk/BiGSTARSDocumentation.git",
-#         devbranch  = "main",
-#         forcepush  = true,
-#         push_preview = true,
-#         versions   = ["stable" => "v^", "dev" => "dev"]
+#         repo         = "subhk/BiGSTARSDocumentation.git",
+#         branch       = "gh-pages",
+#         devbranch    = "main",
+#         forcepush    = true,
+#         push_preview = false,
+#         versions     = ["stable" => "v^", "dev" => "dev"]
 #     )
 # end
-
-
-@info "Deploying documentation to GitHub Pages..."
-# Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
-withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
-    deploydocs(
-        repo         = "subhk/BiGSTARSDocumentation.git",
-        branch       = "gh-pages",
-        devbranch    = "main",
-        forcepush    = true,
-        push_preview = false,
-        versions     = ["stable" => "v^", "dev" => "dev"]
-    )
-end
 
 # deploydocs setup remains as-is...
