@@ -62,7 +62,7 @@ format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    canonical      = "https://github.com/subhk/BiGSTARSDocumentation.git/stable/"
+    canonical      = "github.com/subhk/BiGSTARSDocumentation.git/stable/"
 )
 
 bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
@@ -138,14 +138,14 @@ end
 
 # if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
 #     deploydocs(
-#         repo = "git@github.com:subhk/BiGSTARSDocumentation.git",
+#         repo = "subhk/BiGSTARSDocumentation.git",
 #         devbranch = "main",
 #         forcepush = true,
 #         push_preview = true,
 #         versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
 #     )
 # else
-#     repo = "git@github.com:subhk/BiGSTARSDocumentation.git"
+#     repo = "subhk/BiGSTARSDocumentation.git"
 #     withenv("GITHUB_REPOSITORY" => repo) do
 #         deploydocs(; repo,
 #                      devbranch = "main",
@@ -169,15 +169,14 @@ end
 
 
 
-# Deploy documentation to GitHub Pages
+
 @info "Deploying documentation to GitHub Pages..."
-# Ensure GITHUB_REPOSITORY is set to "owner/repo" (e.g. "BiGSTARS/BiGSTARSDocumentation")
-withenv("GITHUB_REPOSITORY" => "BiGSTARS/BiGSTARSDocumentation") do
-    # Provide the `repo` keyword explicitly so Documenter can push correctly
+# Set GITHUB_REPOSITORY to the correct owner/repo format (no .git)
+withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
     deploydocs(
-        repo         = ENV["GITHUB_REPOSITORY"],
-        branch       = "gh-pages",    # branch to push
-        devbranch    = "main",        # default branch of the docs source
+        repo         = "subhk/BiGSTARSDocumentation.git",
+        branch       = "gh-pages",
+        devbranch    = "main",
         forcepush    = true,
         push_preview = false,
         versions     = ["stable" => "v^", "dev" => "dev"]
