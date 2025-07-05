@@ -9,21 +9,36 @@ using SpecialFunctions
 
 # -- Generate literated examples ----------------------------------------------
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
-const LIT_DIR      = joinpath(@__DIR__, "src", "literated")
-mkpath(LIT_DIR)
+const OUTPUT_DIR   = joinpath(@__DIR__, "src", "literated")
 
-for example in ["Stone1971.jl", "rRBC.jl"]
-    src = joinpath(EXAMPLES_DIR, example)
-    dest = joinpath(LIT_DIR, "") #replace(example, ".jl" => ".md"))
-    @info "Literate: $example → $dest"
-    Literate.markdown(src, dest;
-        documenter       = false,
-        flavor           = Literate.DocumenterFlavor(),
-        include_comments = true,
-        include_code     = true,
-        include_output   = false,
-        execute          = false
-    )
+mkpath(OUTPUT_DIR)
+
+examples = ["Stone1971.jl", "rRBC.jl"]
+
+@info "EXAMPLES_DIR: $EXAMPLES_DIR"
+@info "OUTPUT_DIR: $OUTPUT_DIR"
+
+for example in examples
+    # Input and target output file paths
+    input_file  = joinpath(EXAMPLES_DIR, example)
+    output_file = joinpath(OUTPUT_DIR, "") #, replace(example, ".jl" => ".md"))
+    @info "output_file: $output_file"
+    try
+        # Generate a simple markdown file without Documenter-specific @example blocks
+        Literate.markdown(
+            input_file,
+            output_file;
+            documenter       = false,
+            flavor            = DocumenterFlavor(),
+            include_comments = true,
+            include_code     = true,
+            include_output   = false,
+            execute          = false
+        )
+    catch e
+        @error "Failed to literate $input_file" exception=(e, catch_backtrace())
+        rethrow()
+    end
 end
 
 # -- Auto-generate @autodocs for module APIs ----------------------------------
