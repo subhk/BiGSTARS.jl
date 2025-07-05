@@ -25,4 +25,4 @@ Julia v1.10 (the current long-term release) and v1.11.
 ## Examples
 
 See `examples/` for example scripts. These examples are best viewed by browsing them within 
-the package's documentation. 
+the package's documentation (currently not working!). 
