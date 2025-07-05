@@ -1,4 +1,3 @@
-```julia
 using Documenter
 using DocumenterCitations
 using Literate
@@ -15,7 +14,7 @@ mkpath(LIT_DIR)
 
 for example in ["Stone1971.jl", "rRBC.jl"]
     src = joinpath(EXAMPLES_DIR, example)
-    dest = joinpath(LIT_DIR, "") #replace(example, ".jl" => ".md"))
+    dest = joinpath(LIT_DIR, replace(example, ".jl" => ".md"))
     @info "Literate: $example → $dest"
     Literate.markdown(src, dest;
         documenter       = false,
