@@ -24,7 +24,7 @@ using ModelingToolkit
 using NonlinearSolve
 
 using BiGSTARS
-using BiGSTARS : FourierDiff, cheb_coord_transform_ho,
+#using BiGSTARS : FourierDiff, cheb_coord_transform_ho,
 
 @with_kw mutable struct TwoDimGrid{Ny, Nz}
     y = @SVector zeros(Float64, Ny)

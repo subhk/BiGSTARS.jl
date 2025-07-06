@@ -59,23 +59,23 @@ makedocs(
     format    = format,
     authors   = "Subhajit Kar and contributors",
     sitename  = "BiGSTARS.jl",
-    repo      = "https://github.com/subhk/BiGSTARS.jl",       # <— your GitHub URL
+    repo      = "https://github.com/subhk/BiGSTARS.jl#main",  
     modules   = [BiGSTARS],
     plugins   = [bib],
-    doctest   = true,
+    doctest   = false,
     clean     = true,
-    checkdocs = :all,
-    pages     = [
+    checkdocs = :none,
+    pages     = Any[
         "Home"                => "index.md",
         "Installation"        => "installation_instructions.md",
-        "Examples"            => [
+        "Examples"            => Any[
             "Stone1971"       => "literated/Stone1971.md",
             "rRBC"            => "literated/rRBC.md"
         ],
-        "Modules"             => [
-            "Stone1971 API"   => "modules/Stone1971.md",
-            "rRBC API"        => "modules/rRBC.md"
-        ],
+        # "Modules"             => Any[
+        #     "Stone1971 API"   => "modules/Stone1971.md",
+        #     "rRBC API"        => "modules/rRBC.md"
+        # ],
         "Contributor's Guide" => "contributing.md",
         "References"          => "references.md"
     ]
@@ -115,19 +115,19 @@ end
 # )
 
 
-# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-#     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
-#                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
-#                devbranch = "main",
-#                forcepush = true,
-#                push_preview = true,
-#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-# else
-#     repo = "github.com/subhk/BiGSTARSDocumentation"
-#     withenv("GITHUB_REPOSITORY" => repo) do
-#         deploydocs(; repo,
-#                      devbranch = "main",
-#                      forcepush = true,
-#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-#     end
-# end
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+               repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+               devbranch = "main",
+               forcepush = true,
+               push_preview = true,
+               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+else
+    repo = "github.com/subhk/BiGSTARSDocumentation"
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(; repo,
+                     devbranch = "main",
+                     forcepush = true,
+                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    end
+end

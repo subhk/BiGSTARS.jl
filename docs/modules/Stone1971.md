@@ -1,11 +1,6 @@
-### Baroclinic instability
+# Baroclinic instability
 
-
-
-
-
-
-The resulting nondimensional, linearized Boussinesq equations of motion under the $f$-plane approximation are given by
+The resulting nondimensional, linearized Boussinesq equations of motion under the ``f``-plane approximation are given by
 ```math
 \begin{align}
     \frac{D \mathbf{u}}{Dt}
