@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 <!-- description --> 
-  **Bi**-**G**lobal **St**ability **A**nalayis of **R**otating **S**tarified flows (BiGSTARS): A linear stability analysis tool for Geophysical flows with Julia. 
+  **Bi**-**G**lobal **St**ability **A**nalayis of **R**otating **S**tarified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
 
 
 
@@ -25,4 +25,4 @@ Julia v1.10 (the current long-term release) and v1.11.
 ## Examples
 
 See `examples/` for example scripts. These examples are best viewed by browsing them within 
-the package's [documentation]. 
+the package's documentation (work in progress! 😄). 

@@ -2,11 +2,11 @@
 This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
 where the domain is periodic in y-direction.
 The code is benchmarked against Chandrashekar's theoretical results.
-# Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
+Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
 parameter: Ek (Ekman number) = 10⁻⁴
 eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
 """
-# load required packages
+## load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -173,7 +173,7 @@ function construct_matrices(Op, params)
     @printf "Start constructing matrices \n"
     # -------------------- construct matrix  ------------------------
     # lhs of the matrix (size := 3 × 3)
-    # eigenvectors: [uᶻ ωᶻ b]ᵀ
+    # eigenvectors: [uᶻ ωᶻ θ]ᵀ
 
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
@@ -186,17 +186,17 @@ function construct_matrices(Op, params)
     D²  = 1.0 * Op.𝒟²ᶻᴰ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰
     Dₙ² = 1.0 * Op.𝒟²ᶻᴺ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰   
 
-    #* 1. uᶻ equation
+    ## 1. uᶻ (vertical velocity) equation
     𝓛₁[:,    1:1s₂] =  1.0 * params.E * D⁴ 
     𝓛₁[:,1s₂+1:2s₂] = -1.0 * Op.𝒟ᶻᴺ
     𝓛₁[:,2s₂+1:3s₂] =  0.0 * I⁰ 
 
-    #* 2. ωᶻ equation 
+    ## 2. ωᶻ (vertical vorticity) equation 
     𝓛₂[:,    1:1s₂] = 1.0 * Op.𝒟ᶻᴰ
     𝓛₂[:,1s₂+1:2s₂] = 1.0 * params.E * Dₙ²
     𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰        
 
-    #* 3. b equation 
+    ## 3. θ (temperature) equation 
     𝓛₃[:,    1:1s₂] = 1.0 * I⁰ 
     𝓛₃[:,1s₂+1:2s₂] = 0.0 * I⁰
     𝓛₃[:,2s₂+1:3s₂] = 1.0 * D²     
@@ -208,22 +208,18 @@ function construct_matrices(Op, params)
 
     ℳ = ([ℳ₁; ℳ₂; ℳ₃])
 
-    #@printf "Done constructing matrices \n"
-
     return 𝓛, ℳ
 end
 
 @with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 2π        # horizontal domain size
-    H::T        = 1.0          # vertical domain size
+    L::T        = 2π          # horizontal domain size
+    H::T        = 1.0         # vertical domain size
     Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
     ε::T        = 0.1         # aspect ratio ε ≡ H/L
-    kₓ::T       = 0.0          # x-wavenumber
-    E::T        = 1.0e-4       # Ekman number 
-    Ny::Int64   = 180          # no. of y-grid points
-    Nz::Int64   = 20           # no. of z-grid points
-    #method::String    = "shift_invert"
-    #method::String    = "krylov"
+    kₓ::T       = 0.0         # x-wavenumber
+    E::T        = 1.0e-4      # Ekman number 
+    Ny::Int64   = 180         # no. of y-grid points
+    Nz::Int64   = 20          # no. of z-grid points
     method::String   = "arnoldi"
 end
 
@@ -241,36 +237,14 @@ function EigSolver(Op, params, σ₀)
             size(ℳ, 2)  == MatrixSize "matrix size does not match!"
 
     if params.method == "shift_invert"
-        # printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
-        #             color=:red)
 
         λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
-        
-        #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
 
     elseif params.method == "krylov"
-        #printstyled("KrylovKit Method ... \n"; color=:red)
 
-        # look for the largest magnitude of eigenvalue (:LM)
          λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
-        
-        #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
 
     elseif params.method == "arnoldi"
-
-        # printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
-        #                 color=:red)
-
-        # decomp, history = partialschur(construct_linear_map(𝓛, ℳ), 
-        #                             nev=20, 
-        #                             tol=0.0, 
-        #                             restarts=50000, 
-        #                             which=LM())
-
-        # println(history)
-
-        # λₛ⁻¹, Χ = partialeigen(decomp)
-        # λₛ = @. 1.0 / λₛ⁻¹
 
         λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, 
                                             σ₀=0.0, 
@@ -281,17 +255,7 @@ function EigSolver(Op, params, σ₀)
         λₛ, Χ = sort_evals(λₛ, Χ, "R", "")
 
     end
-    # ======================================================================
 
-    #@printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
-    
-    #print_evals(λₛ, length(λₛ))
-    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
-
-    # 𝓛 = nothing
-    # ℳ = nothing
-
-    #return nothing #
     return λₛ[1] #, Χ[:,1]
 end
 
@@ -308,20 +272,11 @@ function solve_rRBC(kₓ::Float64)
     
     λₛ = EigSolver(Op, params, σ₀)
 
-    # Theoretical results from Chandrashekar (1961)
+    ## Theoretical results from Chandrashekar (1961)
     λₛₜ = 189.7 
-    #@printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
 
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
     
 end
-
-#end #module
-# ========== end of the module ==========================
-
-
-# if abspath(PROGRAM_FILE) == @__FILE__
-#     solve_rRBC(0.0)
-# end
 
 solve_rRBC(0.0)

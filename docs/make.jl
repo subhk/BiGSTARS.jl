@@ -1,15 +1,13 @@
-using Documenter, DocumenterCitations, Literate
-
+using Documenter
+using DocumenterCitations
+using Literate
 using CairoMakie
 using Printf
 using BiGSTARS
+using StaticArrays
+using SpecialFunctions
 
-using Literate: DocumenterFlavor
-
-#####
-##### Generate literated examples
-#####
-
+# -- Generate literated examples ----------------------------------------------
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src", "literated")
 
@@ -31,7 +29,7 @@ for example in examples
             input_file,
             output_file;
             documenter       = false,
-            #flavor         = DocumenterFlavor(),
+            flavor            = DocumenterFlavor(),
             include_comments = true,
             include_code     = true,
             include_output   = false,
@@ -43,67 +41,73 @@ for example in examples
     end
 end
 
-#####
-##### Build and deploy docs
-#####
+# -- Auto-generate @autodocs for module APIs ----------------------------------
+const MODULES_DIR = joinpath(@__DIR__, "src", "modules")
+mkpath(MODULES_DIR)
+for mod in ["Stone1971", "rRBC"]
+    file = joinpath(MODULES_DIR, "$(mod).md")
+    open(file, "w") do io
+        println(io, "# $(mod) API\n")
+        println(io, "```@autodocs")
+        println(io, "Modules = [BiGSTARS.$(mod)]")
+        println(io, "```")
+    end
+end
 
+# -- Build site ---------------------------------------------------------------
 format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    canonical      = "https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/"
+    canonical      = "https://BiGSTARS.github.io/BiGSTARSDocumentation/stable/"
 )
 
-bib_filepath = joinpath(dirname(@__FILE__), "src", "references.bib")
-bib          = CitationBibliography(bib_filepath, style = :authoryear)
+bib = CitationBibliography(
+    joinpath(@__DIR__, "src", "references.bib"),
+    style = :authoryear
+)
 
-@printf "making makedocs... \n"
+@printf("Building docs…\n")
+makedocs(
+    format    = format,
+    authors   = "Subhajit Kar and contributors",
+    sitename  = "BiGSTARS.jl",
+    modules   = [BiGSTARS],
+    plugins   = [bib],
+    doctest   = false,
+    clean     = true,
+    checkdocs = :none,
+    pages     = [
+        "Home"                => "index.md",
+        "Installation"        => "installation_instructions.md",
+        "Examples"            => [
+            "Stone1971"       => "literated/Stone1971.md",
+            "rRBC"            => "literated/rRBC.md"
+        ],
+        "Modules"             => [
+            "Stone1971 API"   => "modules/Stone1971.md",
+            "rRBC API"        => "modules/rRBC.md"
+        ],
+        "Contributor's Guide" => "contributing.md",
+        "References"          => "references.md"
+    ]
+)
 
-try
-    makedocs(
-        format    = format,
-        authors   = "Subhajit Kar and contributors",
-        sitename  = "BiGSTARS.jl",
-        modules   = [BiGSTARS],
-        plugins   = [bib],
-        doctest   = false,
-        clean     = true,
-        checkdocs = :none,
-        pages     = [
-            "Home"                => "index.md",
-            "Installation"        => "installation_instructions.md",
-            "Examples"            => [
-                "Stone1971"       => "literated/Stone1971.md",
-                "rRBC"            => "literated/rRBC.md"
-            ],
-            # "Modules"             => [
-            #     "Stone1971 API"   => "modules/Stone1971.md",
-            #     "rRBC API"        => "modules/rRBC.md"
-            # ],
-            "Contributor's Guide" => "contributing.md",
-            "References"          => "references.md"
-        ]
-    )
-catch e
-    @error "makedocs failed" exception=(e, catch_backtrace())
-    rethrow()
+# -- Cleanup temporary files --------------------------------------------------
+for file in filter(x -> occursin(r"\\.jld2|\\.nc", x),
+                   walkdir(@__DIR__) |> Iterators.flatten)
+    rm(file; force=true)
 end
 
-@info "Clean up temporary .jld2 and .nc files created by doctests or literated examples..."
-
-function recursive_find(directory, pattern)
-    mapreduce(vcat, walkdir(directory)) do (root, dirs, files)
-        joinpath.(root, filter(contains(pattern), files))
-    end
-end
-
-files = String[]
-for pattern in [r"\\.jld2", r"\\.nc"]
-    append!(files, recursive_find(@__DIR__, pattern))
-end
-
-for file in files
-    rm(file; force = true)
-end
-
-# deploydocs setup remains as-is...
+# -- Deploy to GitHub Pages --------------------------------------------------
+@info "Deploying to GitHub Pages"
+# must set DOCUMENTER_KEY in CI for write access
+deploydocs(
+    repo         = "BiGSTARS/BiGSTARSDocumentation",
+    branch       = "gh-pages",
+    devbranch    = "main",
+    forcepush    = true,
+    push_preview = false,
+    versions     = ["stable" => "v^", "dev" => "dev"]
+)
+```

@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Stone1971 · BiGSTARS.jl</title><meta name="title" content="Stone1971 · BiGSTARS.jl"/><meta property="og:title" content="Stone1971 · BiGSTARS.jl"/><meta property="twitter:title" content="Stone1971 · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><meta property="twitter:url" content="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><link rel="canonical" href="https://github.com/BiGSTARS/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><a class="tocitem" href="../installation_instructions.html">Installation</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href="Stone1971.html">Stone1971</a></li><li><a class="tocitem" href="rRBC.html">rRBC</a></li></ul></li><li><a class="tocitem" href="../contributing.html">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../references.html">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/docs/src/literated/Stone1971.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><p>Stability of a 2D front based on Stone (1971) load required packages</p><pre><code class="language-julia hljs">using LazyGrids
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Stone1971 · BiGSTARS.jl</title><meta name="title" content="Stone1971 · BiGSTARS.jl"/><meta property="og:title" content="Stone1971 · BiGSTARS.jl"/><meta property="twitter:title" content="Stone1971 · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><meta property="twitter:url" content="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><link rel="canonical" href="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><a class="tocitem" href="../installation_instructions.html">Installation</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href="Stone1971.html">Stone1971</a></li><li><a class="tocitem" href="rRBC.html">rRBC</a></li></ul></li><li><a class="tocitem" href="../contributing.html">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../references.html">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/docs/src/literated/Stone1971.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia hljs">&quot;&quot;&quot;
+Stability of a 2D front based on Stone (1971)
+&quot;&quot;&quot;
+# load required packages
+using LazyGrids
 using LinearAlgebra
 using Printf
 using StaticArrays
@@ -213,7 +217,10 @@ mf.∇ʸᶻU₀[diagind(mf.∇ʸᶻU₀)] = ∂ʸᶻU₀;
 return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">function construct_matrices(Op, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
-    Z    = transpose(Z)</code></pre><p>imposed buoyancy profile</p><pre><code class="language-julia hljs">    B₀   = @. 1.0/params.Γ * Z - Y
+    Z    = transpose(Z)
+
+    # basic state
+    B₀   = @. 1.0/params.Γ * Z - Y
     ∂ʸB₀ = - 1.0 .* ones(size(Y))
     ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))
 
@@ -252,7 +259,10 @@ return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">func
 
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
-    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)</code></pre><p>allocating memory for the LHS and RHS matrices</p><pre><code class="language-julia hljs">    𝓛₁ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
+    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
+
+    # allocating memory for the LHS and RHS matrices
+    𝓛₁ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
     𝓛₂ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
     𝓛₃ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
 
@@ -280,19 +290,19 @@ return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">func
     D²  = (1.0/params.ε^2 * Op.𝒟²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * Op.𝒟²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    #* 1. uᶻ equation (bcs: uᶻ = ∂ᶻᶻuᶻ = 0 @ z = 0, 1)
+    # 1. uᶻ (vertical velocity)  equation (bcs: uᶻ = ∂ᶻᶻuᶻ = 0 @ z = 0, 1)
     𝓛₁[:,    1:1s₂] = (-1.0params.E * D⁴
                     + 1.0im * params.kₓ * mf.U₀ * D²) * params.ε^2
     𝓛₁[:,1s₂+1:2s₂] = 1.0 * Op.𝒟ᶻᴺ
     𝓛₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
 
-    #* 2. ωᶻ equation (bcs: ∂ᶻωᶻ = 0 @ z = 0, 1)
+    # 2. ωᶻ (vertical vorticity) equation (bcs: ∂ᶻωᶻ = 0 @ z = 0, 1)
     𝓛₂[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * Op.𝒟ʸ - 1.0 * Op.𝒟ᶻᴰ
     𝓛₂[:,1s₂+1:2s₂] = (1.0im * params.kₓ * mf.U₀ * I⁰
                     - 1.0params.E * Dₙ²)
-    #𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
+    𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
 
-    #* 3. b equation (bcs: b = 0 @ z = 0, 1)
+    # 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
     𝓛₃[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰
                     - 1.0 * mf.∇ʸB₀ * H * Op.𝒟ʸᶻᴰ)
     𝓛₃[:,1s₂+1:2s₂] = 1.0im * params.kₓ * mf.∇ʸB₀ * H * I⁰
@@ -302,7 +312,7 @@ return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">func
     𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
 
 
-    cnst = -1.0 #1.0im #* params.kₓ
+    cnst = -1.0
     ℳ₁[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
     ℳ₂[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
     ℳ₃[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
@@ -311,22 +321,18 @@ return nothing</code></pre><p>end</p><pre><code class="language-julia hljs">func
     return 𝓛, ℳ
 end</code></pre><p>Parameters:</p><pre><code class="language-julia hljs">@with_kw mutable struct Params{T&lt;:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
-    H::T        = 1.0          # vertical domain size
-    Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
-    ε::T        = 0.1         # aspect ratio ε ≡ H/L
-    kₓ::T       = 0.0          # x-wavenumber
-    E::T        = 1.0e-9       # Ekman number
-    Ny::Int64   = 48          # no. of y-grid points
-    Nz::Int64   = 24           # no. of z-grid points
-    #method::String    = &quot;shift_invert&quot;
-    method::String    = &quot;krylov&quot;
-    #method::String   = &quot;arnoldi&quot;
+    H::T        = 1.0        # vertical domain size
+    Γ::T        = 0.1        # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
+    ε::T        = 0.1        # aspect ratio ε ≡ H/L
+    kₓ::T       = 0.0        # x-wavenumber
+    E::T        = 1.0e-9     # Ekman number
+    Ny::Int64   = 48         # no. of y-grid points
+    Nz::Int64   = 24         # no. of z-grid points
+    method::String = &quot;krylov&quot;
 end
 
 
 function EigSolver(Op, mf, grid, params, σ₀)
-
-    #printstyled(&quot;kₓ: $(params.kₓ) \n&quot;; color=:blue)
 
     𝓛, ℳ = construct_matrices(Op, mf, grid, params)
 
@@ -338,22 +344,22 @@ function EigSolver(Op, mf, grid, params, σ₀)
             size(ℳ, 2)  == MatrixSize &quot;matrix size does not match!&quot;
 
     if params.method == &quot;shift_invert&quot;
-        #printstyled(&quot;Eigensolver using Arpack eigs with shift and invert method ...\n&quot;;</code></pre><pre><code class="nohighlight hljs">       color=:red)</code></pre><pre><code class="language-julia hljs">        λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
-        #@printf &quot;found eigenvalue (at first): %f + im %f \n&quot; λₛ[1].re λₛ[1].im</code></pre><p>println(λₛ) print_evals(λₛ, length(λₛ))</p><pre><code class="language-julia hljs">    elseif params.method == &quot;krylov&quot;
-        #printstyled(&quot;KrylovKit Method ... \n&quot;; color=:red)</code></pre><p>looking for the largest real part of the eigenvalue (:LR)</p><pre><code class="language-julia hljs">        λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
-        #@printf &quot;found eigenvalue (at first): %f + im %f \n&quot; λₛ[1].re λₛ[1].im</code></pre><p>println(λₛ) print_evals(λₛ, length(λₛ))</p><pre><code class="language-julia hljs">    elseif params.method == &quot;arnoldi&quot;
-        #printstyled(&quot;Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n&quot;;</code></pre><pre><code class="nohighlight hljs">           color=:red)</code></pre><p>looking for the largest real part of the eigenvalue (:LR)</p><pre><code class="language-julia hljs">        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)</code></pre><p>println(λₛ) print_evals(λₛ, length(λₛ))</p><pre><code class="language-julia hljs">    end</code></pre><p>======================================================================</p><pre><code class="language-julia hljs">    @assert length(λₛ) &gt; 0 &quot;No eigenvalue(s) found!&quot;</code></pre><p>Post Process egenvalues</p><pre><code class="language-julia hljs">    #λₛ, Χ = remove_evals(λₛ, Χ, 0.0, 10.0, &quot;M&quot;) # `R`: real part of λₛ.
-    #λₛ, Χ = sort_evals(λₛ, Χ, &quot;R&quot;)
+        λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
 
-    #λₛ = sort_evals_(λₛ, &quot;R&quot;)
+    elseif params.method == &quot;krylov&quot;
 
-    #=
-        this removes any further spurious eigenvalues based on norm
-        if you don&#39;t need it, just `comment&#39; it!
-    =#</code></pre><p>while norm(𝓛 * Χ[:,1] - λₛ[1]/cnst * ℳ * Χ[:,1]) &gt; 8e-2 # || imag(λₛ[1]) &gt; 0     @printf &quot;norm (inside while): %f \n&quot; norm(𝓛 * Χ[:,1] - λₛ[1]/cnst * ℳ * Χ[:,1])     λₛ, Χ = remove_spurious(λₛ, Χ) end</p><pre><code class="language-julia hljs">    #@printf &quot;||𝓛Χ - λₛℳΧ||₂: %f \n&quot; norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+        λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
 
-    #print_evals(λₛ, length(λₛ))
-    #@printf &quot;largest growth rate : %1.4e%+1.4eim\n&quot; real(λₛ[1]) imag(λₛ[1])</code></pre><p>𝓛 = nothing ℳ = nothing</p><pre><code class="language-julia hljs">    #return nothing #
+
+    elseif params.method == &quot;arnoldi&quot;
+
+        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+    end</code></pre><p>======================================================================</p><pre><code class="language-julia hljs">    @assert length(λₛ) &gt; 0 &quot;No eigenvalue(s) found!&quot;
+
+    @printf &quot;||𝓛Χ - λₛℳΧ||₂: %f \n&quot; norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+
+    @printf &quot;largest growth rate : %1.4e%+1.4eim\n&quot; real(λₛ[1]) imag(λₛ[1])
+
     return λₛ[1] #, Χ[:,1]
 end
 
@@ -366,18 +372,21 @@ function solve_Stone1971(kₓ::Float64=0.0)
     mf          = MeanFlow{params.Ny * params.Nz}()
 
     Construct_DerivativeOperator!(diffMatrix, grid, params)
-    ImplementBCs_cheb!(Op, diffMatrix, params)</code></pre><p>Construct the mean flow</p><pre><code class="language-julia hljs">    #BasicState!(diffMatrix, mf, grid, params)
+    ImplementBCs_cheb!(Op, diffMatrix, params)
 
     σ₀   = 0.01
     params.kₓ = kₓ
 
-    λₛ = EigSolver(Op, mf, grid, params, σ₀)</code></pre><p>Analytical solution of Stone (1971) for the growth rate</p><pre><code class="language-julia hljs">    cnst = 1.0 + 1.0/params.Γ + 5.0*params.ε^2 * params.kₓ^2/42.0
-    λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
+    λₛ = EigSolver(Op, mf, grid, params, σ₀)
 
-    #@printf &quot;Analytical solution of Stone (1971): %1.4e \n&quot; λₛₜ
+    # Analytical solution of Stone (1971) for the growth rate
+    cnst = 1.0 + 1.0/params.Γ + 5.0*params.ε^2 * params.kₓ^2/42.0
+    λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
 
     return abs(λₛ.re - λₛₜ) &lt; 1e-3
 
-end</code></pre><p>if abspath(PROGRAM<em>FILE) == @<strong>FILE</strong>     solve</em>Stone1971(0.1) end</p><pre><code class="language-julia hljs">solve_Stone1971(0.1)
+end
 
-println(&quot;Example runs OK&quot;)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../installation_instructions.html">« Installation</a><a class="docs-footer-nextpage" href="rRBC.html">rRBC »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Wednesday 2 July 2025 16:11">Wednesday 2 July 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+solve_Stone1971(0.1)
+
+println(&quot;Example runs OK&quot;)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../installation_instructions.html">« Installation</a><a class="docs-footer-nextpage" href="rRBC.html">rRBC »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Saturday 5 July 2025 14:04">Saturday 5 July 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
