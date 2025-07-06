@@ -2,16 +2,16 @@
 EditURL = "../../../examples/rRBC.jl"
 ```
 
+## This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
+## where the domain is periodic in y-direction.
+## The code is benchmarked against Chandrashekar's theoretical results.
+## Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
+## parameter: Ek (Ekman number) = 10⁻⁴
+## eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
+
+## load required packages
+
 ````@example rRBC
-"""
-This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
-where the domain is periodic in y-direction.
-The code is benchmarked against Chandrashekar's theoretical results.
-Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
-parameter: Ek (Ekman number) = 10⁻⁴
-eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
-"""
-# load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -25,9 +25,17 @@ using Test
 using BenchmarkTools
 
 using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
+````
 
+## Let's begin
+
+````@example rRBC
 using BiGSTARS
+````
 
+## Define the grid and derivative operators
+
+````@example rRBC
 @with_kw mutable struct TwoDimGrid{Ny, Nz}
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
@@ -50,15 +58,15 @@ end
     𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
+````
 
+## `subperscript with N' means Operator with Neumann boundary condition
+##        after kronker product
+##    `subperscript with D' means Operator with Dirchilet boundary condition
+##        after kronker product
+
+````@example rRBC
 @with_kw mutable struct Operator{N}
-"""
-    `subperscript with N' means Operator with Neumann boundary condition
-        after kronker product
-    `subperscript with D' means Operator with Dirchilet boundary condition
-        after kronker product
-"""
-
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -133,7 +141,11 @@ function construct_matrices(Op, params)
 
     return 𝓛, ℳ
 end
+````
 
+## Define the parameters
+
+````@example rRBC
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 2π          # horizontal domain size
     H::T        = 1.0         # vertical domain size
@@ -145,7 +157,11 @@ end
     Nz::Int64   = 20          # no. of z-grid points
     method::String   = "arnoldi"
 end
+````
 
+## Define the eigenvalue solver
+
+````@example rRBC
 function EigSolver(Op, params, σ₀)
 
     printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
@@ -181,7 +197,11 @@ function EigSolver(Op, params, σ₀)
 
     return λₛ[1] #, Χ[:,1]
 end
+````
 
+## solving the rRBC problem
+
+````@example rRBC
 function solve_rRBC(kₓ::Float64)
     params      = Params{Float64}(kₓ=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()

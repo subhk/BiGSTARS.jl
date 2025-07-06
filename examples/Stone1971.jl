@@ -1,7 +1,6 @@
-"""
-Stability of a 2D front based on Stone (1971)
-"""
-## load required packages
+# ##Stability of a 2D front based on Stone (1971)
+
+# ## load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -19,8 +18,8 @@ using ModelingToolkit
 using NonlinearSolve
 
 using BiGSTARS
-#using BiGSTARS : FourierDiff, cheb_coord_transform_ho, 
 
+# ## Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
@@ -44,14 +43,11 @@ end
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
 
+# ## `subperscript with N' means Operator with Neumann boundary condition 
+# ##        after kronker product
+# ##    `subperscript with D' means Operator with Dirchilet boundary condition
+# ##        after kronker product
 @with_kw mutable struct Operator{N}
-"""
-    `subperscript with N' means Operator with Neumann boundary condition 
-        after kronker product
-    `subperscript with D' means Operator with Dirchilet boundary condition
-        after kronker product
-""" 
-
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -195,7 +191,7 @@ function construct_matrices(Op, mf, grid, params)
 end
 
 
-## Parameters:
+# ## Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0        # vertical domain size
@@ -208,7 +204,7 @@ end
     method::String = "krylov"
 end
 
-
+# ## Define the eigenvalue solver
 function EigSolver(Op, mf, grid, params, σ₀)
 
     𝓛, ℳ = construct_matrices(Op, mf, grid, params)
@@ -242,7 +238,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
     return λₛ[1] #, Χ[:,1]
 end
 
-
+# ## solving the Stone problem
 function solve_Stone1971(kₓ::Float64=0.0)
     params      = Params{Float64}(kₓ=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
@@ -268,5 +264,4 @@ end
 
 solve_Stone1971(0.1)
 
-println("Example runs OK")
 
