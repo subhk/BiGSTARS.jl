@@ -28,6 +28,7 @@ using BiGSTARS
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
 end
+nothing #hide
 
 @with_kw mutable struct ChebMarix{Ny, Nz} 
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
@@ -46,6 +47,7 @@ end
     𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
+nothing #hide
 
 # ## `subperscript with N' means Operator with Neumann boundary condition 
 # ##        after kronker product
@@ -71,6 +73,7 @@ end
     𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 end
+nothing #hide
 
 function construct_matrices(Op, params)
     N  = params.Ny * params.Nz
