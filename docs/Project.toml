@@ -16,6 +16,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SparseMatrixDicts = "5cb6c4b0-9b79-11e8-24c9-f9621d252589"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
 
 [compat]
 BenchmarkTools = "1.6.0"
@@ -26,3 +27,4 @@ Literate = "≥2.9.0"
 Parameters = "0.12.3"
 SpecialFunctions = "2.5.1"
 StaticArrays = "0.12, 1"
+ArnoldiMethod = "0.4.0"
