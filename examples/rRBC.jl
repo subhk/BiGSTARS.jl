@@ -126,6 +126,7 @@ function construct_matrices(Op, params)
 
     return 𝓛, ℳ
 end
+nothing #hide
 
 # ## Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
@@ -139,6 +140,7 @@ end
     Nz::Int64   = 20          # no. of z-grid points
     method::String   = "arnoldi"
 end
+nothing #hide
 
 # ## Define the eigenvalue solver
 function EigSolver(Op, params, σ₀)
@@ -176,6 +178,7 @@ function EigSolver(Op, params, σ₀)
 
     return λₛ[1] #, Χ[:,1]
 end
+nothing #hide
 
 # ## solving the rRBC problem
 function solve_rRBC(kₓ::Float64)
@@ -197,5 +200,6 @@ function solve_rRBC(kₓ::Float64)
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
     
 end
+nothing #hide
 
 solve_rRBC(0.0)

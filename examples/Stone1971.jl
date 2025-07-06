@@ -189,6 +189,7 @@ function construct_matrices(Op, mf, grid, params)
     
     return 𝓛, ℳ
 end
+nothing #hide
 
 
 # ## Define the parameters
@@ -203,6 +204,7 @@ end
     Nz::Int64   = 24         # no. of z-grid points
     method::String = "krylov"
 end
+nothing #hide
 
 # ## Define the eigenvalue solver
 function EigSolver(Op, mf, grid, params, σ₀)
@@ -237,6 +239,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     return λₛ[1] #, Χ[:,1]
 end
+nothing #hide
 
 # ## solving the Stone problem
 function solve_Stone1971(kₓ::Float64=0.0)
@@ -261,6 +264,7 @@ function solve_Stone1971(kₓ::Float64=0.0)
     return abs(λₛ.re - λₛₜ) < 1e-3
 
 end
+nothing #hide
 
 solve_Stone1971(0.1)
 
