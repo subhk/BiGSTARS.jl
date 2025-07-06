@@ -1,82 +1,70 @@
 using Documenter
 using DocumenterCitations
 using Literate
+
 using CairoMakie
 using Printf
+
 using BiGSTARS
-using StaticArrays
-using SpecialFunctions
 
-# -- Generate literated examples ----------------------------------------------
+#####
+##### Generate literated examples
+#####
+
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
-const OUTPUT_DIR   = joinpath(@__DIR__, "src", "literated")
+const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
-mkpath(OUTPUT_DIR)
-
-examples = ["Stone1971.jl", "rRBC.jl"]
-
-@info "EXAMPLES_DIR: $EXAMPLES_DIR"
-@info "OUTPUT_DIR: $OUTPUT_DIR"
+examples = [
+    "Stone1971.jl",
+    "rRBC.jl"
+]
 
 for example in examples
-    # Input and target output file paths
-    input_file  = joinpath(EXAMPLES_DIR, example)
-    output_file = joinpath(OUTPUT_DIR, "") #, replace(example, ".jl" => ".md"))
-    @info "output_file: $output_file"
-    try
-        # Generate a simple markdown file without Documenter-specific @example blocks
-        Literate.markdown(
-            input_file,
-            output_file;
-            documenter       = false,
-            flavor            = DocumenterFlavor(),
-            include_comments = true,
-            include_code     = true,
-            include_output   = false,
-            execute          = false
-        )
-    catch e
-        @error "Failed to literate $input_file" exception=(e, catch_backtrace())
-        rethrow()
-    end
+    input_file = joinpath(EXAMPLES_DIR, example)
+    output_file = joinpath(OUTPUT_DIR, "") #replace(example, ".jl" => ".md"))
+    Literate.markdown(input_file, 
+                    output_file; 
+                    documenter=true, 
+                    include_comments=true, 
+                    include_code=true, 
+                    include_output=true)
 end
 
-# -- Auto-generate @autodocs for module APIs ----------------------------------
-const MODULES_DIR = joinpath(@__DIR__, "src", "modules")
-mkpath(MODULES_DIR)
-for mod in ["Stone1971", "rRBC"]
-    file = joinpath(MODULES_DIR, "$(mod).md")
-    open(file, "w") do io
-        println(io, "# $(mod) API\n")
-        println(io, "```@autodocs")
-        println(io, "Modules = [BiGSTARS.$(mod)]")
-        println(io, "```")
-    end
-end
+# for example in examples
+#   withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
+#     example_filepath = joinpath(EXAMPLES_DIR, example)
+#     withenv("JULIA_DEBUG" => "Literate") do
+#       Literate.markdown(example_filepath, OUTPUT_DIR;
+#                         flavor = Literate.DocumenterFlavor(), execute = true)
+#     end
+#   end
+# end
 
-# -- Build site ---------------------------------------------------------------
+#####
+##### Build and deploy docs
+#####
+
 format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold = 2^21,
-    canonical      = "https://BiGSTARS.github.io/BiGSTARSDocumentation/stable/"
+    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable/"
 )
 
-bib = CitationBibliography(
-    joinpath(@__DIR__, "src", "references.bib"),
-    style = :authoryear
-)
+bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
+bib = CitationBibliography(bib_filepath, style=:authoryear)
 
-@printf("Building docs…\n")
+@printf("Building doc ...\n")
 makedocs(
     format    = format,
     authors   = "Subhajit Kar and contributors",
     sitename  = "BiGSTARS.jl",
+    repo      = "https://github.com/subhk/BiGSTARS.jl",       # <— your GitHub URL
     modules   = [BiGSTARS],
     plugins   = [bib],
-    doctest   = false,
+    doctest   = true,
     clean     = true,
-    checkdocs = :none,
+    checkdocs = :all,
     pages     = [
         "Home"                => "index.md",
         "Installation"        => "installation_instructions.md",
@@ -93,21 +81,53 @@ makedocs(
     ]
 )
 
-# -- Cleanup temporary files --------------------------------------------------
-for file in filter(x -> occursin(r"\\.jld2|\\.nc", x),
-                   walkdir(@__DIR__) |> Iterators.flatten)
-    rm(file; force=true)
+
+@info "Clean up temporary .jld2 and .nc output created by doctests or literated examples..."
+
+"""
+    recursive_find(directory, pattern)
+
+Return list of filepaths within `directory` that contains the `pattern::Regex`.
+"""
+recursive_find(directory, pattern) =
+    mapreduce(vcat, walkdir(directory)) do (root, dirs, files)
+        joinpath.(root, filter(contains(pattern), files))
+    end
+
+files = []
+for pattern in [r"\.jld2", r"\.nc"]
+    global files = vcat(files, recursive_find(@__DIR__, pattern))
 end
 
-# -- Deploy to GitHub Pages --------------------------------------------------
-@info "Deploying to GitHub Pages"
-# must set DOCUMENTER_KEY in CI for write access
-deploydocs(
-    repo         = "BiGSTARS/BiGSTARSDocumentation",
-    branch       = "gh-pages",
-    devbranch    = "main",
-    forcepush    = true,
-    push_preview = false,
-    versions     = ["stable" => "v^", "dev" => "dev"]
-)
-```
+for file in files
+    rm(file)
+end
+
+
+# Replace with below once https://github.com/JuliaDocs/Documenter.jl/pull/2692 is merged and available.
+# deploydocs(
+#     repo = "github.com/BiGSTARS/BiGSTARS.jl",
+#     deploy_repo = "github.com/BiGSTARS/BiGSTARSDocumentation",
+#     devbranch = "main",
+#     forcepush = true,
+#     push_preview = true,
+#     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"]
+# )
+
+
+# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+#     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+#                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+#                devbranch = "main",
+#                forcepush = true,
+#                push_preview = true,
+#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+# else
+#     repo = "github.com/subhk/BiGSTARSDocumentation"
+#     withenv("GITHUB_REPOSITORY" => repo) do
+#         deploydocs(; repo,
+#                      devbranch = "main",
+#                      forcepush = true,
+#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+#     end
+# end
