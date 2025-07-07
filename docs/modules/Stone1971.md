@@ -106,6 +106,11 @@ We choose periodic boundary conditions in the ``y``-direction and free-slip, rig
     \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 \end{align}
 ```
+
+```@docs
+GeophysicalFlows.TwoDNavierStokes.Equation
+```
+
 The above sets of equations with the boundary conditions can be expressed as a standard generalized eigenvalue problem,
 ```math
 \begin{align}
