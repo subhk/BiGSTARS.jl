@@ -8,5 +8,5 @@ $z \in [0, 1]$ are given by
     \,\,\,\,
     j = 0, \cdots, N_z.
 \end{align}
-and the first-order Chebyshev differentiation matrix is given by
 ```
+and the first-order Chebyshev differentiation matrix is given by
