@@ -150,19 +150,19 @@ end
 # )
 
 
-# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-#     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
-#                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
-#                devbranch = "main",
-#                forcepush = true,
-#                push_preview = true,
-#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-# else
-#     repo = "github.com/subhk/BiGSTARSDocumentation"
-#     withenv("GITHUB_REPOSITORY" => repo) do
-#         deploydocs(; repo,
-#                      devbranch = "main",
-#                      forcepush = true,
-#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-#     end
-# end
+if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+               repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+               devbranch = "main",
+               forcepush = true,
+               push_preview = true,
+               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+else
+    repo = "github.com/subhk/BiGSTARSDocumentation"
+    withenv("GITHUB_REPOSITORY" => repo) do
+        deploydocs(; repo,
+                     devbranch = "main",
+                     forcepush = true,
+                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    end
+end
