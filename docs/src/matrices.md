@@ -31,6 +31,11 @@ and the first-order Chebyshev differentiation matrix is given by
 \end{equation}
 ```
 
+The Chebyshev differentiation matrix is implemented in 
+```@docs
+BiGSTARS.cheb
+```
+
 # Construction of Fourier differentiation matrix
 For $y \in [0,L_y]$, the first-order Fourier differentiation matrix for even $N_y$ is,
 ```math
@@ -56,3 +61,7 @@ and for odd $N_y$,
 ```
 where $h=2\pi/N_y$.
 
+The Fourier differentiation matrix is implemented in 
+```@docs
+BiGSTARS.FourierDiff
+```
