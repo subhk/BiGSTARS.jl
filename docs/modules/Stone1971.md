@@ -123,4 +123,6 @@ The above sets of equations with the boundary conditions can be expressed as a s
 where ``\sigma`` is the eigenvalue, ``\mathsf{X}=[\tilde{w}, \tilde{\zeta}, \tilde{b}]^T`` is the eigenvector and the matrices ``\mathsfit{A}``, ``\mathsfit{B}`` are the complex and real non-symmetric matrices, respectively. 
 
 
+
+
 ![Alt text](images/stone1971_Ri2.png)
