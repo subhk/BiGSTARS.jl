@@ -66,18 +66,19 @@ makedocs(
     clean     = true,
     checkdocs = :none,
     pages     = Any[
-        "Home"                => "index.md",
-        "Installation"        => "installation_instructions.md",
-        "Examples"            => Any[
-            "Stone1971"       => "literated/Stone1971.md",
-            "rRBC"            => "literated/rRBC.md"
+        "Home"                      => "index.md",
+        "Installation"              => "installation_instructions.md",
+        "Differentiation matrix"    => "matrices.md",
+        "Examples"                  => Any[
+            "Stone1971"             => "literated/Stone1971.md",
+            "rRBC"                  => "literated/rRBC.md"
         ],
-        # "Modules"             => Any[
-        #     "Stone1971 API"   => "modules/Stone1971.md",
-        #     "rRBC API"        => "modules/rRBC.md"
-        # ],
-        "Contributor's Guide" => "contributing.md",
-        "References"          => "references.md"
+        "Modules"                   => Any[
+            "Stone1971 API"         => "modules/Stone1971.md",
+            "rRBC API"              => "modules/rRBC.md"
+        ],
+        "Contributor's Guide"       => "contributing.md",
+        "References"                => "references.md"
     ]
 )
 

@@ -23,6 +23,8 @@ module BiGSTARS
     #using MKL_jll
     #using MKL
 
+    using Reexport
+
     # 
     export
        # Chebychev matrix
@@ -89,10 +91,10 @@ module BiGSTARS
     include("utils.jl")
     include("derivative_operators.jl")
 
-    include("Stone1971.jl")
-    export Stone1971
+    include("../examples/Stone1971.jl")
+    include("../exmaples/rRBC.jl")
 
-    include("rRBC.jl")
-    export rRBC
+    @reexport using BiGSTARS.Stone1971
+    @reexport using BiGSTARS.rRBC
 
 end # module BiGSTARS

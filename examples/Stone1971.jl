@@ -19,7 +19,7 @@ using JLD2
 using ModelingToolkit
 using NonlinearSolve
 
-using BiGSTARS
+#using BiGSTARS
 
 # ## Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
