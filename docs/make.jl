@@ -11,6 +11,12 @@ using BiGSTARS
 ##### Generate literated examples
 #####
 
+using DocumenterTools
+DocumenterTools.generate_keypair(
+  repo="subhk/BiGSTARSDocumentation",
+  dir="."
+)
+
 bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
 bib = CitationBibliography(bib_filepath, style=:authoryear)
 
