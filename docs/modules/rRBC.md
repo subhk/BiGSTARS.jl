@@ -37,6 +37,10 @@ The boundary conditions are:
     \,\,\,\,\,\ \text{at} \,\,\, z=0,1
 \end{align}
 ```
+The boundary conditions are implemented in 
+```@docs
+BiGSTARS.setBCs!
+```
 
 ## Normal mode 
 Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```),
