@@ -32,7 +32,8 @@ and the first-order Chebyshev differentiation matrix is given by
 ```
 
 To construct the Chebyshev differentiation matrix:
-```@example 2
+```markdown
+```jldoctest
 using BiGSTARS
 
 N = 10 # number of grid points
