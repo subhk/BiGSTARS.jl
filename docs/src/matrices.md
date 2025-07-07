@@ -30,3 +30,29 @@ and the first-order Chebyshev differentiation matrix is given by
   \end{cases}
 \end{equation}
 ```
+
+# Construction of Fourier differentiation matrix
+For $y \in [0,L_y]$, the first-order Fourier differentiation matrix for even $N_y$ is,
+```math
+\begin{equation}
+    (\mathrm{D}_y)_{ij} = \begin{cases}
+        0, \,\,\,\,\, i=j, 
+\\
+        \dfrac{\pi}{L_y} (-1)^{i-j} \cot{\left(\dfrac{(i-j)h}{2} \right)}
+        \,\,\,\,\, i \neq j,
+    \end{cases}
+\end{equation}
+```
+and for odd $N_y$,
+```math
+\begin{equation}
+    (\mathrm{D}_y)_{ij} = \begin{cases}
+        0, \,\,\,\,\, i=j, 
+\\
+        \dfrac{\pi}{L_y} (-1)^{i-j} \csc{\left(\dfrac{(i-j)h}{2} \right)}
+        \,\,\,\,\, i \neq j,
+    \end{cases}
+\end{equation}
+```
+where $h=2\pi/N_y$.
+
