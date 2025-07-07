@@ -67,22 +67,25 @@ and for odd $N_y$,
 where $h=2\pi/N_y$.
 
 To construct the Fourier differentiation matrix:
-```@example 2
+```markdown
+```jldoctest
 using BiGSTARS
 
 N    = 10 # number of grid points
 mder = 1  # order of Fourier derivative
 y, D = FourierDiff(N, mder)
 
-This gives the domain size of y as y ∈ [0, 2π). 
-To convert into a specific domain size y₀ ∈ [0, L), 
-y₀ = L/2π  * y.
+The domain size of `y` is 0 to 2π.
+To convert into an arbitrary domain [0, L]: 
 
-The corresponding derivative operator in this transform as
-𝒟  = (2π/L)^1 * D
+y0 = L/(2π) * y
+𝒟 = (2π/L)^1 * D
 
-For mder = n (positive integer), the derivative operator is defined as
-𝒟  = (2π/L)^n * D
+For an n-th derivative:
+
+y, D = FourierDiff(N, n)
+𝒟   = (2π/L)^n * D
+
 
 nothing # hide
 ```
