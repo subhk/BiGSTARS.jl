@@ -1,3 +1,5 @@
+module Stone1971
+
 # ##Stability of a 2D front based on Stone (1971)
 
 # ## load required packages
@@ -273,4 +275,5 @@ nothing #hide
 
 solve_Stone1971(0.1)
 
-
+end # module Stone1971
+nothing #hide

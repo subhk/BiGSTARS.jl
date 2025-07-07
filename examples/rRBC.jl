@@ -1,3 +1,4 @@
+module rRBC
 # ## This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
 # ## where the domain is periodic in y-direction.
 # ## The code is benchmarked against Chandrashekar's theoretical results.
@@ -206,3 +207,6 @@ end
 nothing #hide
 
 solve_rRBC(0.0)
+
+end # module rRBC
+nothing #hide
