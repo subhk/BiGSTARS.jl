@@ -1,4 +1,6 @@
-# Construction of Chebyshev differentiation matrix
+# Construction of differentiation matrices
+
+### Construction of Chebyshev differentiation matrix
 A standard approach is followed in the construction of the differentiation matrices 
 \citep{trefethen2000spectral}. The transformed Gauss–Lobatto points for 
 $z \in [0, 1]$ are given by
@@ -42,7 +44,7 @@ z, D = cheb(N-1)
 nothing # hide
 ```
 
-# Construction of Fourier differentiation matrix
+### Construction of Fourier differentiation matrix
 For $y \in [0,L_y]$, the first-order Fourier differentiation matrix for even $N_y$ is,
 ```math
 \begin{equation}
