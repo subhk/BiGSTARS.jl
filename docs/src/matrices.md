@@ -74,9 +74,15 @@ N    = 10 # number of grid points
 mder = 1  # order of Fourier derivative
 y, D = FourierDiff(N, mder)
 
-This gives the domain size of y as y ∈ [0, 2π)
+This gives the domain size of y as y ∈ [0, 2π). 
+To convert into a specific domain size y₀ ∈ [0, L), 
+y₀ = L/2π  * y.
 
-To convert into a specific domain size [0, L), 
+The corresponding derivative operator in this transform as
+𝒟  = (2π/L)^1 * D
+
+For mder = n (positive integer), the derivative operator is defined as
+𝒟  = (2π/L)^n * D
 
 nothing # hide
 ```
