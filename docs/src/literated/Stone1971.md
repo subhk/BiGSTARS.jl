@@ -2,7 +2,7 @@
 EditURL = "../../../examples/Stone1971.jl"
 ```
 
-##Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 
 
 The resulting nondimensional, linearized Boussinesq equations of motion
@@ -128,7 +128,7 @@ using NonlinearSolve
 using BiGSTARS
 ````
 
-## Define the grid and derivative operators
+### Define the grid and derivative operators
 
 ````julia
 @with_kw mutable struct TwoDimGrid{Ny, Nz}
@@ -155,10 +155,10 @@ end
 end
 ````
 
-## `subperscript with N' means Operator with Neumann boundary condition
-##        after kronker product
-##    `subperscript with D' means Operator with Dirchilet boundary condition
-##        after kronker product
+### `subperscript with N' means Operator with Neumann boundary condition
+###        after kronker product
+###    `subperscript with D' means Operator with Dirchilet boundary condition
+###        after kronker product
 
 ````julia
 @with_kw mutable struct Operator{N}
@@ -197,7 +197,7 @@ end
 end
 ````
 
-## Constructing the derivative operators
+### Constructing the derivative operators
 
 ````julia
 function construct_matrices(Op, mf, grid, params)
@@ -308,7 +308,7 @@ function construct_matrices(Op, mf, grid, params)
 end
 ````
 
-## Define the parameters
+### Define the parameters
 
 ````julia
 @with_kw mutable struct Params{T<:Real} @deftype T
@@ -324,7 +324,7 @@ end
 end
 ````
 
-## Define the eigenvalue solver
+### Define the eigenvalue solver
 
 ````julia
 function EigSolver(Op, mf, grid, params, σ₀)
@@ -361,7 +361,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
 end
 ````
 
-## solving the Stone problem
+### Solving the Stone problem
 
 ````julia
 function solve_Stone1971(kₓ::Float64=0.0)
@@ -394,8 +394,8 @@ solve_Stone1971(0.1)
 sigma: 0.011500 
 (3456,)
 found eigenvalue: 0.028452 + im -0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.000475 
-largest growth rate : 2.8452e-02-1.0770e-10im
+||𝓛Χ - λₛℳΧ||₂: 0.000487 
+largest growth rate : 2.8452e-02-3.0654e-10im
 
 ````
 

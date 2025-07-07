@@ -1,4 +1,4 @@
-# ##Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+# Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 #
 #
 # The resulting nondimensional, linearized Boussinesq equations of motion 
@@ -121,7 +121,7 @@ using NonlinearSolve
 
 using BiGSTARS
 
-# ## Define the grid and derivative operators
+# ### Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
@@ -147,10 +147,10 @@ nothing #hide
 end
 nothing #hide
 
-# ## `subperscript with N' means Operator with Neumann boundary condition 
-# ##        after kronker product
-# ##    `subperscript with D' means Operator with Dirchilet boundary condition
-# ##        after kronker product
+# ### `subperscript with N' means Operator with Neumann boundary condition 
+# ###        after kronker product
+# ###    `subperscript with D' means Operator with Dirchilet boundary condition
+# ###        after kronker product
 @with_kw mutable struct Operator{N}
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -189,7 +189,7 @@ end
 nothing #hide
 
 
-# ## Constructing the derivative operators
+# ### Constructing the derivative operators
 function construct_matrices(Op, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
@@ -299,7 +299,7 @@ end
 nothing #hide
 
 
-# ## Define the parameters
+# ### Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0        # vertical domain size
@@ -313,7 +313,7 @@ nothing #hide
 end
 nothing #hide
 
-# ## Define the eigenvalue solver
+# ### Define the eigenvalue solver
 function EigSolver(Op, mf, grid, params, σ₀)
 
     𝓛, ℳ = construct_matrices(Op, mf, grid, params)
@@ -348,7 +348,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
 end
 nothing #hide
 
-# ## solving the Stone problem
+# ### Solving the Stone problem
 function solve_Stone1971(kₓ::Float64=0.0)
     params      = Params{Float64}(kₓ=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
