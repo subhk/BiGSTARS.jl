@@ -90,6 +90,7 @@ where
 \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 +
 (1/\epsilon^2)\partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
 ```
+
 The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations 
 ```math
 \begin{align}
@@ -98,6 +99,7 @@ The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``
     -\mathcal{D}_h^2 \tilde{v} &= \partial_{yz} \tilde{w} -  i k \tilde{\zeta}.
 \end{align}
 ```
+
 We choose periodic boundary conditions in the ``y``-direction and free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
 ```math
 \begin{align}
@@ -107,6 +109,7 @@ We choose periodic boundary conditions in the ``y``-direction and free-slip, rig
 \end{align}
 ```
 
+The boundary conditions are implemented in 
 ```@docs
 GeophysicalFlows.TwoDNavierStokes.Equation
 ```
