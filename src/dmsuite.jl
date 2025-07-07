@@ -26,17 +26,12 @@ function cheb(N)
     c = @. [2; ones(N-1, 1); 2] * (-1)^(0:N)';
     X = repeat(x, N+1, 1)';
     dX = @. X - X';                  
-    
-    #D = (c .* (1.0 ./ c)') ./ (dX .+ Eye{Float64}(N+1));      # off-diagonal entries
 
     D = (c .* (1.0 ./ c)') ./ (dX .+ sparse(Matrix(1.0I, N+1, N+1))); 
 
     L  = similar(D); fill!(L, 0.0); 
     L[diagind(L)] = dropdims(sum(D, dims=2), dims=2);
     D  = @. D - L;                                              # diagonal entries
-    #reverse!(x)
-    #reverse!(D)
-    # x = transpose(x);
     return x[1,:], D
 end
 

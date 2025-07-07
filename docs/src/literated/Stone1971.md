@@ -294,6 +294,7 @@ end
 nothing #hide
 
 solve_Stone1971(0.1)
+nothing #hide
 ````
 
 ---

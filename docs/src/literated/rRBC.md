@@ -230,6 +230,7 @@ end
 nothing #hide
 
 solve_rRBC(0.0)
+nothing #hide
 ````
 
 ---

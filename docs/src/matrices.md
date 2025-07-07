@@ -31,9 +31,29 @@ and the first-order Chebyshev differentiation matrix is given by
 \end{equation}
 ```
 
-The Chebyshev differentiation matrix is implemented in 
-```@docs
-BiGSTARS.cheb
+The Chebyshev differentiation matrix is implemented as
+```@example 2
+using BiGSTARS
+
+function cheb(N)
+    @assert N > 0
+    x = @. cos(π*(0:N)/N)' / 2 + 0.5; 
+    c = @. [2; ones(N-1, 1); 2] * (-1)^(0:N)';
+    X = repeat(x, N+1, 1)';
+    dX = @. X - X';                  
+
+    D = (c .* (1.0 ./ c)') ./ (dX .+ sparse(Matrix(1.0I, N+1, N+1))); 
+
+    L  = similar(D); fill!(L, 0.0); 
+    L[diagind(L)] = dropdims(sum(D, dims=2), dims=2);
+    D  = @. D - L;                                              # diagonal entries
+    return x[1,:], D
+end
+
+nothing # hide
+
+N = 10
+z, D = cheb(N)
 ```
 
 # Construction of Fourier differentiation matrix
@@ -61,7 +81,3 @@ and for odd $N_y$,
 ```
 where $h=2\pi/N_y$.
 
-The Fourier differentiation matrix is implemented in 
-```@docs
-BiGSTARS.FourierDiff
-```
