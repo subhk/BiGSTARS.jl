@@ -111,7 +111,7 @@ We choose periodic boundary conditions in the ``y``-direction and free-slip, rig
 
 The boundary conditions are implemented in 
 ```@docs
-GeophysicalFlows.TwoDNavierStokes.Equation
+BiGSTARS.setBCs!
 ```
 
 The above sets of equations with the boundary conditions can be expressed as a standard generalized eigenvalue problem,
