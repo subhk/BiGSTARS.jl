@@ -15,30 +15,30 @@ const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
 examples = [
-    "Stone1971.jl"
-    #"rRBC.jl"
+    "Stone1971.jl",
 ]
 
+# for example in examples
+#     input_file = joinpath(EXAMPLES_DIR, example)
+#     output_file = joinpath(OUTPUT_DIR, "") #replace(example, ".jl" => ".md"))
+#     Literate.markdown(input_file, 
+#                     output_file; 
+#                     documenter=true, 
+#                     include_comments=true, 
+#                     include_code=true, 
+#                     include_output=true)
+# end
+
 for example in examples
-    input_file = joinpath(EXAMPLES_DIR, example)
-    output_file = joinpath(OUTPUT_DIR, "") #replace(example, ".jl" => ".md"))
-    Literate.markdown(input_file, 
-                    output_file; 
-                    documenter=true, 
-                    include_comments=true, 
-                    include_code=true, 
-                    include_output=true)
+  withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
+    example_filepath = joinpath(EXAMPLES_DIR, example)
+    withenv("JULIA_DEBUG" => "Literate") do
+      Literate.markdown(example_filepath, OUTPUT_DIR;
+                        flavor = Literate.DocumenterFlavor(), execute = true)
+    end
+  end
 end
 
-# for example in examples
-#   withenv("GITHUB_REPOSITORY" => "github.com/BiGSTARS/BiGSTARSDocumentation") do
-#     example_filepath = joinpath(EXAMPLES_DIR, example)
-#     withenv("JULIA_DEBUG" => "Literate") do
-#       Literate.markdown(example_filepath, OUTPUT_DIR;
-#                         flavor = Literate.DocumenterFlavor(), execute = true)
-#     end
-#   end
-# end
 
 #####
 ##### Build and deploy docs
@@ -59,7 +59,6 @@ makedocs(
     format    = format,
     authors   = "Subhajit Kar and contributors",
     sitename  = "BiGSTARS.jl",
-    repo      = "https://github.com/subhk/BiGSTARS.jl#main",  
     modules   = [BiGSTARS],
     plugins   = [bib],
     doctest   = false,
@@ -69,14 +68,17 @@ makedocs(
         "Home"                      => "index.md",
         "Installation"              => "installation_instructions.md",
         "Differentiation matrix"    => "matrices.md",
-        "Examples"                  => Any[
-            "Stone1971"             => "literated/Stone1971.md" #,
-            #"rRBC"                  => "literated/rRBC.md"
-        ],
+        # "Examples"                  => Any[
+        #     "Stone1971"             => "literated/Stone1971.md" #,
+        #     #"rRBC"                  => "literated/rRBC.md"
+        # ],
         # "Modules"                   => Any[
         #     "Stone1971 API"         => "modules/Stone1971.md",
         #     "rRBC API"              => "modules/rRBC.md"
         # ],
+        "Examples" => [ 
+            "literated/Stone1971.md",
+        ],
         "Contributor's Guide"       => "contributing.md",
         "References"                => "references.md"
     ]
