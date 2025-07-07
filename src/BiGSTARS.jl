@@ -91,10 +91,4 @@ module BiGSTARS
     include("utils.jl")
     include("derivative_operators.jl")
 
-    # include("../examples/Stone1971.jl")
-    # include("../exmaples/rRBC.jl")
-
-    # @reexport using BiGSTARS.Stone1971
-    # @reexport using BiGSTARS.rRBC
-
 end # module BiGSTARS

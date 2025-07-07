@@ -108,7 +108,7 @@ free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e.,
 
 ## load required packages
 
-````@example Stone1971
+````julia
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -130,12 +130,11 @@ using BiGSTARS
 
 ## Define the grid and derivative operators
 
-````@example Stone1971
+````julia
 @with_kw mutable struct TwoDimGrid{Ny, Nz}
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
 end
-nothing #hide
 
 @with_kw mutable struct ChebMarix{Ny, Nz}
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
@@ -154,7 +153,6 @@ nothing #hide
     𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
-nothing #hide
 ````
 
 ## `subperscript with N' means Operator with Neumann boundary condition
@@ -162,7 +160,7 @@ nothing #hide
 ##    `subperscript with D' means Operator with Dirchilet boundary condition
 ##        after kronker product
 
-````@example Stone1971
+````julia
 @with_kw mutable struct Operator{N}
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -183,7 +181,6 @@ nothing #hide
     𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 end
-nothing #hide
 
 @with_kw mutable struct MeanFlow{N}
     B₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
@@ -198,12 +195,11 @@ nothing #hide
   ∇ᶻᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
   ∇ʸᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
 end
-nothing #hide
 ````
 
 ## Constructing the derivative operators
 
-````@example Stone1971
+````julia
 function construct_matrices(Op, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
@@ -310,12 +306,11 @@ function construct_matrices(Op, mf, grid, params)
 
     return 𝓛, ℳ
 end
-nothing #hide
 ````
 
 ## Define the parameters
 
-````@example Stone1971
+````julia
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0        # vertical domain size
@@ -327,12 +322,11 @@ nothing #hide
     Nz::Int64   = 24         # no. of z-grid points
     method::String = "krylov"
 end
-nothing #hide
 ````
 
 ## Define the eigenvalue solver
 
-````@example Stone1971
+````julia
 function EigSolver(Op, mf, grid, params, σ₀)
 
     𝓛, ℳ = construct_matrices(Op, mf, grid, params)
@@ -365,12 +359,11 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     return λₛ[1] #, Χ[:,1]
 end
-nothing #hide
 ````
 
 ## solving the Stone problem
 
-````@example Stone1971
+````julia
 function solve_Stone1971(kₓ::Float64=0.0)
     params      = Params{Float64}(kₓ=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
@@ -393,10 +386,17 @@ function solve_Stone1971(kₓ::Float64=0.0)
     return abs(λₛ.re - λₛₜ) < 1e-3
 
 end
-nothing #hide
 
 solve_Stone1971(0.1)
-nothing #hide
+````
+
+````
+sigma: 0.011500 
+(3456,)
+found eigenvalue: 0.028452 + im -0.000000 
+||𝓛Χ - λₛℳΧ||₂: 0.000475 
+largest growth rate : 2.8452e-02-1.0770e-10im
+
 ````
 
 ---
