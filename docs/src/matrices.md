@@ -34,8 +34,7 @@ and the first-order Chebyshev differentiation matrix is given by
 ```
 
 To construct the Chebyshev differentiation matrix:
-```markdown
-```jldoctest
+```julia
 using BiGSTARS
 
 N = 10 # number of grid points
@@ -70,8 +69,7 @@ and for odd $N_y$,
 where $h=2\pi/N_y$.
 
 To construct the Fourier differentiation matrix:
-```markdown
-```jldoctest
+```julia
 using BiGSTARS
 
 N    = 10 # number of grid points

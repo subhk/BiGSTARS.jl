@@ -11,6 +11,9 @@ using BiGSTARS
 ##### Generate literated examples
 #####
 
+bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
+bib = CitationBibliography(bib_filepath, style=:authoryear)
+
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
@@ -29,13 +32,22 @@ examples = [
 #                     include_output=true)
 # end
 
+# for example in examples
+#   withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
+#     example_filepath = joinpath(EXAMPLES_DIR, example)
+#     withenv("JULIA_DEBUG" => "Literate") do
+#       Literate.markdown(example_filepath, OUTPUT_DIR;
+#                         flavor = Literate.DocumenterFlavor(), execute = true)
+#     end
+#   end
+# end
+
 for example in examples
+  example_filepath = joinpath(EXAMPLES_DIR, example)
   withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
-    example_filepath = joinpath(EXAMPLES_DIR, example)
-    withenv("JULIA_DEBUG" => "Literate") do
-      Literate.markdown(example_filepath, OUTPUT_DIR;
-                        flavor = Literate.DocumenterFlavor(), execute = true)
-    end
+    Literate.markdown(example_filepath, OUTPUT_DIR; flavor = Literate.DocumenterFlavor())
+    Literate.notebook(example_filepath, OUTPUT_DIR)
+    Literate.script(example_filepath, OUTPUT_DIR)
   end
 end
 
@@ -47,42 +59,62 @@ end
 format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
-    size_threshold = 2^21,
-    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable/"
+    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable"
 )
 
-bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
-bib = CitationBibliography(bib_filepath, style=:authoryear)
+
+pages = [
+    "Home" => "index.md",
+    "Installation Instructions" => "installation_instructions.md",
+    "Differentiation matrix"    => "matrices.md",
+    "Examples" => [ 
+      "literated/Stone1971.md",
+      ],
+    "Contributor's guide" => "contributing.md",
+    "References" => "references.md",
+]
 
 @printf("Building doc ...\n")
-makedocs(
-    format    = format,
-    authors   = "Subhajit Kar and contributors",
-    sitename  = "BiGSTARS.jl",
-    modules   = [BiGSTARS],
-    plugins   = [bib],
-    doctest   = false,
-    clean     = true,
-    checkdocs = :none,
-    pages     = Any[
-        "Home"                      => "index.md",
-        "Installation"              => "installation_instructions.md",
-        "Differentiation matrix"    => "matrices.md",
-        # "Examples"                  => Any[
-        #     "Stone1971"             => "literated/Stone1971.md" #,
-        #     #"rRBC"                  => "literated/rRBC.md"
-        # ],
-        # "Modules"                   => Any[
-        #     "Stone1971 API"         => "modules/Stone1971.md",
-        #     "rRBC API"              => "modules/rRBC.md"
-        # ],
-        "Examples" => [ 
-            "literated/Stone1971.md",
-        ],
-        "Contributor's Guide"       => "contributing.md",
-        "References"                => "references.md"
-    ]
-)
+makedocs(sitename = "BiGSTARS.jl",
+          authors = "Subhajit Kar, and contributors",
+          modules = [BiGSTARS],
+           format = format,
+            pages = pages,
+          plugins = [bib],
+          doctest = true,
+         warnonly = [:cross_references],
+            clean = true,
+        checkdocs = :exports)
+
+
+# makedocs(
+#     format    = format,
+#     authors   = "Subhajit Kar and contributors",
+#     sitename  = "BiGSTARS.jl",
+#     modules   = [BiGSTARS],
+#     plugins   = [bib],
+#     doctest   = true,
+#     clean     = true,
+#     checkdocs = :all,
+#     pages     = Any[
+#         "Home"                      => "index.md",
+#         "Installation"              => "installation_instructions.md",
+#         "Differentiation matrix"    => "matrices.md",
+#         # "Examples"                  => Any[
+#         #     "Stone1971"             => "literated/Stone1971.md" #,
+#         #     #"rRBC"                  => "literated/rRBC.md"
+#         # ],
+#         # "Modules"                   => Any[
+#         #     "Stone1971 API"         => "modules/Stone1971.md",
+#         #     "rRBC API"              => "modules/rRBC.md"
+#         # ],
+#         "Examples" => [ 
+#             "literated/Stone1971.md",
+#         ],
+#         "Contributor's Guide"       => "contributing.md",
+#         "References"                => "references.md"
+#     ]
+# )
 
 
 @info "Clean up temporary .jld2 and .nc output created by doctests or literated examples..."
@@ -118,19 +150,19 @@ end
 # )
 
 
-if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
-    deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
-               repo_previews = "github.com/subhk/BiGSTARSDocumentation",
-               devbranch = "main",
-               forcepush = true,
-               push_preview = true,
-               versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-else
-    repo = "github.com/subhk/BiGSTARSDocumentation"
-    withenv("GITHUB_REPOSITORY" => repo) do
-        deploydocs(; repo,
-                     devbranch = "main",
-                     forcepush = true,
-                     versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-    end
-end
+# if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+#     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+#                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
+#                devbranch = "main",
+#                forcepush = true,
+#                push_preview = true,
+#                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+# else
+#     repo = "github.com/subhk/BiGSTARSDocumentation"
+#     withenv("GITHUB_REPOSITORY" => repo) do
+#         deploydocs(; repo,
+#                      devbranch = "main",
+#                      forcepush = true,
+#                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+#     end
+# end
