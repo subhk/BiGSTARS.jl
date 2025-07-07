@@ -40,6 +40,7 @@ using BiGSTARS
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
 end
+nothing #hide
 
 @with_kw mutable struct ChebMarix{Ny, Nz}
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
@@ -58,6 +59,7 @@ end
     𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
     𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
 end
+nothing #hide
 ````
 
 ## `subperscript with N' means Operator with Neumann boundary condition
@@ -86,6 +88,7 @@ end
     𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
 end
+nothing #hide
 
 function construct_matrices(Op, params)
     N  = params.Ny * params.Nz
@@ -141,6 +144,7 @@ function construct_matrices(Op, params)
 
     return 𝓛, ℳ
 end
+nothing #hide
 ````
 
 ## Define the parameters
@@ -157,6 +161,7 @@ end
     Nz::Int64   = 20          # no. of z-grid points
     method::String   = "arnoldi"
 end
+nothing #hide
 ````
 
 ## Define the eigenvalue solver
@@ -197,6 +202,7 @@ function EigSolver(Op, params, σ₀)
 
     return λₛ[1] #, Χ[:,1]
 end
+nothing #hide
 ````
 
 ## solving the rRBC problem
@@ -221,6 +227,7 @@ function solve_rRBC(kₓ::Float64)
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
 
 end
+nothing #hide
 
 solve_rRBC(0.0)
 ````
