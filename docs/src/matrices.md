@@ -1,8 +1,5 @@
 # Construction of differentiation matrices
-
-# Differentiation matrices
-
-This page documents the core spectral‐matrix routines in **BiGSTARS**.
+## This page documents the core spectral‐matrix routines in **BiGSTARS**.
 
 ```@autodocs
 Modules = [BiGSTARS]
@@ -10,9 +7,9 @@ Group   = "Matrices"
 Order   = [:type, :function]
 
 ### Construction of Chebyshev differentiation matrix
-A standard approach is followed in the construction of the differentiation matrices 
-\citep{trefethen2000spectral}. The transformed Gauss–Lobatto points for 
-$z \in [0, 1]$ are given by
+### A standard approach is followed in the construction of the differentiation matrices 
+### \citep{trefethen2000spectral}. The transformed Gauss–Lobatto points for 
+### $z \in [0, 1]$ are given by
 ```math
 \begin{align}
     z_j = \frac{1}{2} \cos{(j\pi/N_z)} + \frac{1}{2},
