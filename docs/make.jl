@@ -113,10 +113,10 @@ makedocs(
             "Stone1971"             => "literated/Stone1971.md", #,
             #"rRBC"                  => "literated/rRBC.md"
         ],
-        # "Modules"                   => Any[
-        #     "Stone1971 API"         => "modules/Stone1971.md",
-        #     "rRBC API"              => "modules/rRBC.md"
-        # ],
+        "Modules"                   => Any[
+            "Stone1971 API"         => "modules/Stone1971.md",
+            # "rRBC API"              => "modules/rRBC.md"
+        ],
         # "Examples" => [ 
         #     "literated/Stone1971.md",
         # ],
