@@ -1,6 +1,6 @@
 # Installation instructions
 
-You can install the latest version of `BiGSTARS.jl` using Julia’s built-in package manager. Just press `]` in the Julia REPL to enter package mode, then add the package and run `instantiate` to build all required dependencies.
+You can install the latest version of BiGSTARS.jl using Julia’s built-in package manager. Just press `]` in the Julia REPL to enter package mode, then add the package and run instantiate to build all required dependencies.
 
 
 ```julia
@@ -25,5 +25,5 @@ We're more than happy to help you get your model up and running again.
     The latest version of `BiGSTARS.jl` requires **at least Julia v1.6** to run.  
     Installing `BiGSTARS.jl` with an older version of Julia will instead install the latest version that is compatible with your Julia installation.
 
-    `BiGSTARS.jl` is continuously tested on **Julia v1.10** (the current long-term release) and **v1.11**.  
+    BiGSTARS.jl is continuously tested on **Julia v1.10** (the current long-term release) and **v1.11**.  
     _We strongly recommend using one of these tested Julia versions._
