@@ -106,7 +106,7 @@ makedocs(
     clean     = true,
     checkdocs = :warn,
     pages     = Any[
-        "Home"                          => "index.md",
+        "Home"                          => "installation_instructions.md",
         "Installation instructions"     => "installation_instructions.md",
         "Differentiation matrix"        => "matrices.md",
         "Examples"                      => Any[
