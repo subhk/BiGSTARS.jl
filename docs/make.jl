@@ -110,7 +110,7 @@ makedocs(
         "Installation"              => "installation_instructions.md",
         "Differentiation matrix"    => "matrices.md",
         "Examples"                  => Any[
-            "Stone1971"             => "literated/Stone1971.md" #,
+            "Stone1971"             => "literated/Stone1971.md", #,
             #"rRBC"                  => "literated/rRBC.md"
         ],
         # "Modules"                   => Any[
