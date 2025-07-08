@@ -24,5 +24,5 @@ Julia v1.10 (the current long-term release) and v1.11.
 
 ## Examples
 
-See `examples/` for example scripts. These examples are best viewed by browsing them within 
-the package's documentation (work in progress! 😄). 
+Example scripts can be found in the `examples/` directory. For the clearest overview, we recommend 
+browsing them through the package’s documentation (work in progress! 😄). 
