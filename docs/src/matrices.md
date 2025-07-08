@@ -1,5 +1,5 @@
 # Construction of differentiation matrices
-## This page documents the core spectral‐matrix routines in **BiGSTARS**.
+### This page documents the core spectral‐matrix routines in BiGSTARS.jl.
 
 ```@autodocs
 Modules = [BiGSTARS]

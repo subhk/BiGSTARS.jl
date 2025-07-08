@@ -69,60 +69,61 @@ format = Documenter.HTML(
 )
 
 
-pages = [
-    "Home" => "index.md",
-    "Installation Instructions" => "installation_instructions.md",
-    "Differentiation matrix"    => "matrices.md",
-    "Examples"                  => [ 
-      "Stone(1971) API"         => Any[
-        "literated/Stone1971.md",
-      ],
-    ],
-    "Contributor's guide" => "contributing.md",
-    "References" => "references.md",
-]
+# pages = [
+#     "Home" => "index.md",
+#     "Installation Instructions" => "installation_instructions.md",
+#     "Differentiation matrix"    => "matrices.md",
+#     "Examples"                  => [ 
+#       "Stone(1971) API"         => Any[
+#                 "literated/Stone1971.md",
+#       ],
+#     ],
+#     "Contributor's guide" => "contributing.md",
+#     "References" => "references.md",
+# ]
 
 @printf("Building doc ...\n")
-makedocs(sitename = "BiGSTARS.jl",
-          authors = "Subhajit Kar, and contributors",
-          modules = [BiGSTARS],
-           format = format,
-            pages = pages,
-          plugins = [bib],
-          doctest = true,
-         warnonly = [:cross_references],
-            clean = true,
-        checkdocs = :exports)
+
+# makedocs(sitename = "BiGSTARS.jl",
+#           authors = "Subhajit Kar, and contributors",
+#           modules = [BiGSTARS],
+#            format = format,
+#             pages = pages,
+#           plugins = [bib],
+#           doctest = true,
+#          warnonly = [:cross_references],
+#             clean = true,
+#         checkdocs = :exports)
 
 
-# makedocs(
-#     format    = format,
-#     authors   = "Subhajit Kar and contributors",
-#     sitename  = "BiGSTARS.jl",
-#     modules   = [BiGSTARS],
-#     plugins   = [bib],
-#     doctest   = true,
-#     clean     = true,
-#     checkdocs = :all,
-#     pages     = Any[
-#         "Home"                      => "index.md",
-#         "Installation"              => "installation_instructions.md",
-#         "Differentiation matrix"    => "matrices.md",
-#         # "Examples"                  => Any[
-#         #     "Stone1971"             => "literated/Stone1971.md" #,
-#         #     #"rRBC"                  => "literated/rRBC.md"
-#         # ],
-#         # "Modules"                   => Any[
-#         #     "Stone1971 API"         => "modules/Stone1971.md",
-#         #     "rRBC API"              => "modules/rRBC.md"
-#         # ],
-#         "Examples" => [ 
-#             "literated/Stone1971.md",
-#         ],
-#         "Contributor's Guide"       => "contributing.md",
-#         "References"                => "references.md"
-#     ]
-# )
+makedocs(
+    format    = format,
+    authors   = "Subhajit Kar and contributors",
+    sitename  = "BiGSTARS.jl",
+    modules   = [BiGSTARS],
+    plugins   = [bib],
+    doctest   = true,
+    clean     = true,
+    checkdocs = :all,
+    pages     = Any[
+        "Home"                      => "index.md",
+        "Installation"              => "installation_instructions.md",
+        "Differentiation matrix"    => "matrices.md",
+        "Examples"                  => Any[
+            "Stone1971"             => "literated/Stone1971.md" #,
+            #"rRBC"                  => "literated/rRBC.md"
+        ],
+        # "Modules"                   => Any[
+        #     "Stone1971 API"         => "modules/Stone1971.md",
+        #     "rRBC API"              => "modules/rRBC.md"
+        # ],
+        # "Examples" => [ 
+        #     "literated/Stone1971.md",
+        # ],
+        "Contributor's Guide"       => "contributing.md",
+        "References"                => "references.md"
+    ]
+)
 
 
 @info "Clean up temporary .jld2 and .nc output created by doctests or literated examples..."
