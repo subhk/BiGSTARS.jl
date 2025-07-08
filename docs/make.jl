@@ -42,8 +42,10 @@ for example in examples
   withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
     example_filepath = joinpath(EXAMPLES_DIR, example)
     withenv("JULIA_DEBUG" => "Literate") do
-      Literate.markdown(example_filepath, OUTPUT_DIR;
-                        flavor = Literate.DocumenterFlavor(), execute = true)
+      Literate.markdown(example_filepath, 
+                        OUTPUT_DIR;
+                        flavor = Literate.DocumenterFlavor(), 
+                        execute = true)
     end
   end
 end
@@ -65,6 +67,7 @@ end
 format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
+    size_threshold = 2^21,
     canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable"
 )
 
@@ -106,23 +109,23 @@ makedocs(
     clean     = true,
     checkdocs = :warn,
     pages     = Any[
-        "Home"                          => "installation_instructions.md",
-        "Installation instructions"     => "installation_instructions.md",
-        "Differentiation matrix"        => "matrices.md",
-        "Examples"                      => Any[
-            "Stone1971"                 => "literated/Stone1971.md", #,
-            #"rRBC"                  => "literated/rRBC.md"
-        ],
-        # "Modules"                   => Any[
-        #     "Stone1971 API"         => "modules/Stone1971.md",
-        #     # "rRBC API"              => "modules/rRBC.md"
-        # ],
-        # "Examples" => [ 
-        #     "literated/Stone1971.md",
-        # ],
-        "Contributor's Guide"       => "contributing.md",
-        "References"                => "references.md"
-    ]
+                "Home"                          => "installation_instructions.md",
+                "Installation instructions"     => "installation_instructions.md",
+                "Differentiation matrix"        => "matrices.md",
+                "Examples"                      => Any[
+                    "Stone1971"                 => "literated/Stone1971.md", #,
+                    #"rRBC"                  => "literated/rRBC.md"
+                ],
+                # "Modules"                   => Any[
+                #     "Stone1971 API"         => "modules/Stone1971.md",
+                #     # "rRBC API"              => "modules/rRBC.md"
+                # ],
+                # "Examples" => [ 
+                #     "literated/Stone1971.md",
+                # ],
+                "Contributor's Guide"       => "contributing.md",
+                "References"                => "references.md"
+            ]
 )
 
 
