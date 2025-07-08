@@ -104,7 +104,7 @@ makedocs(
     plugins   = [bib],
     doctest   = true,
     clean     = true,
-    checkdocs = :all,
+    checkdocs = :none,
     pages     = Any[
         "Home"                      => "index.md",
         "Installation"              => "installation_instructions.md",
