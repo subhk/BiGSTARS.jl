@@ -17,7 +17,8 @@ We recommend installing `BiGSTARS.jl` using Julia’s built-in package manager, 
 ```
 
 **Note:** Some releases may introduce breaking changes to certain modules.  
-If something stops working or your code behaves unexpectedly after an update, feel free to [open an issue](https://github.com/subhk/BiGSTARS.jl/issues) or [start a discussion](https://github.com/subhk/BiGSTARS.jl/discussions).  We're more than happy to help you get your model up and running again.
+If something stops working or your code behaves unexpectedly after an update, feel free to [open an issue](https://github.com/subhk/BiGSTARS.jl/issues).  
+We're more than happy to help you get your model up and running again.
 
 
 !!! warn "Julia 1.6 or newer required; Julia 1.10 or newer strongly encouraged"
