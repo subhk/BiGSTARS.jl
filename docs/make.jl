@@ -74,8 +74,8 @@ pages = [
     "Installation Instructions" => "installation_instructions.md",
     "Differentiation matrix"    => "matrices.md",
     "Examples"                  => [ 
-      "Stone1971"                => "literated/Stone1971.md",
-      ],
+      "Stone1971"               => "literated/Stone1971.md",
+    ],
     "Contributor's guide" => "contributing.md",
     "References" => "references.md",
 ]
