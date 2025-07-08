@@ -1,11 +1,6 @@
 # Construction of differentiation matrices
 ### This page documents the core spectral‐matrix routines in BiGSTARS.jl.
 
-<!-- ```@autodocs
-Modules = [BiGSTARS]
-Group   = "Matrices"
-Order   = [:type, :function] -->
-
 ### Construction of Chebyshev differentiation matrix
 ### A standard approach is followed in the construction of the differentiation matrices 
 ### \citep{trefethen2000spectral}. The transformed Gauss–Lobatto points for 
