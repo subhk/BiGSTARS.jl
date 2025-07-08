@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Stone1971 · BiGSTARS.jl</title><meta name="title" content="Stone1971 · BiGSTARS.jl"/><meta property="og:title" content="Stone1971 · BiGSTARS.jl"/><meta property="twitter:title" content="Stone1971 · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><meta property="twitter:url" content="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><link rel="canonical" href="https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971.html"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><a class="tocitem" href="../installation_instructions.html">Installation instructions</a></li><li><a class="tocitem" href="../matrices.html">Differentiation matrix</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href="Stone1971.html">Stone1971</a><ul class="internal"><li><a class="tocitem" href="#Normal-mode-solutions"><span>Normal mode solutions</span></a></li><li><a class="tocitem" href="#load-required-packages"><span>load required packages</span></a></li></ul></li></ul></li><li><span class="tocitem">Modules</span><ul><li><a class="tocitem" href="../modules/Stone1971.html">Stone1971 API</a></li></ul></li><li><a class="tocitem" href="../contributing.html">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../references.html">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Stone1971.html">Stone1971</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/examples/Stone1971.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><p>Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)</p><p>The resulting nondimensional, linearized Boussinesq equations of motion under the <span>$f$</span>-plane approximation are given by</p><p class="math-container">\[\begin{align}
+    \frac{D \mathbf{u}}{Dt}
+    + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
+    + \hat{z} \times \mathbf{u} &amp;=
+    -\nabla p + \frac{1}{\epsilon} b \hat{z} + E \nabla^2 \mathbf{u}, \\
+    \frac{Db}{Dt}
+    +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &amp;= \frac{E}{Pr} \nabla^2 b, \\
+    \nabla \cdot \mathbf{u} &amp;= 0,
+\end{align}\]</p><p>where</p><p class="math-container">\[D/Dt \equiv \partial/\partial t + U (\partial/\partial x)$\]</p><p>is the material derivative, <span>$\mathbf{u} \equiv (u, v, \epsilon w)$</span> is the velocity perturbation, <span>$\epsilon=H/R$</span> is the aspect ratio, <span>$p$</span> is the pressure perturbation, and <span>$b$</span> is the buoyancy perturbation. The operator</p><p class="math-container">\[\nabla \equiv (\partial/\partial x, \partial/\partial y, (1/\epsilon) \partial/\partial z),\]</p><p class="math-container">\[\nabla^2 \equiv \partial^2/\partial x^2 + \partial^2/\partial y^2 + (1/\epsilon^2) \partial^2/ \partial z^2,\]</p><p>where</p><p class="math-container">\[\nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.\]</p><p>To eliminate pressure, following [teed2010rapidly@citet, we apply the operator <span>$\hat{z} \cdot \nabla \times \nabla \times$</span>  and <span>$\hat{z} \cdot \nabla \times$</span> to the above momentum equation. This procedure yields governing equations of three perturbation variables, the vertical velocity <span>$w$</span>, the vertical vorticity <span>$\zeta \, (=\hat{z} \cdot \nabla \times \mathbf{u})$</span>, and the buoyancy <span>$b$</span></p><p class="math-container">\[\begin{align}
+    \frac{D}{Dt}\nabla^2 {w}
+    + \frac{1}{\epsilon^2} \frac{\partial \zeta}{\partial z}
+    &amp;= \frac{1}{\epsilon^2} \nabla_h^2 b + E \nabla^4 w,
+\\
+    \frac{D \zeta}{Dt}
+    - \frac{\partial U}{\partial z}\frac{\partial w}{\partial y}
+    - \frac{\partial w}{\partial z} &amp;= E \nabla^2 \zeta,
+\\
+    \frac{Db}{Dt}
+    + v \frac{\partial B}{\partial y} +
+    w \frac{\partial B}{\partial z}
+    &amp;= \frac{E}{Pr} \nabla^2 b,
+\end{align}\]</p><p>where</p><p class="math-container">\[\nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2$\]</p><p>The benefit of using the above sets of equations is that it enables us to examine the instability at an along-front wavenumber <span>$k \to 0$</span>.</p><h2 id="Normal-mode-solutions"><a class="docs-heading-anchor" href="#Normal-mode-solutions">Normal mode solutions</a><a id="Normal-mode-solutions-1"></a><a class="docs-heading-anchor-permalink" href="#Normal-mode-solutions" title="Permalink"></a></h2><p>Next we consider normal-mode perturbation solutions in the form of</p><p class="math-container">\[\begin{align}
+    [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{b}](y, z) \, e^{i kx + \sigma t}\big),
+\end{align}\]</p><p>where the symbol <span>$\mathfrak{R}$</span> denotes the real part and a variable with <code>tilde&#39; denotes an eigenfunction. The variable</code><code>\sigma=\sigma_r + i \sigma_i</code>`. The real part represents the growth rate, and the imaginary part shows the frequency of the  perturbation.</p><p>Finally following systems of differential equations are obtained,</p><p class="math-container">\[\begin{align}
+    (i k U - E \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
+    + \epsilon^{-2} \partial_z \tilde{\zeta}
+    - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &amp;= -\sigma \mathcal{D}^2 \tilde{w},
+\\
+    - \partial_z U \partial_y \tilde{w}
+    - \partial_z \tilde{w}
+    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &amp;= -\sigma \tilde{\zeta},
+\\
+    \partial_z B \tilde{w} + \partial_y B  \tilde{v} +
+    \left[ik U - E \mathcal{D}^2 \right] \tilde{b} &amp;= -\sigma \tilde{b},
+\end{align}\]</p><p>where</p><p class="math-container">\[\mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 +
+(1/\epsilon^2)\partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).\]</p><p>We choose periodic boundary conditions in the <span>$y$</span>-direction and free-slip, rigid lid, with zero buoyancy flux in the <span>$z$</span> direction, i.e.,</p><p class="math-container">\[\begin{align}
+    \tilde{w} = \partial_{zz} \tilde{w} =
+    \partial_z \tilde{\zeta} = \partial_z \tilde{b} = 0,
+    \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
+\end{align}\]</p><h2 id="load-required-packages"><a class="docs-heading-anchor" href="#load-required-packages">load required packages</a><a id="load-required-packages-1"></a><a class="docs-heading-anchor-permalink" href="#load-required-packages" title="Permalink"></a></h2><pre><code class="language-julia hljs">using LazyGrids
+using LinearAlgebra
+using Printf
+using StaticArrays
+using SparseArrays
+using SparseMatrixDicts
+using FillArrays
+using SpecialFunctions
+using Parameters
+using Test
+using BenchmarkTools
+
+using JLD2
+using ModelingToolkit
+using NonlinearSolve
+
+using BiGSTARS</code></pre><h3 id="Define-the-grid-and-derivative-operators"><a class="docs-heading-anchor" href="#Define-the-grid-and-derivative-operators">Define the grid and derivative operators</a><a id="Define-the-grid-and-derivative-operators-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-grid-and-derivative-operators" title="Permalink"></a></h3><pre><code class="language-julia hljs">@with_kw mutable struct TwoDimGrid{Ny, Nz}
+    y = @SVector zeros(Float64, Ny)
+    z = @SVector zeros(Float64, Nz)
+end
+
+@with_kw mutable struct ChebMarix{Ny, Nz}
+    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+
+    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+
+    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+
+    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+end</code></pre><h3 id="subperscript-with-N&#39;-means-Operator-with-Neumann-boundary-condition"><a class="docs-heading-anchor" href="#subperscript-with-N&#39;-means-Operator-with-Neumann-boundary-condition">`subperscript with N&#39; means Operator with Neumann boundary condition</a><a id="subperscript-with-N&#39;-means-Operator-with-Neumann-boundary-condition-1"></a><a class="docs-heading-anchor-permalink" href="#subperscript-with-N&#39;-means-Operator-with-Neumann-boundary-condition" title="Permalink"></a></h3><h3 id="after-kronker-product"><a class="docs-heading-anchor" href="#after-kronker-product">after kronker product</a><a id="after-kronker-product-1"></a><a class="docs-heading-anchor-permalink" href="#after-kronker-product" title="Permalink"></a></h3><h3 id="subperscript-with-D&#39;-means-Operator-with-Dirchilet-boundary-condition"><a class="docs-heading-anchor" href="#subperscript-with-D&#39;-means-Operator-with-Dirchilet-boundary-condition">`subperscript with D&#39; means Operator with Dirchilet boundary condition</a><a id="subperscript-with-D&#39;-means-Operator-with-Dirchilet-boundary-condition-1"></a><a class="docs-heading-anchor-permalink" href="#subperscript-with-D&#39;-means-Operator-with-Dirchilet-boundary-condition" title="Permalink"></a></h3><h3 id="after-kronker-product-2"><a class="docs-heading-anchor" href="#after-kronker-product-2">after kronker product</a><a class="docs-heading-anchor-permalink" href="#after-kronker-product-2" title="Permalink"></a></h3><pre><code class="language-julia hljs">@with_kw mutable struct Operator{N}
+    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟ʸᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+
+    𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
+    𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
+end
+
+@with_kw mutable struct MeanFlow{N}
+    B₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+    U₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+
+  ∇ʸU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+  ∇ᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+  ∇ʸB₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+  ∇ᶻB₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+
+  ∇ʸʸU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+  ∇ᶻᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+  ∇ʸᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+end</code></pre><h3 id="Constructing-the-derivative-operators"><a class="docs-heading-anchor" href="#Constructing-the-derivative-operators">Constructing the derivative operators</a><a id="Constructing-the-derivative-operators-1"></a><a class="docs-heading-anchor-permalink" href="#Constructing-the-derivative-operators" title="Permalink"></a></h3><pre><code class="language-julia hljs">function construct_matrices(Op, mf, grid, params)
+    Y, Z = ndgrid(grid.y, grid.z)
+    Y    = transpose(Y)
+    Z    = transpose(Z)
+
+    # basic state
+    B₀   = @. 1.0/params.Γ * Z - Y
+    ∂ʸB₀ = - 1.0 .* ones(size(Y))
+    ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))
+
+    U₀      = @. 1.0 * Z - 0.5params.H
+    ∂ᶻU₀    = ones( size(Y))
+    ∂ʸU₀    = zeros(size(Y))
+
+    ∂ʸʸU₀   = zeros(size(Y))
+    ∂ʸᶻU₀   = zeros(size(Y))
+    ∂ᶻᶻU₀   = zeros(size(Y))
+
+      B₀  = B₀[:];
+      U₀  = U₀[:];
+    ∂ʸB₀  = ∂ʸB₀[:];
+    ∂ᶻB₀  = ∂ᶻB₀[:];
+
+    ∂ᶻU₀  = ∂ᶻU₀[:];
+    ∂ʸU₀  = ∂ʸU₀[:];
+
+    ∂ʸʸU₀ = ∂ʸʸU₀[:];
+    ∂ʸᶻU₀ = ∂ʸᶻU₀[:];
+    ∂ᶻᶻU₀ = ∂ᶻᶻU₀[:];
+
+    mf.B₀[diagind(mf.B₀)] = B₀
+    mf.U₀[diagind(mf.U₀)] = U₀
+
+    mf.∇ᶻU₀[diagind(mf.∇ᶻU₀)] = ∂ᶻU₀
+    mf.∇ʸU₀[diagind(mf.∇ʸU₀)] = ∂ʸU₀
+
+    mf.∇ʸB₀[diagind(mf.∇ʸB₀)] = ∂ʸB₀
+    mf.∇ᶻB₀[diagind(mf.∇ᶻB₀)] = ∂ᶻB₀
+
+    mf.∇ʸʸU₀[diagind(mf.∇ʸʸU₀)] = ∂ʸʸU₀;
+    mf.∇ᶻᶻU₀[diagind(mf.∇ᶻᶻU₀)] = ∂ᶻᶻU₀;
+    mf.∇ʸᶻU₀[diagind(mf.∇ʸᶻU₀)] = ∂ʸᶻU₀;
+
+    N  = params.Ny * params.Nz
+    I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
+    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
+
+    # allocating memory for the LHS and RHS matrices
+    𝓛₁ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
+    𝓛₂ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
+    𝓛₃ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
+
+    ℳ₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    ℳ₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    ℳ₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+
+    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
+    H   = SparseMatrixCSC(Zeros(N, N))
+
+    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
+
+
+    H = inverse_Lap_hor(∇ₕ²)
+    @assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-4 &quot;difference in L2-norm should be small&quot;
+
+
+    D⁴  = (1.0 * Op.𝒟⁴ʸ
+        + 1.0/params.ε^4 * Op.𝒟⁴ᶻᴰ
+        + 1.0params.kₓ^4 * I⁰
+        - 2.0params.kₓ^2 * Op.𝒟²ʸ
+        - 2.0/params.ε^2 * params.kₓ^2 * Op.𝒟²ᶻᴰ
+        + 2.0/params.ε^2 * Op.𝒟²ʸ²ᶻᴰ)
+
+    D²  = (1.0/params.ε^2 * Op.𝒟²ᶻᴰ + 1.0 * ∇ₕ²)
+    Dₙ² = (1.0/params.ε^2 * Op.𝒟²ᶻᴺ + 1.0 * ∇ₕ²)
+
+    # 1. uᶻ (vertical velocity)  equation (bcs: uᶻ = ∂ᶻᶻuᶻ = 0 @ z = 0, 1)
+    𝓛₁[:,    1:1s₂] = (-1.0params.E * D⁴
+                    + 1.0im * params.kₓ * mf.U₀ * D²) * params.ε^2
+    𝓛₁[:,1s₂+1:2s₂] = 1.0 * Op.𝒟ᶻᴺ
+    𝓛₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
+
+    # 2. ωᶻ (vertical vorticity) equation (bcs: ∂ᶻωᶻ = 0 @ z = 0, 1)
+    𝓛₂[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * Op.𝒟ʸ - 1.0 * Op.𝒟ᶻᴰ
+    𝓛₂[:,1s₂+1:2s₂] = (1.0im * params.kₓ * mf.U₀ * I⁰
+                    - 1.0params.E * Dₙ²)
+    𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
+
+    # 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
+    𝓛₃[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰
+                    - 1.0 * mf.∇ʸB₀ * H * Op.𝒟ʸᶻᴰ)
+    𝓛₃[:,1s₂+1:2s₂] = 1.0im * params.kₓ * mf.∇ʸB₀ * H * I⁰
+    𝓛₃[:,2s₂+1:3s₂] = (-1.0params.E * Dₙ²
+                    + 1.0im * params.kₓ * mf.U₀ * I⁰)
+
+    𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
+
+
+    cnst = -1.0
+    ℳ₁[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
+    ℳ₂[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
+    ℳ₃[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
+    ℳ = ([ℳ₁; ℳ₂; ℳ₃])
+
+    return 𝓛, ℳ
+end</code></pre><h3 id="Define-the-parameters"><a class="docs-heading-anchor" href="#Define-the-parameters">Define the parameters</a><a id="Define-the-parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-parameters" title="Permalink"></a></h3><pre><code class="language-julia hljs">@with_kw mutable struct Params{T&lt;:Real} @deftype T
+    L::T        = 1.0        # horizontal domain size
+    H::T        = 1.0        # vertical domain size
+    Γ::T        = 0.1        # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
+    ε::T        = 0.1        # aspect ratio ε ≡ H/L
+    kₓ::T       = 0.0        # x-wavenumber
+    E::T        = 1.0e-9     # Ekman number
+    Ny::Int64   = 48         # no. of y-grid points
+    Nz::Int64   = 24         # no. of z-grid points
+    method::String = &quot;krylov&quot;
+end</code></pre><h3 id="Define-the-eigenvalue-solver"><a class="docs-heading-anchor" href="#Define-the-eigenvalue-solver">Define the eigenvalue solver</a><a id="Define-the-eigenvalue-solver-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-eigenvalue-solver" title="Permalink"></a></h3><pre><code class="language-julia hljs">function EigSolver(Op, mf, grid, params, σ₀)
+
+    𝓛, ℳ = construct_matrices(Op, mf, grid, params)
+
+    N = params.Ny * params.Nz
+    MatrixSize = 3N
+    @assert size(𝓛, 1)  == MatrixSize &amp;&amp;
+            size(𝓛, 2)  == MatrixSize &amp;&amp;
+            size(ℳ, 1)  == MatrixSize &amp;&amp;
+            size(ℳ, 2)  == MatrixSize &quot;matrix size does not match!&quot;
+
+    if params.method == &quot;shift_invert&quot;
+        λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
+
+    elseif params.method == &quot;krylov&quot;
+
+        λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+
+
+    elseif params.method == &quot;arnoldi&quot;
+
+        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+    end
+    # ======================================================================
+    @assert length(λₛ) &gt; 0 &quot;No eigenvalue(s) found!&quot;
+
+    @printf &quot;||𝓛Χ - λₛℳΧ||₂: %f \n&quot; norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
+
+    @printf &quot;largest growth rate : %1.4e%+1.4eim\n&quot; real(λₛ[1]) imag(λₛ[1])
+
+    return λₛ[1] #, Χ[:,1]
+end</code></pre><h3 id="Solving-the-Stone-problem"><a class="docs-heading-anchor" href="#Solving-the-Stone-problem">Solving the Stone problem</a><a id="Solving-the-Stone-problem-1"></a><a class="docs-heading-anchor-permalink" href="#Solving-the-Stone-problem" title="Permalink"></a></h3><pre><code class="language-julia hljs">function solve_Stone1971(kₓ::Float64=0.0)
+    params      = Params{Float64}(kₓ=0.5)
+    grid        = TwoDimGrid{params.Ny,  params.Nz}()
+    diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
+    Op          = Operator{params.Ny * params.Nz}()
+    mf          = MeanFlow{params.Ny * params.Nz}()
+
+    Construct_DerivativeOperator!(diffMatrix, grid, params)
+    ImplementBCs_cheb!(Op, diffMatrix, params)
+
+    σ₀   = 0.01
+    params.kₓ = kₓ
+
+    λₛ = EigSolver(Op, mf, grid, params, σ₀)
+
+    # Analytical solution of Stone (1971) for the growth rate
+    cnst = 1.0 + 1.0/params.Γ + 5.0*params.ε^2 * params.kₓ^2/42.0
+    λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
+
+    return abs(λₛ.re - λₛₜ) &lt; 1e-3
+
+end
+
+solve_Stone1971(0.1)</code></pre><pre><code class="nohighlight hljs">sigma: 0.011500 
+(3456,)
+found eigenvalue: 0.028452 + im 0.000000 
+||𝓛Χ - λₛℳΧ||₂: 0.000775 
+largest growth rate : 2.8452e-02+4.8308e-10im
+</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../matrices.html">« Differentiation matrix</a><a class="docs-footer-nextpage" href="../modules/Stone1971.html">Stone1971 API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Tuesday 8 July 2025 17:20">Tuesday 8 July 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
