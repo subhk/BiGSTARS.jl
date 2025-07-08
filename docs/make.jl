@@ -106,11 +106,11 @@ makedocs(
     clean     = true,
     checkdocs = :none,
     pages     = Any[
-        "Home"                      => "index.md",
-        "Installation"              => "installation_instructions.md",
-        "Differentiation matrix"    => "matrices.md",
-        "Examples"                  => Any[
-            "Stone1971"             => "literated/Stone1971.md", #,
+        "Home"                          => "index.md",
+        "Installation instructions"     => "installation_instructions.md",
+        "Differentiation matrix"        => "matrices.md",
+        "Examples"                      => Any[
+            "Stone1971"                 => "literated/Stone1971.md", #,
             #"rRBC"                  => "literated/rRBC.md"
         ],
         "Modules"                   => Any[
