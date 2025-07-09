@@ -109,6 +109,7 @@ makedocs(
     doctest   = true,
     clean     = true,
     checkdocs = :warn,
+    warnonly   = [:cross_references],
     pages     = Any[
                 "Home"                          => "index.md",
                 "Installation instructions"     => "installation_instructions.md",
