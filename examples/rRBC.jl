@@ -1,9 +1,14 @@
-# ## This code finds critical Rayleigh number for rotating Rayleigh Benrad Convection (rRBC)
-# ## where the domain is periodic in y-direction.
-# ## The code is benchmarked against Chandrashekar's theoretical results.
-# ## Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
-# ## parameter: Ek (Ekman number) = 10⁻⁴
-# ## eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
+# ### Finding critical Rayleigh number for rotating Rayleigh-Benard Convection 
+# This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
+# where the domain is periodic in y-direction.
+# The code is benchmarked against Chandrashekar's theoretical results.
+# Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95).
+#
+# Parameter: 
+#
+# Ekman number $E = 10⁻⁴$
+#
+# Eigenvalue: critical modified Rayleigh number $Ra_c = 189.7$
 #
 #
 # ## Governing equations
@@ -27,8 +32,11 @@
 # ```math
 #     \nabla \cdot \mathbf{u} = 0,
 # ```
-# where ```E=\nu/(fH^2)``` is the Ekman number and ```Ra = g\alpha \Delta T/(f \kappa)```, ```\Delta T``` is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
-# By applying the operators ```(\nabla \times \nabla \times)``` and ```(\nabla \times)``` and taking the ```z```-component of the equations and assuming wave-like perturbations as done previously, we obtained the equations for vertical velocity ```w^```, vertical vorticity ```\zeta``` and temperature ```\theta```,
+# where $E=\nu/(fH^2)$ is the Ekman number and $Ra = g\alpha \Delta T/(f \kappa)$, 
+# $\Delta T$ is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
+# By applying the operators $(\nabla \times \nabla \times)$ and $(\nabla \times)$ and 
+# taking the $z$-component of the equations and assuming wave-like perturbations, 
+# we obtained the equations for vertical velocity $w$, vertical vorticity $\zeta$ and temperature $\theta$,
 # ```math
 # \begin{align}
 #     E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_h^2 \theta,
@@ -42,18 +50,19 @@
 # ```math
 # \begin{align}
 #     w = \partial_z^2 w = \partial_z \zeta = \theta = 0
-#     \,\,\,\,\,\ \text{at} \,\,\, z=0,1
+#     \,\,\,\,\,\ \text{at} \,\,\, z=0,1.
 # \end{align}
+# ```
 #
 #
 # ## Normal mode 
-# Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```),
+# Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., $\sigma = 0$),
 # ```math
 # \begin{align}
 #  [w, \zeta, \theta](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{\theta}](y, z)  e^{i kx + \sigma t}\big),
 # \end{align}
 # ```
-# where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. 
+# where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction. 
 # Finally following systems of differential equations are obtained,
 # ```math
 # \begin{align}
@@ -91,13 +100,13 @@
 # ```
 #
 # ## Generalized eigenvalue problem
-# The above sets of equations with the boundary conditions can be expressed as a standard generalized eigenvalue problem,
+# The above sets of equations with the boundary conditions can be expressed as a 
+# standard generalized eigenvalue problem,
 # ```math
-# \begin{align}
-#     \mathsfit{A} \mathsf{X}= \lambda \mathsfit{B} \mathsf{X},   
-# \end{align}
-# ```
-# where ```\lambda=Ra``` is the eigenvalue. 
+#  𝓛X= λℳX, 
+# ```  
+# 
+# where $\lambda=Ra$ is the eigenvalue. 
 #
 # ## Load required packages
 using LazyGrids
@@ -117,7 +126,7 @@ using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
 # ## Let's begin
 using BiGSTARS
 
-# ## Define the grid and derivative operators
+# ### Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
     z = @SVector zeros(Float64, Nz)
@@ -143,11 +152,10 @@ nothing #hide
 end
 nothing #hide
 
-# ## `subperscript with N' means Operator with Neumann boundary condition 
-# ##        after kronker product
-# ##    `subperscript with D' means Operator with Dirchilet boundary condition
-# ##        after kronker product
+
 @with_kw mutable struct Operator{N}
+    ## `subperscript N' means Operator with Neumann boundary condition  
+    ## `subperscript D' means Operator with Dirchilet boundary condition 
     𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
     𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
@@ -225,7 +233,7 @@ function construct_matrices(Op, params)
 end
 nothing #hide
 
-# ## Define the parameters
+# ### Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 2π          # horizontal domain size
     H::T        = 1.0         # vertical domain size
@@ -239,7 +247,7 @@ nothing #hide
 end
 nothing #hide
 
-# ## Define the eigenvalue solver
+# ### Define the eigenvalue solver
 function EigSolver(Op, params, σ₀)
 
     printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
@@ -277,7 +285,7 @@ function EigSolver(Op, params, σ₀)
 end
 nothing #hide
 
-# ## solving the rRBC problem
+# ### solving the rRBC problem
 function solve_rRBC(kₓ::Float64)
     params      = Params{Float64}(kₓ=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()

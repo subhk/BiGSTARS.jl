@@ -46,6 +46,7 @@ nothing # hide
 ```
 
 **Construction of Fourier differentiation matrix**
+
 For $y \in [0,L_y]$, the first-order Fourier differentiation matrix for even $N_y$ is,
 ```math
 \begin{equation}
