@@ -102,7 +102,7 @@
 # \end{align}
 # ```
 
-# ## load required packages
+# ## Load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
