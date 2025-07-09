@@ -4,7 +4,8 @@
 # ## Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95)
 # ## parameter: Ek (Ekman number) = 10⁻⁴
 # ## eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
-
+#
+#
 # ## Problem setup
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. The reason to choose this simple case is because we can find an analytical solution for this case. The background temperature profile is given by 
 # ```math
@@ -40,12 +41,8 @@
 #     w = \partial_z^2 w = \partial_z \zeta = \theta = 0
 #     \,\,\,\,\,\ \text{at} \,\,\, z=0,1
 # \end{align}
-# ```
-# The boundary conditions are implemented in 
-# ```@docs
-# BiGSTARS.setBCs!
-# ```
-
+#
+#
 # ## Normal mode 
 # Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```),
 # ```math
@@ -77,6 +74,7 @@
 #     -\mathcal{D}_h^2 \tilde{v} &= \partial_{yz} \tilde{w} -  i k \tilde{\zeta}.
 # \end{align}
 # ```
+#
 # We choose periodic boundary conditions in the ``y``-direction and free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
 # ```math
 # \begin{align}
@@ -92,7 +90,7 @@
 # \end{align}
 # ```
 # where ```\lambda=Ra``` is the eigenvalue. 
-
+#
 # ## Load required packages
 using LazyGrids
 using LinearAlgebra
