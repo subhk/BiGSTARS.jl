@@ -12,12 +12,6 @@
     <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
         <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20release-blue">
     </a>
-   <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
-        <img alt="latest docs" src="https://img.shields.io/badge/documentation-in%20development-orange">
-    </a>
-    <a href="https://github.com/SciML/ColPrac">
-      <img alt="ColPrac: Contributor's Guide on Collaborative Practices for Community Packages" src="https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet">
-     </a>
 </p>
 
 
