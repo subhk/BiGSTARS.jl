@@ -47,8 +47,7 @@
 # Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., ```\sigma = 0```),
 # ```math
 # \begin{align}
-#     [w, \zeta, \theta](x,y,z,t) =
-# \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{\theta}](y, z) e^{i k x + \sigma t}\big),
+#  [w, \zeta, \theta](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{\theta}](y, z)  e^{i kx + \sigma t}\big),
 # \end{align}
 # ```
 # where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. 
