@@ -1,6 +1,6 @@
 # Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 #
-#
+# ## Governing equations
 # The resulting nondimensional, linearized Boussinesq equations of motion 
 # under the ``f``-plane approximation are given by
 # ```math
@@ -18,7 +18,7 @@
 # ```
 # where 
 # ```math
-# D/Dt \equiv \partial/\partial t + U (\partial/\partial x)$
+# $D/Dt \equiv \partial/\partial t + U (\partial/\partial x)$
 # ```
 # is the material derivative, ``\mathbf{u} \equiv (u, v, \epsilon w)`` is the velocity perturbation, 
 # ``\epsilon=H/R`` is the aspect ratio, ``p`` is the pressure perturbation, and 
@@ -31,7 +31,7 @@
 # ```
 # where 
 # ```math
-# \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
+# $\nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2$.
 # ```
 #
 # To eliminate pressure, following [teed2010rapidly@citet, we apply the operator 
@@ -96,7 +96,8 @@
 # \mathcal{D}_h^2 = (\partial_y^2 - k^2).
 # end{align}
 # ```
-#
+# 
+# ## Boundary conditions
 # We choose periodic boundary conditions in the ``y``-direction and 
 # free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
 # ```math

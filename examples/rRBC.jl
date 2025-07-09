@@ -6,8 +6,11 @@
 # ## eigenvalue: critical modified Rayleigh number (Raᶜ) = 189.7
 #
 #
-# ## Problem setup
-# In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. The reason to choose this simple case is because we can find an analytical solution for this case. The background temperature profile is given by 
+# ## Governing equations
+# In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
+# is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
+# The reason to choose this simple case is because we can find an analytical solution for this case. 
+# The background temperature profile is given by 
 # ```math
 # \overline{\theta} = 1 - z.
 # ```
@@ -77,6 +80,7 @@
 # \end{align}
 # ```
 #
+# ## Boundary conditions
 # We choose periodic boundary conditions in the ``y``-direction and free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
 # ```math
 # \begin{align}
@@ -85,6 +89,8 @@
 #     \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 # \end{align}
 # ```
+#
+# ## Generalized eigenvalue problem
 # The above sets of equations with the boundary conditions can be expressed as a standard generalized eigenvalue problem,
 # ```math
 # \begin{align}
