@@ -25,6 +25,7 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
 examples = [
     "Stone1971.jl",
+    "rRBC.jl"
 ]
 
 # for example in examples
@@ -114,7 +115,7 @@ makedocs(
                 "Differentiation matrix"        => "matrices.md",
                 "Examples"                      => Any[
                     "Stone1971"                 => "literated/Stone1971.md", #,
-                    #"rRBC"                  => "literated/rRBC.md"
+                    "rRBC"                      => "literated/rRBC.md"
                 ],
                 # "Modules"                   => Any[
                 #     "Stone1971 API"         => "modules/Stone1971.md",
