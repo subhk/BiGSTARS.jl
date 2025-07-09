@@ -108,7 +108,7 @@
 # 
 # where $\lambda=Ra$ is the eigenvalue. 
 #
-# ## Load required packages
+# ### Load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
