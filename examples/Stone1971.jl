@@ -64,7 +64,7 @@
 # Next we consider normal-mode perturbation solutions in the form of 
 # ```math
 # \begin{align}
-#     [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \, \tilde{\zeta}, \, \tilde{b}](y, z) \, e^{i kx + \sigma t}\big),
+#     [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{b}](y, z)  e^{i kx + \sigma t}\big),
 # \end{align}
 # ```
 # where the symbol ``\mathfrak{R}`` denotes the real part and a variable with `tilde' denotes an eigenfunction. The variable 
@@ -88,8 +88,11 @@
 # ```
 # where 
 # ```math
-# \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 +
-# (1/\epsilon^2)\partial_z^2 - k^2\big)^2, \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+# \begin{align}
+# \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2, 
+# \\
+# \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+# end{align}
 # ```
 #
 # We choose periodic boundary conditions in the ``y``-direction and 
