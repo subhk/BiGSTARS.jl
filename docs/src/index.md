@@ -2,7 +2,7 @@
 
 ## Overview
 
-`BiGSTARS.jl` is a collection of modules to provide solvers for problems in Geophysical Fluid Dynamics, on periodic domains using Fourier-based pseudospectral methods.
+`BiGSTARS.jl`:A Julia toolkit for bi-global linear stability analysis for geophysical flows using Chebyshev-Fourier spectral collocation method.
 
 
 ## Examples
