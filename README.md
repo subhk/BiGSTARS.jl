@@ -3,10 +3,16 @@
 <!-- description --> 
   **Bi**-**G**lobal **St**ability **A**nalayis of **R**otating **S**tarified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
 <strong>https://subhk.github.io/BiGSTARSDocumentation/stable</strong>
-  
-[![Build Status](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-
+ <!-- Badges -->
+ <p align="left">
+    <a href="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml">
+        <img alt="CI Status" src="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg">
+    </a>
+    <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
+        <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20release-blue">
+    </a>
+</p>
 
 
 
