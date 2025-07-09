@@ -8,9 +8,11 @@
 #     \frac{D \mathbf{u}}{Dt}
 #     + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
 #     + \hat{z} \times \mathbf{u} &=
-#     -\nabla p + \frac{1}{\epsilon} b \hat{z} + E \nabla^2 \mathbf{u}, \\
+#     -\nabla p + \frac{1}{\epsilon} b \hat{z} + E \nabla^2 \mathbf{u}, 
+# \\
 #     \frac{Db}{Dt}
-#     +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &= \frac{E}{Pr} \nabla^2 b, \\
+#     +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &= \frac{E}{Pr} \nabla^2 b, 
+# \\
 #     \nabla \cdot \mathbf{u} &= 0,
 # \end{align}
 # ```
@@ -90,7 +92,7 @@
 # ```math
 # \begin{align}
 # \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2, 
-# \\
+# \,\,\,\,\,\,\, \text{and} \,\,
 # \mathcal{D}_h^2 = (\partial_y^2 - k^2).
 # end{align}
 # ```
