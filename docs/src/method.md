@@ -1,16 +1,15 @@
-````markdown
 # Shift and Invert Method
 
 The **shift-and-invert** transformation is a common technique for solving the generalized eigenvalue problem
 
 ```math
-A x = \lambda B x
+A X = \lambda B X
 ````
 
 by focusing on eigenvalues near a target shift $\sigma$:
 
 ```math
-(A - \sigma B)^{-1} B x = \mu x,
+(A - \sigma B)^{-1} B X = \mu X,
 \quad \mu = (\lambda - \sigma)^{-1}.
 ```
 
