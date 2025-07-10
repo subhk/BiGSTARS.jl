@@ -114,6 +114,7 @@ makedocs(
                 "Home"                          => "index.md",
                 "Installation instructions"     => "installation_instructions.md",
                 "Differentiation matrix"        => "matrices.md",
+                "Methodology"                   => "method.md",
                 "Examples"                      => Any[
                     "Stone1971"                 => "literated/Stone1971.md", #,
                     "rRBC"                      => "literated/rRBC.md"
