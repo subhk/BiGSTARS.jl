@@ -1,8 +1,12 @@
 # Contributors' Guide
 
-This is a short guide for potential BiGSTARS.jl contributors.
+This is a short guide for potential **BiGSTARS.jl** contributors.
 
-Please feel free to ask us questions and chat, either by raising an [issue](https://github.com/subhk/BiGSTARS.jl/issues) or starting a [discussion](https://github.com/subhk/BiGSTARS.jl/discussions).
+We welcome contributions and questions! If you’d like to get involved, please don’t hesitate to 
+[open an issue](https://github.com/subhk/BiGSTARS.jl/issues) to start a discussion.
 
-We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative practices. 
-New contributors should make sure to read that guide.
+We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative practices.  
+If you're new to contributing, please read the guide to understand our conventions and workflows.
+
+Thank you for helping improve `BiGSTARS.jl`!
+
