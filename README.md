@@ -1,7 +1,7 @@
 # BiGSTARS.jl 
 
 <!-- description --> 
-  **Bi**-**G**lobal **St**ability **A**nalayis of **R**otating **S**tarified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
+  **Bi**-**G**lobal **St**ability **A**nalyis of **R**otating **S**tarified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
 <strong>https://subhk.github.io/BiGSTARSDocumentation/stable</strong>
 
  <!-- Badges -->
