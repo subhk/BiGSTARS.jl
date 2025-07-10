@@ -136,6 +136,16 @@ using NonlinearSolve
 using BiGSTARS
 ````
 
+````
+Precompiling DomainSetsMakieExt...
+   6215.4 ms  ✓ DomainSets → DomainSetsMakieExt
+  1 dependency successfully precompiled in 8 seconds. 270 already precompiled.
+Precompiling SciMLBaseMakieExt...
+   5744.5 ms  ✓ SciMLBase → SciMLBaseMakieExt
+  1 dependency successfully precompiled in 8 seconds. 310 already precompiled.
+
+````
+
 ### Define the grid and derivative operators
 
 ````julia
@@ -398,8 +408,8 @@ solve_Stone1971(0.1)
 sigma: 0.011500 
 (3456,)
 found eigenvalue: 0.028452 + im -0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.000420 
-largest growth rate : 2.8452e-02-4.0852e-11im
+||𝓛Χ - λₛℳΧ||₂: 0.000813 
+largest growth rate : 2.8452e-02-3.5388e-10im
 
 ````
 

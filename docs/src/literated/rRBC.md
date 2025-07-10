@@ -328,7 +328,7 @@ solve_rRBC(0.0)
 kₓ: 0.0 
 Start constructing matrices 
 sigma: 0.000000 
-Converged: 20 of 20 eigenvalues in 149 matrix-vector products
+Converged: 20 of 20 eigenvalues in 172 matrix-vector products
 
 ````
 
