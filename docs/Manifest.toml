@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "9718accd4f46edd08a024530a0ba754cce83494e"
+project_hash = "e9aea9c206a72a3df60104d755290224bc81c0a6"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
@@ -195,7 +195,7 @@ uuid = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
 version = "0.2.8"
 
 [[deps.BiGSTARS]]
-deps = ["ArnoldiMethod", "Arpack", "BenchmarkTools", "Dierckx", "DispatchDoctor", "FFTW", "FillArrays", "JLD2", "KrylovKit", "LazyGrids", "LinearAlgebra", "LinearMaps", "ModelingToolkit", "NonlinearSolve", "Parameters", "Printf", "Random", "SparseArrays", "SparseMatrixDicts", "SpecialFunctions", "StaticArrays", "Statistics", "ToeplitzMatrices", "Tullio", "VectorInterface"]
+deps = ["ArnoldiMethod", "Arpack", "BenchmarkTools", "Dierckx", "DispatchDoctor", "DocumenterTools", "FFTW", "FillArrays", "JLD2", "KrylovKit", "LazyGrids", "LinearAlgebra", "LinearMaps", "ModelingToolkit", "NonlinearSolve", "Parameters", "Printf", "Random", "Reexport", "SparseArrays", "SparseMatrixDicts", "SpecialFunctions", "StaticArrays", "Statistics", "ToeplitzMatrices", "Tullio", "VectorInterface"]
 path = ".."
 uuid = "55e6fa54-20b2-4a8e-ba84-e72db1c430e6"
 version = "1.0.0"
