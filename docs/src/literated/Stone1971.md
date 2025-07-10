@@ -397,9 +397,9 @@ solve_Stone1971(0.1)
 ````
 sigma: 0.011500 
 (3456,)
-found eigenvalue: 0.028452 + im 0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.001068 
-largest growth rate : 2.8452e-02+5.4870e-10im
+found eigenvalue: 0.028452 + im -0.000000 
+||𝓛Χ - λₛℳΧ||₂: 0.000420 
+largest growth rate : 2.8452e-02-4.0852e-11im
 
 ````
 

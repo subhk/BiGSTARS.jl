@@ -4,7 +4,7 @@ The **shift-and-invert** transformation is a common technique for solving the ge
 
 ```math
 A X = \lambda B X
-````
+```
 
 by focusing on eigenvalues near a target shift $\sigma$:
 
