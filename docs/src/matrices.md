@@ -1,7 +1,7 @@
 # Construction of differentiation matrices
  This page documents the core spectral‐matrix routines in BiGSTARS.jl.
 
-**Construction of Chebyshev differentiation matrix**
+## Chebyshev differentiation matrix
 
 A standard approach is followed in the construction of the differentiation matrices 
 \citep{trefethen2000spectral}. The transformed Gauss–Lobatto points for 
@@ -45,7 +45,7 @@ z, D = cheb(N-1)
 nothing # hide
 ```
 
-**Construction of Fourier differentiation matrix**
+## Fourier differentiation matrix
 
 For $y \in [0,L_y]$, the first-order Fourier differentiation matrix for even $N_y$ is,
 ```math
