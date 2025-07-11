@@ -2,7 +2,7 @@
 EditURL = "../../../examples/Stone1971.jl"
 ```
 
-Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+### Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 
 ## Introduction
 Baroclinic instability arises when a rotating, stratified fluid has tilted density surfaces,
@@ -151,9 +151,14 @@ $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        -E \mathcal{D}^4 + i k U \mathcal{D}^2 & \mathcal{D}^2 & -\mathcal{D}_h^2 \\
-        -\partial_z U \partial_y & i k U - E \mathcal{D}^2 & 0 \\
-      \partial_z B & ik U - E \mathcal{D}^2 & 0
+        \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)
+         & \mathcal{D}_z  & -\mathcal{D}_h^2
+  \\
+        -\partial_z U \mathcal{D}_y - \mathcal{D}_z
+          & i k U - E \mathcal{D}^2 & 0
+ \\
+      \partial_z B -  \partial_y B H \mathcal{D}_{yz}
+      &  k \partial_y B H  & ikU - E \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
@@ -163,7 +168,7 @@ $A$ and $B$ are given by
     \end{bmatrix},
 \end{align}
 ```
-where $I$ is the identity matrix.
+where $I$ is the identity matrix and $H$ is the inverse of the horizontal Laplacian $(\mathcal{D}_h^2)^{-1}$.
 
 ## Load required packages
 
@@ -446,8 +451,8 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 sigma: 0.023000 
 (3456, 10)
 found eigenvalue: 0.028831 + im -0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.000158 
-largest growth rate : 2.8831e-02-1.8906e-11im
+||𝓛Χ - λₛℳΧ||₂: 0.000115 
+largest growth rate : 2.8831e-02-4.0836e-12im
 Analytical solution of Stone (1971) for the growth rate: 0.028825 
 
 ````

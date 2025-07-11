@@ -100,17 +100,17 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         \mathscr{L} & i k \partial_y Q^\text{qg} \\
-#         \mathcal{D}_z & 0
+#         ik U \mathcal{D}_0^2 
+#        + ik \partial_y Q 
+#       - E \mathcal{D}_h^2 \mathcal{D}_0^2 
 #   \end{bmatrix}, 
 #   \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}
-#       \sigma + i k U & i k \partial_y B \\
-#       \sigma + i k U_{-} & 0 \\
-#       \sigma + i k U_{+} & 0
-#     \end{bmatrix}.
+#       - \mathcal{D}_0^2
+#     \end{bmatrix},
 # \end{align}
 # ```
+# where $D_0^2 = \mathcal{D}_h^2 + (1/N^2) \mathcal{D}_z^2$. 
 #
 #
 # ## Load required packages

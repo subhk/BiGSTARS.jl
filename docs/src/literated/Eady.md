@@ -2,7 +2,7 @@
 EditURL = "../../../examples/Eady.jl"
 ```
 
-Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+### Linear stability analysis of baroclinic instability of a 2D front based on Eady (1949)
 
 ## Introduction
 Eady (1949) showed that in a uniformly sheared, stratified layer between two rigid lids on
@@ -104,17 +104,17 @@ $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        \mathscr{L} & i k \partial_y Q^\text{qg} \\
-        \mathcal{D}_z & 0
+        ik U \mathcal{D}_0^2
+       + ik \partial_y Q
+      - E \mathcal{D}_h^2 \mathcal{D}_0^2
   \end{bmatrix},
   \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
-      \sigma + i k U & i k \partial_y B \\
-      \sigma + i k U_{-} & 0 \\
-      \sigma + i k U_{+} & 0
-    \end{bmatrix}.
+      - \mathcal{D}_0^2
+    \end{bmatrix},
 \end{align}
 ```
+where $D_0^2 = \mathcal{D}_h^2 + (1/N^2) \mathcal{D}_z^2$.
 
 
 ## Load required packages
@@ -364,7 +364,7 @@ end
 ````
 
 ````
-Main.var"##342".Params
+Main.var"##240".Params
 ````
 
 ### Define the eigenvalue solver

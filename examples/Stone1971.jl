@@ -147,9 +147,14 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         -E \mathcal{D}^4 + i k U \mathcal{D}^2 & \mathcal{D}^2 & -\mathcal{D}_h^2 \\  
-#         -\partial_z U \partial_y & i k U - E \mathcal{D}^2 & 0 \\ 
-#       \partial_z B & ik U - E \mathcal{D}^2 & 0
+#         \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)   
+#          & \mathcal{D}_z  & -\mathcal{D}_h^2 
+#   \\  
+#         -\partial_z U \mathcal{D}_y - \mathcal{D}_z  
+#           & i k U - E \mathcal{D}^2 & 0 
+#  \\ 
+#       \partial_z B -  \partial_y B H \mathcal{D}_{yz}   
+#       &  k \partial_y B H  & ikU - E \mathcal{D}^2 
 #     \end{bmatrix}, 
 # \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}  
@@ -159,7 +164,7 @@
 #     \end{bmatrix},
 # \end{align}
 # ```
-# where $I$ is the identity matrix.
+# where $I$ is the identity matrix and $H$ is the inverse of the horizontal Laplacian $(\mathcal{D}_h^2)^{-1}$.
 #
 # ## Load required packages
 using LazyGrids

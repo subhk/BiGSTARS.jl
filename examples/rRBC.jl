@@ -108,16 +108,15 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         -E \mathcal{D}^4 & 0 & Ra \mathcal{D}_h^2 \\
-#         0 & -E \mathcal{D}^2 & -\partial
-#         \partial_z & 0 \\ 
-#         0 & \partial_z & \mathcal{D}^2
+#         E \mathcal{D}^4 & -\mathcal{D}_z & 0 \\
+#         \mathcal{D}_z & E \mathcal{D}^2 & 0 \\ 
+#         I & 0 & \mathcal{D}^2
 #     \end{bmatrix},
 # \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}
-#         \mathcal{D}_h^2 & 0 & 0 \\
-#         0 & \mathcal{D}_h^2 & 0 \\    
-#         0 & 0 & I 
+#         0 & 0 & -\mathcal{D}_h^2 \\
+#         0 & 0 & 0 \\    
+#         0 & 0 & 0 
 #     \end{bmatrix}.
 # \end{align}
 # ```

@@ -112,16 +112,15 @@ $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        -E \mathcal{D}^4 & 0 & Ra \mathcal{D}_h^2 \\
-        0 & -E \mathcal{D}^2 & -\partial
-        \partial_z & 0 \\
-        0 & \partial_z & \mathcal{D}^2
+        E \mathcal{D}^4 & -\mathcal{D}_z & 0 \\
+        \mathcal{D}_z & E \mathcal{D}^2 & 0 \\
+        I & 0 & \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
-        \mathcal{D}_h^2 & 0 & 0 \\
-        0 & \mathcal{D}_h^2 & 0 \\
-        0 & 0 & I
+        0 & 0 & -\mathcal{D}_h^2 \\
+        0 & 0 & 0 \\
+        0 & 0 & 0
     \end{bmatrix}.
 \end{align}
 ```
@@ -346,7 +345,7 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 ````
 Start constructing matrices 
 sigma: 0.000000 
-Converged: 20 of 20 eigenvalues in 173 matrix-vector products
+Converged: 20 of 20 eigenvalues in 174 matrix-vector products
 Obtained critical Ra: 189.704088 
 Analytical solution of critical Ra: 189.700000 
 
