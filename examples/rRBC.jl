@@ -1,4 +1,6 @@
 # ### Finding critical Rayleigh number for rotating Rayleigh-Benard Convection 
+#
+# ## Introduction
 # This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
 # where the domain is periodic in y-direction.
 # The code is benchmarked against Chandrashekar's theoretical results.
@@ -10,15 +12,17 @@
 #
 # Eigenvalue: critical modified Rayleigh number $Ra_c = 189.7$
 #
-#
-# ## Governing equations
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
 # is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
 # The reason to choose this simple case is because we can find an analytical solution for this case. 
-# The background temperature profile is given by 
+#
+# ## Basic state
+# The background temperature profile $\overline{\theta}$ is given by 
 # ```math
 # \overline{\theta} = 1 - z.
 # ```
+# 
+# ## Governing equations
 # The non-dimensional form of the equations governing the perturbation is given by 
 # ```math
 #     \frac{E}{Pr} \frac{\partial \mathbf{u}}{\partial t} 
@@ -46,16 +50,8 @@
 #     \mathcal{D}^2 b + w &= 0.
 # \end{align}
 # ```
-# The boundary conditions are: 
-# ```math
-# \begin{align}
-#     w = \partial_z^2 w = \partial_z \zeta = \theta = 0
-#     \,\,\,\,\,\ \text{at} \,\,\, z=0,1.
-# \end{align}
-# ```
 #
-#
-# ## Normal mode 
+# ## Normal mode solutions
 # Next we consider normal-mode perturbation solutions in the form of (we seek stationary solutions at the marginal state, i.e., $\sigma = 0$),
 # ```math
 # \begin{align}
@@ -103,10 +99,29 @@
 # The above sets of equations with the boundary conditions can be expressed as a 
 # standard generalized eigenvalue problem,
 # ```math
-#  𝓛X= λℳX, 
+# \begin{align}
+#  AX= λBX, 
+# \end{align}
 # ```  
-# 
-# where $\lambda=Ra$ is the eigenvalue. 
+# where $\lambda=Ra$ is the eigenvalue, and $X$ is the eigenvector, The matrices    
+# $A$ and $B$ are given by
+# ```math
+# \begin{align}
+#     A &= \begin{bmatrix}
+#         -E \mathcal{D}^4 & 0 & Ra \mathcal{D}_h^2 \\
+#         0 & -E \mathcal{D}^2 & -\partial
+#         \partial_z & 0 \\ 
+#         0 & \partial_z & \mathcal{D}^2
+#     \end{bmatrix},
+# \,\,\,\,\,\,\,
+#     B &= \begin{bmatrix}
+#         \mathcal{D}_h^2 & 0 & 0 \\
+#         0 & \mathcal{D}_h^2 & 0 \\    
+#         0 & 0 & I 
+#     \end{bmatrix}.
+# \end{align}
+# ```
+# where $I$ is the identity matrix.
 #
 # ### Load required packages
 using LazyGrids

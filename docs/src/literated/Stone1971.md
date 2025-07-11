@@ -4,6 +4,33 @@ EditURL = "../../../examples/Stone1971.jl"
 
 Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 
+## Introduction
+Baroclinic instability arises when a rotating, stratified fluid has tilted density surfaces,
+enabling eddies to tap available potential energy and convert it to kinetic energy.
+Stone (1971) shows that the classic Eady “geostrophic” baroclinic mode under non-hydrostatic effects,
+He showed that this effect systematically weakens its growth rate and shifts the most unstable wavelength to larger scales.
+
+## Basic state
+The basic state is given by
+```math
+\begin{align}
+    B(y, z) &= Ri z - y, \\
+    U(y, z) &= z - {1}/{2},
+\end{align}
+```
+where ``Ri`` is the Richardson number. We aim to analyze the stability of the
+above basic state against small perturbations. The perturbation variables are
+defined as
+```math
+\begin{align}
+    \mathbf{u}(x, y, z, t) &= (u, v, \epsilon w)(x, y, z, t), \\
+    p(x, y, z, t) &= p(x, y, z, t), \\
+    b(x, y, z, t) &= b(x, y, z, t),
+\end{align}
+```
+where ``\epsilon`` is the aspect ratio, ``\mathbf{u}`` is the velocity perturbation,
+``p`` is the pressure perturbation, and ``b`` is the buoyancy perturbation.
+
 ## Governing equations
 The resulting nondimensional, linearized Boussinesq equations of motion
 under the ``f``-plane approximation are given by
@@ -26,9 +53,7 @@ where
   D/Dt \equiv \partial/\partial t + U (\partial/\partial x)
 \end{align}
 ```
-is the material derivative, ``\mathbf{u} \equiv (u, v, \epsilon w)`` is the velocity perturbation,
-``\epsilon=H/R`` is the aspect ratio, ``p`` is the pressure perturbation, and
-``b`` is the buoyancy perturbation. The operator
+is the material derivative. The operators:
 ```math
 \nabla \equiv (\partial/\partial x, \partial/\partial y, (1/\epsilon) \partial/\partial z),
 ```
@@ -113,6 +138,32 @@ free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e.,
   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 \end{align}
 ```
+## Generalized eigenvalue problem
+The above sets of equations with the boundary conditions can be expressed as a
+standard generalized eigenvalue problem,
+```math
+\begin{align}
+ AX= λBX,
+\end{align}
+```
+where $\lambda$ is the eigenvalue, and $X$ is the eigenvector. The matrices
+$A$ and $B$ are given by
+```math
+\begin{align}
+    A &= \begin{bmatrix}
+        -E \mathcal{D}^4 + i k U \mathcal{D}^2 & \mathcal{D}^2 & -\mathcal{D}_h^2 \\
+        -\partial_z U \partial_y & i k U - E \mathcal{D}^2 & 0 \\
+      \partial_z B & ik U - E \mathcal{D}^2 & 0
+    \end{bmatrix},
+\,\,\,\,\,\,\,
+    B &= \begin{bmatrix}
+        \epsilon^2 \mathcal{D}^2 & 0 & 0 \\
+        0 & I & 0 \\
+        0 & 0 & I
+    \end{bmatrix},
+\end{align}
+```
+where $I$ is the identity matrix.
 
 ## Load required packages
 
@@ -210,9 +261,9 @@ function construct_matrices(Op, mf, grid, params)
     Z    = transpose(Z)
 
     # basic state
-    B₀   = @. 1.0/params.Γ * Z - Y
+    B₀   = @. 1.0params.Ri * Z - Y
     ∂ʸB₀ = - 1.0 .* ones(size(Y))
-    ∂ᶻB₀ = 1.0/params.Γ .* ones(size(Y))
+    ∂ᶻB₀ = 1.0params.Ri .* ones(size(Y))
 
     U₀      = @. 1.0 * Z - 0.5params.H
     ∂ᶻU₀    = ones( size(Y))
@@ -318,7 +369,7 @@ end
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0        # vertical domain size
-    Γ::T        = 0.1        # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
+    Ri::T        = 0.1       # the Richardson number
     ε::T        = 0.1        # aspect ratio ε ≡ H/L
     kₓ::T       = 0.0        # x-wavenumber
     E::T        = 1.0e-9     # Ekman number
@@ -335,20 +386,12 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     𝓛, ℳ = construct_matrices(Op, mf, grid, params)
 
-    N = params.Ny * params.Nz
-    MatrixSize = 3N
-    @assert size(𝓛, 1)  == MatrixSize &&
-            size(𝓛, 2)  == MatrixSize &&
-            size(ℳ, 1)  == MatrixSize &&
-            size(ℳ, 2)  == MatrixSize "matrix size does not match!"
-
     if params.method == "shift_invert"
         λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
 
     elseif params.method == "krylov"
 
         λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
-
 
     elseif params.method == "arnoldi"
 
@@ -384,7 +427,7 @@ function solve_Stone1971(kₓ::Float64=0.0)
     λₛ = EigSolver(Op, mf, grid, params, σ₀)
 
     # Analytical solution of Stone (1971) for the growth rate
-    cnst = 1.0 + 1.0/params.Γ + 5.0*params.ε^2 * params.kₓ^2/42.0
+    cnst = 1.0 + 1.0params.Ri + 5.0*params.ε^2 * params.kₓ^2/42.0
     λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
 
     return abs(λₛ.re - λₛₜ) < 1e-3
@@ -396,10 +439,10 @@ solve_Stone1971(0.1)
 
 ````
 sigma: 0.011500 
-(3456,)
-found eigenvalue: 0.028452 + im -0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.000530 
-largest growth rate : 2.8452e-02-3.7828e-10im
+(3456, 12)
+found eigenvalue: 0.012129 + im 0.000000 
+||𝓛Χ - λₛℳΧ||₂: 0.000002 
+largest growth rate : 1.2129e-02+2.3433e-13im
 
 ````
 
