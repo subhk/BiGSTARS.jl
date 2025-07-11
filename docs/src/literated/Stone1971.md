@@ -314,7 +314,7 @@ function construct_matrices(Op, mf, grid, params)
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     H   = SparseMatrixCSC(Zeros(N, N))
 
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
+    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
 
 
     H = inverse_Lap_hor(∇ₕ²)
@@ -323,32 +323,31 @@ function construct_matrices(Op, mf, grid, params)
 
     D⁴  = (1.0 * Op.𝒟⁴ʸ
         + 1.0/params.ε^4 * Op.𝒟⁴ᶻᴰ
-        + 1.0params.kₓ^4 * I⁰
-        - 2.0params.kₓ^2 * Op.𝒟²ʸ
-        - 2.0/params.ε^2 * params.kₓ^2 * Op.𝒟²ᶻᴰ
+        + 1.0 * params.k^4 * I⁰
+        - 2.0 * params.k^2 * Op.𝒟²ʸ
+        - 2.0/params.ε^2 * params.k^2 * Op.𝒟²ᶻᴰ
         + 2.0/params.ε^2 * Op.𝒟²ʸ²ᶻᴰ)
 
     D²  = (1.0/params.ε^2 * Op.𝒟²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * Op.𝒟²ᶻᴺ + 1.0 * ∇ₕ²)
 
     # 1. uᶻ (vertical velocity)  equation (bcs: uᶻ = ∂ᶻᶻuᶻ = 0 @ z = 0, 1)
-    𝓛₁[:,    1:1s₂] = (-1.0params.E * D⁴
-                    + 1.0im * params.kₓ * mf.U₀ * D²) * params.ε^2
+    𝓛₁[:,    1:1s₂] = (-1.0 * params.E * D⁴
+                    + 1.0im * params.k * mf.U₀ * D²) * params.ε^2
     𝓛₁[:,1s₂+1:2s₂] = 1.0 * Op.𝒟ᶻᴺ
     𝓛₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
 
     # 2. ωᶻ (vertical vorticity) equation (bcs: ∂ᶻωᶻ = 0 @ z = 0, 1)
     𝓛₂[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * Op.𝒟ʸ - 1.0 * Op.𝒟ᶻᴰ
-    𝓛₂[:,1s₂+1:2s₂] = (1.0im * params.kₓ * mf.U₀ * I⁰
-                    - 1.0params.E * Dₙ²)
+    𝓛₂[:,1s₂+1:2s₂] = (1.0im * params.k * mf.U₀ * I⁰ - 1.0 * params.E * Dₙ²)
     𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
 
     # 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
     𝓛₃[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰
                     - 1.0 * mf.∇ʸB₀ * H * Op.𝒟ʸᶻᴰ)
-    𝓛₃[:,1s₂+1:2s₂] = 1.0im * params.kₓ * mf.∇ʸB₀ * H * I⁰
-    𝓛₃[:,2s₂+1:3s₂] = (-1.0params.E * Dₙ²
-                    + 1.0im * params.kₓ * mf.U₀ * I⁰)
+    𝓛₃[:,1s₂+1:2s₂] = 1.0im * params.k * mf.∇ʸB₀ * H * I⁰
+    𝓛₃[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ²
+                    + 1.0im * params.k * mf.U₀ * I⁰)
 
     𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
 
@@ -369,9 +368,9 @@ end
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 1.0        # horizontal domain size
     H::T        = 1.0        # vertical domain size
-    Ri::T        = 0.1       # the Richardson number
+    Ri::T       = 0.1       # the Richardson number
     ε::T        = 0.1        # aspect ratio ε ≡ H/L
-    kₓ::T       = 0.0        # x-wavenumber
+    k::T        = 0.0        # x-wavenumber
     E::T        = 1.0e-9     # Ekman number
     Ny::Int64   = 48         # no. of y-grid points
     Nz::Int64   = 24         # no. of z-grid points
@@ -411,8 +410,8 @@ end
 ### Solving the Stone problem
 
 ````julia
-function solve_Stone1971(kₓ::Float64=0.0)
-    params      = Params{Float64}(kₓ=0.5)
+function solve_Stone1971(k::Float64=0.0)
+    params      = Params{Float64}(k=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
     diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
     Op          = Operator{params.Ny * params.Nz}()
@@ -421,28 +420,35 @@ function solve_Stone1971(kₓ::Float64=0.0)
     Construct_DerivativeOperator!(diffMatrix, grid, params)
     ImplementBCs_cheb!(Op, diffMatrix, params)
 
-    σ₀   = 0.01
-    params.kₓ = kₓ
+    σ₀   = 0.02 # initial guess for the growth rate
+    params.k = k
 
     λₛ = EigSolver(Op, mf, grid, params, σ₀)
 
     # Analytical solution of Stone (1971) for the growth rate
-    cnst = 1.0 + 1.0params.Ri + 5.0*params.ε^2 * params.kₓ^2/42.0
-    λₛₜ = 1.0/(2.0*√3.0) * (params.kₓ - 2.0/15.0 * params.kₓ^3 * cnst)
+    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
+    λₛₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
+
+    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₛₜ
 
     return abs(λₛ.re - λₛₜ) < 1e-3
 
 end
+````
 
-solve_Stone1971(0.1)
+## Result
+
+````julia
+solve_Stone1971(0.1) # growth rate is at k=0.1
 ````
 
 ````
-sigma: 0.011500 
-(3456, 12)
-found eigenvalue: 0.012129 + im 0.000000 
-||𝓛Χ - λₛℳΧ||₂: 0.000002 
-largest growth rate : 1.2129e-02+2.3433e-13im
+sigma: 0.023000 
+(3456, 10)
+found eigenvalue: 0.028831 + im -0.000000 
+||𝓛Χ - λₛℳΧ||₂: 0.000158 
+largest growth rate : 2.8831e-02-1.8906e-11im
+Analytical solution of Stone (1971) for the growth rate: 0.028825 
 
 ````
 

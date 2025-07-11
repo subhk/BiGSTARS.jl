@@ -6,8 +6,8 @@ Linear stability analysis of baroclinic instability of a 2D front based on Stone
 
 ## Introduction
 Eady (1949) showed that in a uniformly sheared, stratified layer between two rigid lids on
-an f-plane, counter-propagating Rossby waves lock phase and convert available potential energy
-into eddy kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about
+an ``f``-plane, two counter-propagating Rossby edge waves get phase locked and convert available potential energy
+into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about
 four deformation radii and on timescales of a few days.
 
 ## Basic state
@@ -33,7 +33,6 @@ the $f$-plane approximation can be expressed as,
 where $q^\text{qg}$ is the perturbation QG PV, and it is defined as
 ```math
 \begin{align}
-\label{qg_pv_def}
     q^\text{qg} = \nabla_h^2 \psi^\text{qg} +
     \frac{\partial}{\partial z}
     \left(\frac{1}{N^2} \frac{\partial \psi^\text{qg}}{\partial z}\right),
@@ -70,29 +69,28 @@ where $b^\text{qg}=\partial_z \psi^\text{qg}$.
 Next, we seek normal-mode solutions for $\psi^\text{qg}$ and $q^\text{qg}$ in the form of
 ```math
 \begin{align}
-    [\psi^\text{qg}, q^\text{qg}] = \mathfrak{R}\big([\widetilde{\psi}^\text{qg}, \widetilde{q}^\text{qg}] \big)(y, z) \ee^{\ii kx-\sigma t},
+    [\psi^\text{qg}, q^\text{qg}] = \mathfrak{R}\big([\widetilde{\psi}^\text{qg},
+  \widetilde{q}^\text{qg}] \big)(y, z) e^{i kx-\sigma t},
 \end{align}
 ```
 where $\widetilde{\psi}^\text{qg}$, $\widetilde{q}^\text{qg}$ are the eigenfunctions of $\psi^\text{qg}$ and $q^\text{qg}$, respectively.
-Using (\ref{qg_mode}), (\ref{qg_pv_eq}), and (\ref{qg_pv_def}), (\ref{qg_b}) can be expressed in terms of streamfunction $\psi^\text{qg}$,
+In terms of streamfunction $\psi^\text{qg}$,
 ```math
 \begin{align}
-    [(\sigma + \ii k U) - E] \mathscr{L}\widetilde{\psi}^\text{qg} + \ii k \partial_y Q^\text{qg} \widetilde{\psi}^\text{qg} &= 0, \,\,\,\,\  \text{for} \,\, 0 < z <1,
+    [(\sigma + i k U) - E] \mathscr{L}\widetilde{\psi}^\text{qg}
+  + i k \partial_y Q^\text{qg} \widetilde{\psi}^\text{qg} &= 0, \,\,\,\,\  \text{for} \,\, 0 < z <1,
 \\
-    (\sigma + \ii k U_{-})\partial_z \widetilde{\psi}^\text{qg}_{-} + \ii k \partial_y B_{-} \widetilde{\psi}^\text{qg}_{-} &= 0, \,\,\,\,\, \text{at} \,\, z = 0,
+    (\sigma + i k U_{-})\partial_z \widetilde{\psi}^\text{qg}_{-}
+  + i k \partial_y B_{-} \widetilde{\psi}^\text{qg}_{-} &= 0, \,\,\,\,\, \text{at} \,\, z = 0,
 \\
-    (\sigma + \ii k U_{+})\partial_z \widetilde{\psi}^\text{qg}_{+} + \ii k \partial_y B_{+} \widetilde{\psi}^\text{qg}_{+} &= 0, \,\,\,\,\, \text{at} \,\, z = 1,
+    (\sigma + i k U_{+})\partial_z \widetilde{\psi}^\text{qg}_{+}
+  + i k \partial_y B_{+} \widetilde{\psi}^\text{qg}_{+} &= 0, \,\,\,\,\, \text{at} \,\, z = 1,
 \end{align}
 ```
 where $\mathscr{L}$ is a linear operator, and is defined as
-```math
-\begin{align}
-    \mathscr{L} \equiv \mathcal{D}_h^2 +
-    \frac{\partial}{\partial z} \left(\frac{1}{N^2}
-    \frac{\partial}{\partial z} \right),
-\end{align}
- ```
-where $\mathcal{D}_h^2 = (\partial_y^2 - k^2)$. The subscripts $-,+$ in (\ref{qg_evp}$b,c$) denote the values of the fields at $z=0$ and $z=1$, respectively.
+$\mathscr{L} \equiv \mathcal{D}_h^2 + 1/N^2 \partial_z^2$,
+where $\mathcal{D}_h^2 = (\partial_y^2 - k^2)$.
+The subscripts $-,+$ denote the values of the fields at $z=0$ and $z=1$, respectively.
 
 ## Generalized eigenvalue problem
 The above set of equations can be cast into a generalized eigenvalue problem
@@ -106,13 +104,14 @@ $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        \mathscr{L} & \ii k \partial_y Q^\text{qg} \\
-        \partial_z & 0
-  \end{bmatrix}, \\
+        \mathscr{L} & i k \partial_y Q^\text{qg} \\
+        \mathcal{D}_z & 0
+  \end{bmatrix},
+  \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
-        \sigma + \ii k U & \ii k \partial_y B \\
-      \sigma + \ii k U_{-} & 0 \\
-      \sigma + \ii k U_{+} & 0
+      \sigma + i k U & i k \partial_y B \\
+      \sigma + i k U_{-} & 0 \\
+      \sigma + i k U_{+} & 0
     \end{bmatrix}.
 \end{align}
 ```
@@ -242,7 +241,6 @@ function BasicState!(diffMatrix, mf, grid, params)
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
     Z    = transpose(Z)
-    @printf "size of Y: %s \n" size(Y)
 
     # imposed buoyancy profile
     B₀      = @. 1.0params.Ri * Z - Y
@@ -307,7 +305,7 @@ function construct_matrices(Op, mf, params)
     # lhs of the matrix (size := 2 × 2)
     # eigenvectors: [ψ]
     ∇ₕ² = SparseMatrixCSC(Zeros{Float64}(N, N))
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
+    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
 
     # definition of perturbation PV, q = D₂³ᵈ{ψ}
     D₂³ᵈ = (1.0 * ∇ₕ²
@@ -315,8 +313,8 @@ function construct_matrices(Op, mf, params)
             - 1.0  * mf.∇ᶻᶻB₀  * mf.∇ᶻB₀⁻² * Op.𝒟ᶻ)
 
     # 1. ψ equation
-    𝓛[:,1:1s₂] = (1.0im * params.kₓ * mf.U₀   * D₂³ᵈ
-                + 1.0im * params.kₓ * mf.∇ʸQ₀ * I⁰ #)
+    𝓛[:,1:1s₂] = (1.0im * params.k * mf.U₀   * D₂³ᵈ
+                + 1.0im * params.k * mf.∇ʸQ₀ * I⁰ #)
                 - 1.0 * params.E * ∇ₕ² * D₂³ᵈ)
 
     ℳ[:,1:1s₂] = -1.0 * D₂³ᵈ
@@ -329,7 +327,7 @@ function construct_matrices(Op, mf, params)
     bcᶻᵗ  = findall( x -> (x==params.Nz), zi )
 
     # Implementing boundary condition for 𝓛 matrix in the z-direction:
-    B[:,1:1s₂] = 1.0im * params.kₓ * mf.U₀ * Op.𝒟ᶻ - 1.0im * params.kₓ * mf.∇ᶻU₀ * I⁰
+    B[:,1:1s₂] = 1.0im * params.k * mf.U₀ * Op.𝒟ᶻ - 1.0im * params.k * mf.∇ᶻU₀ * I⁰
 
     # Bottom boundary condition @ z=0
     @. 𝓛[bcᶻᵇ, :] = B[bcᶻᵇ, :]
@@ -357,7 +355,7 @@ end
     L::T        = 1.0         # horizontal domain size
     H::T        = 1.0         # vertical domain size
     Ri::T       = 1.0         # the Richardson number
-    kₓ::T       = 0.0         # x-wavenumber
+    k::T        = 0.0         # x-wavenumber
     E::T        = 1.0e-16     # Ekman number
     Ny::Int64   = 50          # no. of y-grid points
     Nz::Int64   = 30          # no. of z-grid points
@@ -366,7 +364,7 @@ end
 ````
 
 ````
-Main.var"##281".Params
+Main.var"##342".Params
 ````
 
 ### Define the eigenvalue solver
@@ -392,7 +390,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
 
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
 
     return λₛ[1] #, Χ[:,1]
 end
@@ -401,8 +399,8 @@ end
 ### Solving the Eady (1949) problem
 
 ````julia
-function solve_Eady1949(kₓ::Float64=0.0)
-    params      = Params{Float64}(kₓ=0.5)
+function solve_Eady1949(k::Float64=0.0)
+    params      = Params{Float64}(k=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
     diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
     Op          = Operator{params.Ny * params.Nz}()
@@ -413,29 +411,34 @@ function solve_Eady1949(kₓ::Float64=0.0)
 
     BasicState!(diffMatrix, mf, grid, params)
 
-    σ₀   = 0.01
-    params.kₓ = kₓ
+    σ₀   = 0.01 # initial guess for the growth rate
+    params.k = k
 
     λₛ = EigSolver(Op, mf, grid, params, σ₀)
 
     # Analytical solution of Eady (1949) for the growth rate
-    μ  = 1.0params.kₓ * √params.Ri
+    μ  = 1.0 * params.k * √params.Ri
     λₛₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
+
+    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₛₜ
 
     return abs(λₛ.re - λₛₜ) < 1e-3
 
 end
+````
 
-solve_Eady1949(0.1)
+## Result
+
+````julia
+solve_Eady1949(0.1) # growth rate is at k=0.1
 ````
 
 ````
-size of Y: (30, 50) 
 sigma: 0.011500 
 (1500,)
 found eigenvalue: 0.028829 + im 0.000000 
 ||𝓛Χ - λₛℳΧ||₂: 0.000000 
-largest growth rate : 2.8829e-02+2.3051e-12im
+Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````
 

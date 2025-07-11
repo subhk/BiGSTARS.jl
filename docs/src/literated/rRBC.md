@@ -221,15 +221,15 @@ function construct_matrices(Op, params)
     # eigenvectors: [uᶻ ωᶻ θ]ᵀ
 
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰)
+    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
 
     D⁴ = (1.0 * Op.𝒟⁴ʸ + 1.0 * Op.𝒟⁴ᶻᴰ + 2.0 * Op.𝒟²ʸ²ᶻᴰ
-        + 1.0 * params.kₓ^4 * I⁰
-        - 2.0 * params.kₓ^2 * Op.𝒟²ʸ
-        - 2.0 * params.kₓ^2 * Op.𝒟²ᶻᴰ)
+        + 1.0 * params.k^4 * I⁰
+        - 2.0 * params.k^2 * Op.𝒟²ʸ
+        - 2.0 * params.k^2 * Op.𝒟²ᶻᴰ)
 
-    D²  = 1.0 * Op.𝒟²ᶻᴰ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰
-    Dₙ² = 1.0 * Op.𝒟²ᶻᴺ + 1.0 * Op.𝒟²ʸ - 1.0 * params.kₓ^2 * I⁰
+    D²  = 1.0 * Op.𝒟²ᶻᴰ + 1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰
+    Dₙ² = 1.0 * Op.𝒟²ᶻᴺ + 1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰
 
     # 1. uᶻ (vertical velocity) equation
     𝓛₁[:,    1:1s₂] =  1.0 * params.E * D⁴
@@ -263,12 +263,10 @@ end
 @with_kw mutable struct Params{T<:Real} @deftype T
     L::T        = 2π          # horizontal domain size
     H::T        = 1.0         # vertical domain size
-    Γ::T        = 0.1         # front strength Γ ≡ M²/f² = λ/H = 1/ε → ε = 1/Γ
-    ε::T        = 0.1         # aspect ratio ε ≡ H/L
-    kₓ::T       = 0.0         # x-wavenumber
+    k::T        = 0.0         # x-wavenumber
     E::T        = 1.0e-4      # Ekman number
-    Ny::Int64   = 180         # no. of y-grid points
-    Nz::Int64   = 20          # no. of z-grid points
+    Ny::Int64   = 280         # no. of y-grid points
+    Nz::Int64   = 18          # no. of z-grid points
     method::String   = "arnoldi"
 end
 ````
@@ -277,8 +275,6 @@ end
 
 ````julia
 function EigSolver(Op, params, σ₀)
-
-    printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
 
     𝓛, ℳ = construct_matrices(Op,  params)
 
@@ -309,6 +305,8 @@ function EigSolver(Op, params, σ₀)
 
     end
 
+    @printf "Obtained critical Ra: %f \n" real(λₛ[1])
+
     return λₛ[1] #, Χ[:,1]
 end
 ````
@@ -316,8 +314,8 @@ end
 ### solving the rRBC problem
 
 ````julia
-function solve_rRBC(kₓ::Float64)
-    params      = Params{Float64}(kₓ=0.5)
+function solve_rRBC(k::Float64)
+    params      = Params{Float64}(k=0.5)
     grid        = TwoDimGrid{params.Ny,  params.Nz}()
     diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
     Op          = Operator{params.Ny * params.Nz}()
@@ -325,25 +323,32 @@ function solve_rRBC(kₓ::Float64)
     ImplementBCs_cheb!(Op, diffMatrix, params)
 
     σ₀   = 0.0
-    params.kₓ = kₓ
+    params.k = k
 
     λₛ = EigSolver(Op, params, σ₀)
 
     # Theoretical results from Chandrashekar (1961)
     λₛₜ = 189.7
 
+    @printf "Analytical solution of critical Ra: %f \n" λₛₜ
+
     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
 
 end
+````
 
-solve_rRBC(0.0)
+## Result
+
+````julia
+solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 ````
 
 ````
-kₓ: 0.0 
 Start constructing matrices 
 sigma: 0.000000 
-Converged: 20 of 20 eigenvalues in 199 matrix-vector products
+Converged: 20 of 20 eigenvalues in 173 matrix-vector products
+Obtained critical Ra: 189.704088 
+Analytical solution of critical Ra: 189.700000 
 
 ````
 
