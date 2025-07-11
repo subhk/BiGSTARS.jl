@@ -1,4 +1,4 @@
-# Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+# Linear stability analysis of baroclinic instability of a 2D front based on Eady (1949)
 #
 # ## Introduction
 # Eady (1949) showed that in a uniformly sheared, stratified layer between two rigid lids on 
