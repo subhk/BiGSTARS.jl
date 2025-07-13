@@ -1,7 +1,7 @@
 # ### Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
 #
 # ## Introduction
-# Baroclinic instability arises when a rotating, stratified fluid has tilted density surfaces, 
+# Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces, 
 # enabling eddies to tap available potential energy and convert it to kinetic energy.
 # Stone (1971) investigated non-geostrophic effects on BCI using Eady’s framework. 
 # He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases 
