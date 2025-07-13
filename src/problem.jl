@@ -58,7 +58,9 @@ struct EmptyParams <: AbstractParams
 end
 
 
-function Problem{T<:Real}(params=EmptyParams, grid=AbstractGrid{T}, cache::OperatorCache{T}) where T
+function Problem(grid::AbstractGrid{T, Ty, Tm}, 
+                cache::OperatorCache{T}, 
+                params::AbstractParams) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
     # Kronecker products: Dirichlet
     Dᶻᴰ   = kron_s(cache.Iʸ, grid.Dᶻᴰ )
@@ -79,11 +81,16 @@ function Problem{T<:Real}(params=EmptyParams, grid=AbstractGrid{T}, cache::Opera
     D²ʸ     = kron_s(grid.D²ʸ, cache.Iᶻ)
     D⁴ʸ     = kron_s(grid.D⁴ʸ, cache.Iᶻ)
 
-    return Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
+    #### Create the grid object
+    prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
                     Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dᶻᴺ, D²ᶻᴺ,
-                    Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ)
+                    Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
+    )
+
+    return prob
 end
+
 
 
 struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
@@ -121,12 +128,12 @@ struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
 end
 
 
-function TwoDGrid(Ny::Int, L::Real, Nz::Int, H::Real;
-                  T::Type{<:Real}=Float64,
-                  apply_bcs::Bool=false,
-                  params::AbstractParams=EmptyParams())
+function TwoDGrid(params::AbstractParams) 
 
-    @assert Ny > 0 && Nz > 0, "Ny and Nz must be positive integers."
+    Ny = params.Ny
+    Nz = params.Nz
+    L  = params.L
+    H  = params.H
 
     # setup Fourier differentiation matrices  
     # Fourier in y-direction: y ∈ [0, L)
@@ -159,34 +166,33 @@ function TwoDGrid(Ny::Int, L::Real, Nz::Int, H::Real;
                                         D⁴ᶻ, 
                                         zerotoL_transform_ho, 
                                         H)
+    T = eltype(Dʸ)
 
     #### Create the grid object
-        grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
-            Ny, Nz, L, H, y, z,
-            Dʸ, D²ʸ, D⁴ʸ,
-            Dᶻ, D²ᶻ, D⁴ᶻ,
-            Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
-            Dᶻᴺ, D²ᶻᴺ
-        )
+    grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
+        Ny, Nz, L, H, y, z,
+        Dʸ, D²ʸ, D⁴ʸ,
+        Dᶻ, D²ᶻ, D⁴ᶻ,
+        Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
+        Dᶻᴺ, D²ᶻᴺ
+    )
 
-        #### Apply BCs if requested
-        if apply_bcs
-            setBCs!(grid, params, :dirichlet)
-            setBCs!(grid, params, :neumann)
-        end
+    #### Apply BCs 
+    setBCs!(grid, params, :dirichlet)
+    setBCs!(grid, params, :neumann)
 
     return grid
 end
 
 
-function show(io::IO, p::Params{T}) where T
+function show(io::IO, params::AbstractParams) where T
     print(io,
         "Eigen Solver Configuration \n",
         "  ├────────────────────── Float Type: $T \n",
-        "  ├─────────────── Domain Size (L, H): ", (p.L, p.H), "\n",
-        "  ├───────────── Resolution (Ny, Nz): ", (p.Ny, p.Nz), "\n",
-        "  ├──── Boundary Conditions (w, ζ, b): ", (p.w_bc, p.ζ_bc, p.b_bc), "\n",
-        "  └────────────── Eigenvalue Solver: ", p.eig_solver, "\n"
+        "  ├─────────────── Domain Size (L, H): ", (params.L, params.H), "\n",
+        "  ├───────────── Resolution (Ny, Nz): ", (params.Ny, params.Nz), "\n",
+        "  ├──── Boundary Conditions (w, ζ, b): ", (params.w_bc, params.ζ_bc, params.b_bc), "\n",
+        "  └────────────── Eigenvalue Solver: ", params.eig_solver, "\n"
     )
 end
 

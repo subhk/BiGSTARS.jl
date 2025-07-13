@@ -75,17 +75,30 @@ end
 # end
 
 ## Set BCs Based on Type Symbol
-function setBCs!(grid, params, ::Val{:dirichlet})
-    n = params.Nz
-    apply_dirichlet_D1!(grid.Dᶻᴰ,            n)
-    apply_dirichlet_D2!(grid.D²ᶻᴰ,           n)
-    apply_dirichlet_D4!(grid.D⁴ᶻᴰ, grid.D²ᶻ, n)
-end
+# function setBCs!(grid, params, ::Val{:dirichlet})
+#     n = params.Nz
+#     apply_dirichlet_D1!(grid.Dᶻᴰ,            params)
+#     apply_dirichlet_D2!(grid.D²ᶻᴰ,           params)
+#     apply_dirichlet_D4!(grid.D⁴ᶻᴰ, grid.D²ᶻ, params)
+# end
 
-function setBCs!(grid, params, ::Val{:neumann})
-    n = params.Nz
-    apply_neumann_D1!(grid.Dᶻᴺ,           n)
-    apply_neumann_D2!(grid.D²ᶻᴺ, grid.Dᶻ, n)
+# function setBCs!(grid, params, ::Val{:neumann})
+#     n = params.Nz
+#     apply_neumann_D1!(grid.Dᶻᴺ,           params)
+#     apply_neumann_D2!(grid.D²ᶻᴺ, grid.Dᶻ, params)
+# end
+
+function setBCs!(grid, params, bc::Symbol)
+    if bc == :dirichlet
+        apply_dirichlet_on_D1!(grid.Dᶻᴰ,            params)
+        apply_dirichlet_on_D2!(grid.D²ᶻᴰ,           params)
+        apply_dirichlet_on_D4!(grid.D⁴ᶻᴰ, grid.D²ᶻ, params)
+    elseif bc == :neumann
+        apply_neumann_on_D1!(grid.Dᶻᴺ,           params)
+        apply_neumann_on_D2!(grid.D²ᶻᴺ, grid.Dᶻ, params)
+    else
+        error("Unknown BC symbol: $bc")
+    end
 end
 
 # function setBCs!(grid, params, bc_type::String)

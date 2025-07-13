@@ -19,9 +19,6 @@ module BiGSTARS
     using LinearAlgebra
     using Statistics
     using VectorInterface
-    #using Pardiso
-    #using MKL_jll
-    #using MKL
 
     using Reexport
 
@@ -46,8 +43,8 @@ module BiGSTARS
        FourierDiff_fdm,
 
        # Constructing derivative operators
-       Construct_DerivativeOperator!,
-       ImplementBCs_cheb!,  
+       #Construct_DerivativeOperator!,
+       #ImplementBCs_cheb!,  
 
        # Setting boundary conditions
        setBCs!,
@@ -78,9 +75,18 @@ module BiGSTARS
 
        # pardiso_solver to construct linear map
        #construct_linear_map_pardiso,
-       construct_linear_map
+       construct_linear_map, 
+
+       TwoDGrid
 
 
+    import Base: resize!, getindex, setindex!, push!, append!, show, summary
+
+    "Abstract supertype for grids."
+    abstract type AbstractGrid{T, Ty, Tm} end
+
+    "Abstract supertype for parameters."
+    abstract type AbstractParams end
 
     include("dmsuite.jl")
     include("transforms.jl")
@@ -89,6 +95,7 @@ module BiGSTARS
     include("shift_invert.jl")
     include("setBCs.jl")
     include("utils.jl")
-    include("derivative_operators.jl")
+    include("problem.jl")
+
 
 end # module BiGSTARS

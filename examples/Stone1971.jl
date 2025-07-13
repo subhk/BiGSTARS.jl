@@ -184,15 +184,18 @@ using ModelingToolkit
 using NonlinearSolve
 
 using BiGSTARS
+using BiGSTARS: AbstractParams
 
+# # Define abstract type first
+# abstract type AbstractParams end
 
 # ### Define the parameters
-@with_kw mutable struct Params{T<:Real} @deftype T
+@with_kw struct Params{T} <: AbstractParams
     L::T                = 1.0          # horizontal domain size
     H::T                = 1.0          # vertical domain size
     Ri::T               = 1.0          # the Richardson number 
     ε::T                = 0.1          # aspect ratio ε ≡ H/L
-    k::T                = 0.0          # along-front wavenumber
+    k::T                = 0.1          # along-front wavenumber
     E::T                = 1.0e-9       # the Ekman number 
     Ny::Int64           = 48           # no. of y-grid points
     Nz::Int64           = 24           # no. of z-grid points
@@ -202,14 +205,10 @@ using BiGSTARS
     eig_solver::String  = "krylov"     # eigenvalue solver
 end
 nothing #hide
+params = Params{Float64}()
 
-
-# ### Define the problem
-## Set the parameters
-params = Params{Float64}(k=0.1) # if you want to change the wavenumber, you can do it here
-
-## Construct the grid and the derivative operator
-grid   = TwoDGrid(params.Ny, params.L, params.Nz, params.H)
+# ### Construct grid and derivative operators
+grid  = TwoDGrid(params)
 
 # ### Define the basic state
 function basic_state(params, grid)
@@ -220,61 +219,19 @@ function basic_state(params, grid)
     return B₀, U₀
 end
 
-
-
-
-@with_kw mutable struct Operator{N}
-    ## `subperscript N' means Operator with Neumann boundary condition  
-    ## `subperscript D' means Operator with Dirchilet boundary condition 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟ʸᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-end
-nothing #hide
-
-@with_kw mutable struct MeanFlow{N} 
-    B₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-    U₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-
-  ∇ʸU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ʸB₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ᶻB₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-
-  ∇ʸʸU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ᶻᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ʸᶻU₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-end
-nothing #hide
-
+Dʸ, D²ʸ, D⁴ʸ, Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ, Dᶻᴺ, D²ᶻᴺ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ = BiGSTARS.Problem(grid, params)
 
 # ### Constructing the derivative operators
 function construct_matrices(Op, mf, grid, params)
-    Y, Z = ndgrid(grid.y, grid.z)
-    Y    = transpose(Y)
-    Z    = transpose(Z)
+
+    B₀, U₀ = basic_state(params, grid)
 
     ## basic state
-    B₀   = @. 1.0params.Ri * Z - Y  
-    ∂ʸB₀ = - 1.0 .* ones(size(Y))  
-    ∂ᶻB₀ = 1.0params.Ri .* ones(size(Y))  
+    B₀   = @. 1.0 * params.Ri * Z - Y
+    ∂ʸB₀ = - 1.0 .* ones(size(Y))
+    ∂ᶻB₀ = 1.0 * params.Ri .* ones(size(Y))
 
-    U₀      = @. 1.0 * Z - 0.5params.H
+    U₀      = @. 1.0 * Z - 0.5 * params.H
     ∂ᶻU₀    = ones( size(Y)) 
     ∂ʸU₀    = zeros(size(Y)) 
 
