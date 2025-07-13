@@ -10,7 +10,10 @@
         <img alt="CI Status" src="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg">
     </a>
     <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
-        <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20release-blue">
+        <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20-blue">
+    </a>
+      <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
+        <img alt="latest docs" src="https://img.shields.io/badge/documentation-in%20development-orange">
     </a>
 </p>
 
