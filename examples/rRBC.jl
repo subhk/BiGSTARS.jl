@@ -14,7 +14,6 @@
 #
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
 # is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
-# The reason to choose this simple case is because we can find an analytical solution for this case. 
 #
 # ## Basic state
 # The background temperature profile $\overline{\theta}$ is given by 
