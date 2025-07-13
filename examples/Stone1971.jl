@@ -3,7 +3,7 @@
 # ## Introduction
 # Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces, 
 # enabling eddies to tap available potential energy and convert it to kinetic energy.
-# Stone (1971) investigated non-geostrophic effects on BCI using Eady’s framework. 
+# Stone (1971) investigated non-hydrostatic effects on BCI using Eady’s framework. 
 # He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases 
 # while the growth rate diminishes relative to predictions from the quasigeostrophic (QG) approximation.
 # ## Basic state
@@ -188,44 +188,39 @@ using BiGSTARS
 
 # ### Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 1.0        # horizontal domain size
-    H::T        = 1.0        # vertical domain size
-    Ri::T       = 0.1       # the Richardson number
-    ε::T        = 0.1        # aspect ratio ε ≡ H/L
-    k::T        = 0.0        # x-wavenumber
-    E::T        = 1.0e-9     # Ekman number 
-    Ny::Int64   = 48         # no. of y-grid points
-    Nz::Int64   = 24         # no. of z-grid points
-    method::String = "krylov"
+    L::T                = 1.0          # horizontal domain size
+    H::T                = 1.0          # vertical domain size
+    Ri::T               = 1.0          # the Richardson number 
+    ε::T                = 0.1          # aspect ratio ε ≡ H/L
+    k::T                = 0.0          # along-front wavenumber
+    E::T                = 1.0e-9       # the Ekman number 
+    Ny::Int64           = 48           # no. of y-grid points
+    Nz::Int64           = 24           # no. of z-grid points
+    w_bc::String        = "rigid_lid"  # boundary condition for vertical velocity
+    ζ_bc::String        = "free_slip"  # boundary condition for vertical vorticity
+    b_bc::String        = "zero_flux"   # boundary condition for buoyancy
+    eig_solver::String  = "krylov"     # eigenvalue solver
 end
 nothing #hide
 
 
-# ### Define the grid and derivative operators
-@with_kw mutable struct TwoDimGrid{Ny, Nz} 
-    y = @SVector zeros(Float64, Ny)
-    z = @SVector zeros(Float64, Nz)
+# ### Define the problem
+## Set the parameters
+params = Params{Float64}(k=0.1) # if you want to change the wavenumber, you can do it here
+
+## Construct the grid and the derivative operator
+grid   = TwoDGrid(params.Ny, params.L, params.Nz, params.H)
+
+# ### Define the basic state
+function basic_state(params, grid)
+    # Basic state
+    B₀   = @. params.Ri * grid.z - grid.y     # buoyancy
+    U₀   = @. 1.0 * grid.z - 0.5 * params.H   # along-front velocity
+
+    return B₀, U₀
 end
-nothing #hide
 
-@with_kw mutable struct ChebMarix{Ny, Nz} 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
 
-    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-
-    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-
-    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-end
-nothing #hide
 
 
 @with_kw mutable struct Operator{N}
@@ -406,9 +401,10 @@ nothing #hide
 
 # ### Solving the Stone problem
 function solve_Stone1971(k::Float64=0.0)
-    params      = Params{Float64}(k=0.5)
-    grid        = TwoDimGrid{params.Ny,  params.Nz}()
-    diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
+
+
+
+
     Op          = Operator{params.Ny * params.Nz}()
     mf          = MeanFlow{params.Ny * params.Nz}()
 

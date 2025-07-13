@@ -14,46 +14,99 @@ function myfindall(condition, x)
     return results
 end
 
-# print the eigenvalues
-function print_evals(λs, n)
-    @printf "%i largest eigenvalues: \n" n
-    for p in n:-1:1
-        if imag(λs[p]) >= 0
-            @printf "%i: %1.4e+%1.4eim\n" p real(λs[p]) imag(λs[p])
-        end
-        if imag(λs[p]) < 0
-            @printf "%i: %1.4e%1.4eim\n" p real(λs[p]) imag(λs[p])
-        end
+# # print the eigenvalues
+# function print_evals(λs, n)
+#     @printf "%i largest eigenvalues: \n" n
+#     for p in n:-1:1
+#         if imag(λs[p]) >= 0
+#             @printf "%i: %1.4e+%1.4eim\n" p real(λs[p]) imag(λs[p])
+#         end
+#         if imag(λs[p]) < 0
+#             @printf "%i: %1.4e%1.4eim\n" p real(λs[p]) imag(λs[p])
+#         end
+#     end
+# end
+
+# Custom struct for nicely formatted eigenvalue output
+struct EigenvalueDisplay
+    λ::Complex
+    idx::Int
+end
+
+# Custom display for EigenvalueDisplay
+function Base.show(io::IO, ::MIME"text/plain", ev::EigenvalueDisplay)
+    r, i = real(ev.λ), imag(ev.λ)
+    if iszero(i)
+        @printf(io, "%3d │ % .6e          ", ev.idx, r)
+    else
+        sign_str = i ≥ 0 ? "+" : ""
+        @printf(io, "%3d │ % .6e %s%.6eim", ev.idx, r, sign_str, i)
     end
 end
 
-# sort the eigenvalues
-function sort_evals(λs, χ, which, sorting="lm")
-    @assert which ∈ ["M", "I", "R"]
+"""
+    print_evals(λs::AbstractVector{<:Number}; n::Int=length(λs), by::Symbol=:abs)
 
-    if sorting == "lm"
-        if which == "I"
-            idx = sortperm(λs, by=imag, rev=true) 
-        end
-        if which == "R"
-            idx = sortperm(λs, by=real, rev=true) 
-        end
-        if which == "M"
-            idx = sortperm(λs, by=abs, rev=true) 
-        end
-    else
-        if which == "I"
-            idx = sortperm(λs, by=imag, rev=false) 
-        end
-        if which == "R"
-            idx = sortperm(λs, by=real, rev=false) 
-        end
-        if which == "M"
-            idx = sortperm(λs, by=abs, rev=false) 
-        end
+Pretty-print the top `n` eigenvalues from the list `λs`, optionally sorted by `:real`, `:imag`, or `:abs`.
+"""
+function print_evals(λs::Vector{<:Complex})
+    n = length(λs) 
+    λs_sorted = sort(λs, by=abs, rev=true)
+    println("Top $n eigenvalues (sorted):")
+    println("Idx │ Real Part     Imag Part")
+    println("────┼──────────────────────────────")
+    for p in n:-1:1
+        show(stdout, "text/plain", EigenvalueDisplay(λs_sorted[p], p))
+        println()  # ensure newline after each
     end
+end
 
-    return λs[idx], χ[:,idx]
+
+# # sort the eigenvalues
+# function sort_evals(λs, χ, which, sorting="lm")
+#     @assert which ∈ ["M", "I", "R"]
+
+#     if sorting == "lm"
+#         if which == "I"
+#             idx = sortperm(λs, by=imag, rev=true) 
+#         end
+#         if which == "R"
+#             idx = sortperm(λs, by=real, rev=true) 
+#         end
+#         if which == "M"
+#             idx = sortperm(λs, by=abs, rev=true) 
+#         end
+#     else
+#         if which == "I"
+#             idx = sortperm(λs, by=imag, rev=false) 
+#         end
+#         if which == "R"
+#             idx = sortperm(λs, by=real, rev=false) 
+#         end
+#         if which == "M"
+#             idx = sortperm(λs, by=abs, rev=false) 
+#         end
+#     end
+
+#     return λs[idx], χ[:,idx]
+# end
+
+"""
+    λs_sorted, χ_sorted = sort_evals(λs, χ, "R"; sorting="lm")
+    Sort the eigenvalues `λs` and corresponding eigenvectors `χ` based on the specified criterion 
+    (`"M"` for magnitude, `"I"` for imaginary part, or `"R"` for real part).
+    The `sorting` argument determines the order: `"lm"` for descending order.
+"""
+function sort_evals(λs::AbstractVector, χ::AbstractMatrix, which::String; sorting::String="lm")
+    @assert which in ("M", "I", "R")
+    by_func = Dict(
+        "M" => abs,
+        "I" => imag,
+        "R" => real
+    )[which]
+
+    idx = sortperm(λs, by=by_func, rev=(sorting == "lm"))
+    return λs[idx], χ[:, idx]
 end
 
 
@@ -98,306 +151,186 @@ function inverse_Lap_hor(∇ₕ²)
     return H
 end
 
-function ∇f(f, x)
-    @assert ndims(f) == ndims(x)
-    @tullio dx[i] := x[i+1] - x[i]
-    @assert std(dx) ≤ 1.0e-6
-    N = length(x); #Assume >= 3
-    ∂f_∂x = similar(f);
-    ∂f_∂x .= 0.0;
-    Δx    = x[2]-x[1]; #assuming evenly spaced points
-
-    c₄₊ = (-25.0/12.0, 4.0, -3.0, 4.0/3.0, -1.0/4.0);
-    c₄₋ = @. -1.0 * c₄₊;
-    c₈  = (1.0/280.0, -4.0/105.0, 1.0/5.0, -4.0/5.0, 0.0, 
-        4.0/5.0, -1.0/5.0, 4.0/105.0, -1.0/280.0);
-    for k ∈ 1:4
-        ∂f_∂x[k] = c₄₊[1]*f[k] + c₄₊[2]*f[k+1] + c₄₊[3]*f[k+2] + c₄₊[4]*f[k+3] + c₄₊[5]*f[k+4];
-    end
-    for k ∈ 5:N-4
-        ∂f_∂x[k]  = c₈[1]*f[k-4] + c₈[2]*f[k-3] + c₈[3]*f[k-2] + c₈[4]*f[k-1];
-        ∂f_∂x[k] += c₈[5]*f[k];
-        ∂f_∂x[k] += c₈[6]*f[k+1] + c₈[7]*f[k+2] + c₈[8]*f[k+3] + c₈[9]*f[k+4];
-    end
-    for k ∈ N-3:N
-        ∂f_∂x[k] = c₄₋[1]*f[k] + c₄₋[2]*f[k-1] + c₄₋[3]*f[k-2] + c₄₋[4]*f[k-3] + c₄₋[5]*f[k-4];
-    end
-    return ∂f_∂x ./Δx
+struct InverseLaplace{T}
+    Qᵀ::SparseMatrixCSC{T,Int}
+    invR::Matrix{T}
 end
 
-# function ∇f(f, x)
-#     @assert x[2] - x[1] ≈ x[3] - x[2]
-#     @assert ndims(f) == ndims(x)
-#     N = length(x); #Assume >= 3
-#     ∂f_∂x = similar(x);
-#     Δx = x[2]-x[1]; #assuming evenly spaced points
-#     ∂f_∂x[1] = (-3.0f[1] + 4.0f[2] - f[3]) / (2.0Δx);
-#     ∂f_∂x[2] = (-3.0f[2] + 4.0f[3] - f[4]) / (2.0Δx);
-#     for k ∈ 3:N-2
-#         ∂f_∂x[k] = (1.0/12.0*f[k-2] - 2.0/3.0*f[k-1] + 2.0/3.0*f[k+1] - 1.0/12.0*f[k+2]) / Δx;
-#     end
-#     ∂f_∂x[N-1] = (3.0f[N-1] - 4.0f[N-2] + f[N-3]) / (2.0Δx);
-#     ∂f_∂x[N]   = (3.0f[N]   - 4.0f[N-1] + f[N-2]) / (2.0Δx);
-#     return ∂f_∂x
+function InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T
+    F    = qr(∇ₕ²)
+    Q    = sparse(Matrix(F.Q))  # force sparse Q
+    R    = F.R
+    invR = inv(R)
+    return InverseLaplace{T}(Q', invR)
+end
+
+"""    
+    H = InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T<:AbstractFloat
+    
+    # Suppose ∇ₕ² is your horizontal Laplacian matrix
+    ∇ₕ² = your_matrix_here
+    H = InverseLaplace(∇ₕ²)
+
+    # Apply the inverse to a vector x
+    x = rand(size(∇ₕ², 1))
+    u = H(x)  # equivalent to H * x
+    """
+@inline function (H::InverseLaplace)(x::AbstractVector{T}) where T
+    return H.invR * (H.Qᵀ * x)
+end
+
+
+# function inverse_Lap_hor(∇ₕ²::AbstractMatrix{T}) where T<:AbstractFloat
+#     F = qr(∇ₕ²)                     # QR factorization
+#     Q = Matrix(F.Q)                 # full Q (dense, orthogonal)
+#     R = F.R                         # upper triangular
+#     return inv(R) * Q'              # A⁻¹ = R⁻¹ * Qᵀ
 # end
 
-# function gradient(f, x; dims::Int=1)
-#     n   = size(f)
-#     sol = similar(f)
-#     if std(diff(x)) ≤ 1e-6
-#         if ndims(f) == 1
-#             sol = ∇f(f, x)
-#         end
-#         if ndims(f) == 2
-#             @assert ndims(f) ≥ dims 
-#             if dims==1
-#                 for it ∈ 1:n[dims+1]
-#                     sol[:,it] = ∇f(f[:,it], x)
-#                 end
-#             else
-#                 for it ∈ 1:n[dims-1]
-#                     sol[it,:] = ∇f(f[it,:], x)
-#                 end
-#             end
-#         end
-#         if ndims(f) == 3
-#             @assert ndims(f) ≥ dims 
-#             if dims==1
-#                 for it ∈ 1:n[dims+1], jt ∈ 1:n[dims+2]
-#                     sol[:,it,jt] = ∇f(f[:,it,jt], x)
-#                 end
-#             elseif dims==2
-#                 for it ∈ 1:n[dims-1], jt ∈ 1:n[dims+1]
-#                     sol[it,:,jt] = ∇f(f[it,:,jt], x)
-#                 end
-#             else
-#                 for it ∈ 1:n[dims-2], jt ∈ 1:n[dims-1]
-#                     sol[it,jt,:] = ∇f(f[it,jt,:], x)
-#                 end    
-#             end
-#         end
-#     else
-#         @printf "grid is nonuniform \n"
-#         if ndims(f) == 1
-#             itp = Spline1D(x, f, bc="nearest") 
-#             sol = [derivative(itp,  xᵢ) for xᵢ in x]
-#         end
-#         if ndims(f) == 2
-#             @assert ndims(f) ≥ dims 
-#             if dims==1
-#                 for it ∈ 1:n[dims+1]
-#                     itp = Spline1D(x, f[:,it], bc="nearest") 
-#                     sol[:,it] = [derivative(itp,  xᵢ) for xᵢ in x]
-#                 end
-#             else
-#                 for it ∈ 1:n[dims-1]
-#                     itp = Spline1D(x, f[it,:], bc="nearest") 
-#                     sol[it,:] = [derivative(itp,  xᵢ) for xᵢ in x]
-#                 end
-#             end
-#         end
-#         if ndims(f) == 3
-#             @assert ndims(f) ≥ dims 
-#             if dims==1
-#                 for it ∈ 1:n[dims+1], jt ∈ 1:n[dims+2]
-#                     itp = Spline1D(x, f[:,it,jt], bc="nearest") 
-#                     sol[:,it,jt] = [derivative(itp,  xᵢ) for xᵢ in x]
-#                 end
-#             elseif dims==2
-#                 for it ∈ 1:n[dims-1], jt ∈ 1:n[dims+1]
-#                     itp = Spline1D(x, f[it,:,jt], bc="nearest") 
-#                     sol[it,:,jt] = [derivative(itp,  xᵢ) for xᵢ in x]
-#                 end
-#             else
-#                 for it ∈ 1:n[dims-2], jt ∈ 1:n[dims-1]
-#                     itp = Spline1D(x, f[it,jt,:], bc="nearest")
-#                     sol[it,jt,:] = [derivative(itp,  xᵢ) for xᵢ in x]
-#                 end    
-#             end
-#         end
-#     end
-#     return sol
-# end
+function ∇f(f::AbstractVector{T}, x::AbstractVector{T}) where T<:AbstractFloat
+    @assert length(f) == length(x)
+    dx = x[2:end] .- x[1:end-1]
+    @assert std(dx) ≤ 1.0e-6 "x must be uniformly spaced"
+    Δx = dx[1]
+    N = length(x)
+
+    ∂f_∂x = Array{T}(undef, N)
+
+    c₄₊ = (-25//12, 4, -3, 4//3, -1//4)
+    c₄₋ = reverse(tuple((-c for c in c₄₊)...))
+    c₈  = (1//280, -4//105, 1//5, -4//5, 0.0, 4//5, -1//5, 4//105, -1//280)
+
+    @inbounds for k in 1:4
+        ∂f_∂x[k] = c₄₊[1]*f[k] + c₄₊[2]*f[k+1] + c₄₊[3]*f[k+2] + c₄₊[4]*f[k+3] + c₄₊[5]*f[k+4]
+    end
+
+    @inbounds for k in 5:N-4
+        ∂f_∂x[k]  = c₈[1]*f[k-4] + c₈[2]*f[k-3] + c₈[3]*f[k-2] + c₈[4]*f[k-1]
+        ∂f_∂x[k] += c₈[5]*f[k]
+        ∂f_∂x[k] += c₈[6]*f[k+1] + c₈[7]*f[k+2] + c₈[8]*f[k+3] + c₈[9]*f[k+4]
+    end
+
+    @inbounds for k in N-3:N
+        ∂f_∂x[k] = c₄₋[1]*f[k] + c₄₋[2]*f[k-1] + c₄₋[3]*f[k-2] + c₄₋[4]*f[k-3] + c₄₋[5]*f[k-4]
+    end
+
+    return ∂f_∂x ./ Δx
+end
 
 
-function gradient(f, x; dims::Int=1)
-    n   = size(f)
+
+function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where {T<:AbstractFloat}
+    @assert 1 ≤ dims ≤ ndims(f)
+    n = size(f)
     sol = similar(f)
-    x₀  = range(minimum(x), maximum(x), 3length(x)) 
+
     if ndims(f) == 1
-        itp  = Spline1D(x, f, bc="nearest")
-        f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-        itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-        sol  = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
-    end
-    if ndims(f) == 2
-        @assert ndims(f) ≥ dims 
-        if dims==1
-            for it ∈ 1:n[dims+1]
-                itp  = Spline1D(x, f[:,it], bc="nearest") 
-                # f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-                # itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[:,it] = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
+        itp = Spline1D(x, f, bc="nearest")
+        @inbounds for i in eachindex(x)
+            sol[i] = derivative(itp, x[i]; nu=1)
+        end
+
+    elseif ndims(f) == 2
+        if dims == 1
+            @inbounds for j in 1:n[2]
+                itp = Spline1D(x, view(f, :, j), bc="nearest")
+                for i in 1:n[1]
+                    sol[i, j] = derivative(itp, x[i]; nu=1)
+                end
             end
-        else
-            for it ∈ 1:n[dims-1]
-                itp  = Spline1D(x, f[it,:], bc="nearest") 
-                # f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-                # itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[it,:] = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
+        else  # dims == 2
+            @inbounds for i in 1:n[1]
+                itp = Spline1D(x, view(f, i, :), bc="nearest")
+                for j in 1:n[2]
+                    sol[i, j] = derivative(itp, x[j]; nu=1)
+                end
             end
         end
-    end
-    if ndims(f) == 3
-        @assert ndims(f) ≥ dims 
-        if dims==1
-            for it ∈ 1:n[dims+1], jt ∈ 1:n[dims+2]
-                itp  = Spline1D(x, f[:,it,jt], bc="nearest")
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-                itp₀ = Spline1D(x₀, f₀, bc="nearest")  
-                sol[:,it,jt] = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
+
+    elseif ndims(f) == 3
+        if dims == 1
+            @inbounds for j in 1:n[2], k in 1:n[3]
+                itp = Spline1D(x, view(f, :, j, k), bc="nearest")
+                for i in 1:n[1]
+                    sol[i, j, k] = derivative(itp, x[i]; nu=1)
+                end
             end
-        elseif dims==2
-            for it ∈ 1:n[dims-1], jt ∈ 1:n[dims+1]
-                itp  = Spline1D(x, f[it,:,jt], bc="nearest")
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-                itp₀ = Spline1D(x₀, f₀, bc="nearest")  
-                sol[it,:,jt] = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
+
+        elseif dims == 2
+            @inbounds for i in 1:n[1], k in 1:n[3]
+                itp = Spline1D(x, view(f, i, :, k), bc="nearest")
+                for j in 1:n[2]
+                    sol[i, j, k] = derivative(itp, x[j]; nu=1)
+                end
             end
-        else
-            for it ∈ 1:n[dims-2], jt ∈ 1:n[dims-1]
-                itp  = Spline1D(x, f[it,jt,:], bc="nearest")
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-                itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[it,jt,:] = [derivative(itp, xᵢ; nu=1) for xᵢ in x]
-            end    
+
+        else  # dims == 3
+            @inbounds for i in 1:n[1], j in 1:n[2]
+                itp = Spline1D(x, view(f, i, j, :), bc="nearest")
+                for k in 1:n[3]
+                    sol[i, j, k] = derivative(itp, x[k]; nu=1)
+                end
+            end
         end
+    else
+        error("gradient currently only supports 1D, 2D, or 3D arrays.")
     end
+
     return sol
 end
 
 
-function gradient2(f, x; dims::Int=1)
-    n   = size(f)
+function gradient2(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where T<:AbstractFloat
+    nd = ndims(f)
+    sz = size(f)
     sol = similar(f)
-    x₀  = range(minimum(x), maximum(x), 3length(x)) 
-    if ndims(f) == 1
-        itp  = Spline1D(x, f, bc="nearest")
-        f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀]
-        itp₀ = Spline1D(x₀, f₀, bc="nearest")
-        sol  = [derivative(itp₀, xᵢ; nu=2) for xᵢ in x]
-    end
-    if ndims(f) == 2
-        @assert ndims(f) ≥ dims 
-        if dims==1
-            for it ∈ 1:n[dims+1]
-                itp  = Spline1D(x, f[:,it], bc="nearest")
-                # f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀] 
-                # itp₀ = Spline1D(x₀, f₀, bc="nearest")
-                sol[:,it] = [derivative(itp, xᵢ; nu=2) for xᵢ in x]
+
+    if nd == 1
+        itp = Spline1D(x, f, bc="nearest")
+        sol .= derivative.(Ref(itp), x; nu=2)
+
+    elseif nd == 2
+        @assert nd ≥ dims
+        if dims == 1
+            for j in axes(f, 2)
+                fj = view(f, :, j)
+                itp = Spline1D(x, fj, bc="nearest")
+                sol[:, j] .= derivative.(Ref(itp), x; nu=2)
             end
         else
-            for it ∈ 1:n[dims-1]
-                itp  = Spline1D(x, f[it,:], bc="nearest") 
-                # f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀] 
-                # itp₀ = Spline1D(x₀, f₀, bc="nearest")
-                sol[it,:] = [derivative(itp, xᵢ; nu=2) for xᵢ in x]
+            for i in axes(f, 1)
+                fi = view(f, i, :)
+                itp = Spline1D(x, fi, bc="nearest")
+                sol[i, :] .= derivative.(Ref(itp), x; nu=2)
             end
         end
-    end
-    if ndims(f) == 3
-        @assert ndims(f) ≥ dims 
-        if dims==1
-            for it ∈ 1:n[dims+1], jt ∈ 1:n[dims+2]
-                itp  = Spline1D(x, f[:,it,jt], bc="nearest")
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀] 
-                itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[:,it,jt] = [derivative(itp₀, xᵢ; nu=2) for xᵢ in x]
+
+    elseif nd == 3
+        @assert nd ≥ dims
+        if dims == 1
+            for j in axes(f, 2), k in axes(f, 3)
+                fjk = view(f, :, j, k)
+                itp = Spline1D(x, fjk, bc="nearest")
+                sol[:, j, k] .= derivative.(Ref(itp), x; nu=2)
             end
-        elseif dims==2
-            for it ∈ 1:n[dims-1], jt ∈ 1:n[dims+1]
-                itp = Spline1D(x, f[it,:,jt], bc="nearest") 
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀] 
-                itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[it,:,jt] = [derivative(itp₀, xᵢ; nu=2) for xᵢ in x]
+        elseif dims == 2
+            for i in axes(f, 1), k in axes(f, 3)
+                fik = view(f, i, :, k)
+                itp = Spline1D(x, fik, bc="nearest")
+                sol[i, :, k] .= derivative.(Ref(itp), x; nu=2)
             end
         else
-            for it ∈ 1:n[dims-2], jt ∈ 1:n[dims-1]
-                itp  = Spline1D(x, f[it,jt,:], bc="nearest")
-                f₀   = [Dierckx.evaluate(itp, xᵢ) for xᵢ in x₀] 
-                itp₀ = Spline1D(x₀, f₀, bc="nearest") 
-                sol[it,jt,:] = [derivative(itp₀, xᵢ; nu=2) for xᵢ in x]
-            end    
+            for i in axes(f, 1), j in axes(f, 2)
+                fij = view(f, i, j, :)
+                itp = Spline1D(x, fij, bc="nearest")
+                sol[i, j, :] .= derivative.(Ref(itp), x; nu=2)
+            end
         end
+    else
+        error("gradient2 only supports arrays with 1 ≤ ndims ≤ 3")
     end
+
     return sol
 end
 
-# function Interp2D_eigenFun(yn, zn, An, y0, z0)
-#     itp = BicubicInterpolator(yn, zn, transpose(An))
-#     A₀ = zeros(Float64, length(y0), length(z0))
-#     A₀ = [itp(yᵢ, zᵢ) for yᵢ ∈ y0, zᵢ ∈ z0]
-#     return A₀
-# end
 
-# function twoDContour(r, z, u, v, filename, it)
-
-#     uᵣ = reshape( u, (length(z), length(r)) )
-#     w  = reshape( v, (length(z), length(r)) )
-
-#     #U  = reshape( U,  (length(z), length(r)) )
-#     #B  = reshape( B,  (length(z), length(r)) )
-
-#     r_interp = collect(LinRange(minimum(r), maximum(r), 5000))
-#     z_interp = collect(LinRange(minimum(z), maximum(z), 500) )
-
-#     #U_interp = Interp2D_eigenFun(r, z, U, r_interp, z_interp)
-#     #B_interp = Interp2D_eigenFun(r, z, B, r_interp, z_interp)
-
-#     fig = Figure(fontsize=30, size=(1800, 500), )
-
-#     ax1 = Axis(fig[1, 1], xlabel=L"$y$", xlabelsize=30, ylabel=L"$z$", ylabelsize=30)
-
-#     interp_  = Interp2D_eigenFun(r, z, uᵣ, r_interp, z_interp)
-#     max_val = maximum(abs.(interp_))
-#     levels = range(-0.7max_val, 0.7max_val, length=16)
-#     co = contourf!(r_interp, z_interp, interp_, colormap=cgrad(:RdBu, rev=false),
-#         levels=levels, extendlow = :auto, extendhigh = :auto )
-
-#     # levels = range(minimum(U), maximum(U), length=8)
-#     # contour!(r_interp, z_interp, U_interp, levels=levels, linestyle=:dash, color=:black, linewidth=2) 
-
-#     # contour!(rn, zn, AmS, levels=levels₋, linestyle=:dash,  color=:black, linewidth=2) 
-#     # contour!(rn, zn, AmS, levels=levels₊, linestyle=:solid, color=:black, linewidth=2) 
-
-#     tightlimits!(ax1)
-#     cbar = Colorbar(fig[1, 2], co)
-#     xlims!(minimum(r), maximum(r))
-#     ylims!(minimum(z), maximum(z))
-
-#     ax2 = Axis(fig[1, 3], xlabel=L"$y$", xlabelsize=30, ylabel=L"$z$", ylabelsize=30)
-
-#     interp_ = Interp2D_eigenFun(r, z, w, r_interp, z_interp)
-#     max_val = maximum(abs.(interp_))
-#     levels = range(-0.7max_val, 0.7max_val, length=16)
-#     co = contourf!(r_interp, z_interp, interp_, colormap=cgrad(:RdBu, rev=false),
-#         levels=levels, extendlow = :auto, extendhigh = :auto )
-
-#     # levels = range(minimum(U), maximum(U), length=8)
-#     # contour!(r_interp, z_interp, U_interp, levels=levels, linestyle=:dash, color=:black, linewidth=2) 
-        
-#     # contour!(rn, zn, AmS, levels=levels₋, linestyle=:dash,  color=:black, linewidth=2) 
-#     # contour!(rn, zn, AmS, levels=levels₊, linestyle=:solid, color=:black, linewidth=2) 
-
-#     tightlimits!(ax2)
-#     cbar = Colorbar(fig[1, 4], co)
-#     xlims!(minimum(r), maximum(r))
-#     ylims!(minimum(z), maximum(z))
-
-#     # ax1.title = L"$\mathfrak{R}(\hat{u}_r)$"
-#     # ax2.title = L"$\mathfrak{R}(\hat{w})$"
-
-#     fig
-#     filename = filename * "_" * string(it) * ".png"
-#     save(filename, fig, px_per_unit=4)
-# end
