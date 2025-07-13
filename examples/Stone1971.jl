@@ -185,6 +185,22 @@ using NonlinearSolve
 
 using BiGSTARS
 
+
+# ### Define the parameters
+@with_kw mutable struct Params{T<:Real} @deftype T
+    L::T        = 1.0        # horizontal domain size
+    H::T        = 1.0        # vertical domain size
+    Ri::T       = 0.1       # the Richardson number
+    ε::T        = 0.1        # aspect ratio ε ≡ H/L
+    k::T        = 0.0        # x-wavenumber
+    E::T        = 1.0e-9     # Ekman number 
+    Ny::Int64   = 48         # no. of y-grid points
+    Nz::Int64   = 24         # no. of z-grid points
+    method::String = "krylov"
+end
+nothing #hide
+
+
 # ### Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
@@ -360,20 +376,6 @@ function construct_matrices(Op, mf, grid, params)
 end
 nothing #hide
 
-
-# ### Define the parameters
-@with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 1.0        # horizontal domain size
-    H::T        = 1.0        # vertical domain size
-    Ri::T       = 0.1       # the Richardson number
-    ε::T        = 0.1        # aspect ratio ε ≡ H/L
-    k::T        = 0.0        # x-wavenumber
-    E::T        = 1.0e-9     # Ekman number 
-    Ny::Int64   = 48         # no. of y-grid points
-    Nz::Int64   = 24         # no. of z-grid points
-    method::String = "krylov"
-end
-nothing #hide
 
 # ### Define the eigenvalue solver
 function EigSolver(Op, mf, grid, params, σ₀)

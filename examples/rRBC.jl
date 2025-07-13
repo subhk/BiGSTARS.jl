@@ -139,6 +139,18 @@ using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
 # ## Let's begin
 using BiGSTARS
 
+# ### Define the parameters
+@with_kw mutable struct Params{T<:Real} @deftype T
+    L::T        = 2π          # horizontal domain size
+    H::T        = 1.0         # vertical domain size
+    k::T        = 0.0         # x-wavenumber
+    E::T        = 1.0e-4      # Ekman number 
+    Ny::Int64   = 280         # no. of y-grid points
+    Nz::Int64   = 18          # no. of z-grid points
+    method::String   = "arnoldi"
+end
+nothing #hide
+
 # ### Define the grid and derivative operators
 @with_kw mutable struct TwoDimGrid{Ny, Nz} 
     y = @SVector zeros(Float64, Ny)
@@ -243,18 +255,6 @@ function construct_matrices(Op, params)
     ℳ = ([ℳ₁; ℳ₂; ℳ₃])
 
     return 𝓛, ℳ
-end
-nothing #hide
-
-# ### Define the parameters
-@with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 2π          # horizontal domain size
-    H::T        = 1.0         # vertical domain size
-    k::T        = 0.0         # x-wavenumber
-    E::T        = 1.0e-4      # Ekman number 
-    Ny::Int64   = 280         # no. of y-grid points
-    Nz::Int64   = 18          # no. of z-grid points
-    method::String   = "arnoldi"
 end
 nothing #hide
 
