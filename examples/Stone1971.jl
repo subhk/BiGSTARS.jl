@@ -341,20 +341,20 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     elseif params.method == "krylov"
 
-        λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+        λ, Χ = solve_shift_invert_krylov(𝓛, ℳ; σ₀=σ₀, which=:LR)
         
     elseif params.method == "arnoldi"
 
         λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
     end
     ## ======================================================================
-    @assert length(λₛ) > 0 "No eigenvalue(s) found!"
+    @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
-    
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λ[1] * ℳ * Χ[:,1])
 
-    return λₛ[1] #, Χ[:,1]
+    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
+
+    return λ[1] #, Χ[:,1]
 end
 nothing #hide
 

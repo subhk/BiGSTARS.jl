@@ -53,11 +53,11 @@ end
 
 
 function Eigs_Krylov(
-                𝓛, ℳ;
-                σ::Float64,
-                which::Symbol = :LR,
-                maxiter::Int = 100,
-                krylovdim::Int = 300
+                    𝓛, ℳ;
+                    σ::Float64,
+                    which::Symbol = :LR,
+                    maxiter::Int = 100,
+                    krylovdim::Int = 300
     )
 
     # Construct operator
@@ -86,7 +86,7 @@ function solve_shift_invert_krylov(
                     maxiter::Int = 100,
                     krylovdim::Int = 300,
                     n_tries::Int = 8,
-                    Δσ₀::Float64 = 0.02,
+                    Δσ₀::Float64 = 0.01,
                     decay::Float64 = 0.8,
                     ϵ::Float64 = 1e-4,
     )
