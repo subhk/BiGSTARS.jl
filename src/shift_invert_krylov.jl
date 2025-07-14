@@ -93,11 +93,11 @@ function solve_shift_invert_krylov(
                     krylovdim::Int = 400,
                     n_tries::Int = 8,
                     Δσ₀::Float64 = 0.1,
-                    decay::Float64 = 0.8,
+                    incre::Float64 = 1.1,
                     ϵ::Float64 = 1e-7,
     )
 
-    Δσs_up = [ Δσ₀ * decay^(i-1) * abs(σ₀) for i in 1:n_tries ]
+    Δσs_up = [ Δσ₀ * incre^(i-1) * abs(σ₀) for i in 1:n_tries ]
     Δσs_dn = [-δ for δ in Δσs_up]
     σ_attempts = [σ₀ + δ for δ in vcat(Δσs_up, Δσs_dn)]
 

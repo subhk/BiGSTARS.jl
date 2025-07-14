@@ -50,10 +50,10 @@ function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         maxiter::Int=100,
                                         n_tries::Int=8,
                                         Δσ₀::Float64=0.02,
-                                        decay::Float64=0.8,
-                                        ϵ::Float64=1e-4)
+                                        incre::Float64=1.1,
+                                        ϵ::Float64=1e-7)
 
-    Δσs_up = [Δσ₀ * decay^(i-1) * abs(σ₀) for i in 1:n_tries]
+    Δσs_up = [Δσ₀ * incre^(i-1) * abs(σ₀) for i in 1:n_tries]
     Δσs_dn = [-δ for δ in Δσs_up]
     σ_attempts = [σ₀ + δ for δ in vcat(Δσs_up, Δσs_dn)]
 

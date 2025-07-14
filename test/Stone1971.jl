@@ -195,7 +195,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     Ri::T               = 1.0           # the Richardson number 
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
-    E::T                = 1.0e-9        # the Ekman number 
+    E::T                = 1.0e-8        # the Ekman number 
     Ny::Int64           = 48            # no. of y-grid points
     Nz::Int64           = 24            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
