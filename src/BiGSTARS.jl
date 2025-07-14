@@ -104,7 +104,7 @@ module BiGSTARS
     include("setBCs.jl")
     include("utils.jl")
     include("problem.jl")
-    include("matrices.jl")
+    include("eig_matrices.jl")
     include("compute_derivative.jl")
     include("basic_state.jl")
 
