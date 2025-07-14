@@ -100,6 +100,7 @@ module BiGSTARS
     include("utils.jl")
     include("problem.jl")
     include("matrices.jl")
+    include("compute_derivative.jl")
 
 
 end # module BiGSTARS
