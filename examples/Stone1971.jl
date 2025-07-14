@@ -217,7 +217,17 @@ function basic_state(params, grid)
     B₀   = @. params.Ri * grid.z - grid.y     # buoyancy
     U₀   = @. 1.0 * grid.z - 0.5 * params.H   # along-front velocity
 
-    return B₀, U₀
+    ## Calculate all the necessary derivatives
+    derivs = compute_derivatives(U₀, B₀, y, grid.Dᶻ, grid.D²ᶻ, :All)
+
+    bs = initialize_basic_state_from_fields(B₀, U₀)
+
+    initialize_basic_state!(bs, deriv.∂ʸB₀, deriv.∂ᶻB₀, 
+                                deriv.∂ʸU₀, deriv.∂ᶻU₀, 
+                                deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, 
+                                deriv.∂ʸᶻU₀)
+
+    return bs
 end
 
 # ### Construct the necesary operator
@@ -225,47 +235,9 @@ ops  = OperatorI(params)
 prob = Problem(grid, ops, params)
 
 # ### Constructing GEVP
-function generalized_eigenval(Op, mf, grid, params)
+function generalized_EigValProb(Op, mf, grid, params)
 
-    B₀, U₀ = basic_state(params, grid)
-
-    ## basic state
-    B₀   = @. 1.0 * params.Ri * Z - Y
-    ∂ʸB₀ = - 1.0 .* ones(size(Y))
-    ∂ᶻB₀ = 1.0 * params.Ri .* ones(size(Y))
-
-    U₀      = @. 1.0 * Z - 0.5 * params.H
-    ∂ᶻU₀    = ones( size(Y)) 
-    ∂ʸU₀    = zeros(size(Y)) 
-
-    ∂ʸʸU₀   = zeros(size(Y)) 
-    ∂ʸᶻU₀   = zeros(size(Y))
-    ∂ᶻᶻU₀   = zeros(size(Y))
-
-      B₀  = B₀[:];
-      U₀  = U₀[:];
-    ∂ʸB₀  = ∂ʸB₀[:]; 
-    ∂ᶻB₀  = ∂ᶻB₀[:];
-
-    ∂ᶻU₀  = ∂ᶻU₀[:];
-    ∂ʸU₀  = ∂ʸU₀[:];
-    
-    ∂ʸʸU₀ = ∂ʸʸU₀[:];
-    ∂ʸᶻU₀ = ∂ʸᶻU₀[:];
-    ∂ᶻᶻU₀ = ∂ᶻᶻU₀[:];  
-
-    mf.B₀[diagind(mf.B₀)] = B₀
-    mf.U₀[diagind(mf.U₀)] = U₀
-
-    mf.∇ᶻU₀[diagind(mf.∇ᶻU₀)] = ∂ᶻU₀
-    mf.∇ʸU₀[diagind(mf.∇ʸU₀)] = ∂ʸU₀
-
-    mf.∇ʸB₀[diagind(mf.∇ʸB₀)] = ∂ʸB₀
-    mf.∇ᶻB₀[diagind(mf.∇ᶻB₀)] = ∂ᶻB₀
-
-    mf.∇ʸʸU₀[diagind(mf.∇ʸʸU₀)] = ∂ʸʸU₀;
-    mf.∇ᶻᶻU₀[diagind(mf.∇ᶻᶻU₀)] = ∂ᶻᶻU₀;
-    mf.∇ʸᶻU₀[diagind(mf.∇ʸᶻU₀)] = ∂ʸᶻU₀;
+    bs = basic_state(params, grid)
 
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
@@ -295,21 +267,36 @@ function generalized_eigenval(Op, mf, grid, params)
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
     ## Construct the matrix `A`
+    ## ----------------------------------------------------------------------
     ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1)
-    GEVPMat.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ + 1.0im * params.k * mf.U₀ * D²) * params.ε^2
+    ## ----------------------------------------------------------------------
+    GEVPMat.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
+                                + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
+
     GEVPMat.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
+
     GEVPMat.As.w[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
 
+    ## ----------------------------------------------------------------------
     ## 2. ζ (vertical vorticity) equation (bcs: ∂ᶻζ = 0 @ z = 0, 1)
-    GEVPMat.As.ζ[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * prob.Dʸ - 1.0 * prob.Dᶻᴰ
-    GEVPMat.As.ζ[:,1s₂+1:2s₂] = (1.0im * params.k * mf.U₀ * I⁰ - 1.0 * params.E * Dₙ²)
+    ## ----------------------------------------------------------------------
+    GEVPMat.As.ζ[:,    1:1s₂] = - 1.0 * bs.fields.∂ᶻU₀ * prob.Dʸ - 1.0 * prob.Dᶻᴰ
+
+    GEVPMat.As.ζ[:,1s₂+1:2s₂] = (1.0im * params.k * bs.fields.U₀ * I⁰ 
+                                - 1.0 * params.E * Dₙ²)
+
     GEVPMat.As.ζ[:,2s₂+1:3s₂] = 0.0 * I⁰
 
+    ## ----------------------------------------------------------------------
     ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
-    GEVPMat.As.b[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰- 1.0 * mf.∇ʸB₀ * H * prob.Dʸᶻᴰ) 
-    GEVPMat.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * mf.∇ʸB₀ * H * I⁰
+    ## ----------------------------------------------------------------------
+    GEVPMat.As.b[:,    1:1s₂] = (1.0 * bs.fields.∂ᶻB₀ * I⁰
+                                - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
+
+    GEVPMat.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰
+
     GEVPMat.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
-                    + 1.0im * params.k * mf.U₀ * I⁰) 
+                                + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
     GEVPMat.A = ([GEVPMat.As.w; 
                     GEVPMat.As.ζ; 

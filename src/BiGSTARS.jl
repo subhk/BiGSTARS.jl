@@ -40,11 +40,7 @@ module BiGSTARS
 
        # Fourier differentiation matrix
        FourierDiff,
-       FourierDiff_fdm,
-
-       # Constructing derivative operators
-       #Construct_DerivativeOperator!,
-       #ImplementBCs_cheb!,  
+       FourierDiff_fdm, 
 
        # Setting boundary conditions
        setBCs!,
@@ -78,9 +74,14 @@ module BiGSTARS
        #construct_linear_map_pardiso,
        construct_linear_map, 
 
+       # Construct 2D grids
        TwoDGrid, 
 
-       GEVPMatrices
+       # Place holder of A, B matrices for generalized eigval problem
+       GEVPMatrices, 
+
+       # compute necessary derivatives
+       compute_derivatives
 
 
     import Base: show, summary
