@@ -41,6 +41,7 @@ struct Problem{Tg<:AbstractFloat}
     D⁴ᶻᴰ   :: SparseMat{Tg}
 
     # Mixed
+    Dʸᶻᴰ   :: SparseMat{Tg}
     Dʸ²ᶻᴰ  :: SparseMat{Tg}
     D²ʸ²ᶻᴰ :: SparseMat{Tg}
 end
@@ -62,16 +63,17 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
                 params::AbstractParams) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
     # Kronecker products: Dirichlet
-    Dᶻᴰ   = kron_s(cache.Iʸ, grid.Dᶻᴰ )
-    D²ᶻᴰ  = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
-    D⁴ᶻᴰ  = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
+    Dᶻᴰ     = kron_s(cache.Iʸ, grid.Dᶻᴰ )
+    D²ᶻᴰ    = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
+    D⁴ᶻᴰ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
 
     # Kronecker products: Neumann
-    Dᶻᴺ   = kron_s(cache.Iʸ, grid.Dᶻᴺ )
-    D²ᶻᴺ  = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
+    Dᶻᴺ     = kron_s(cache.Iʸ, grid.Dᶻᴺ )
+    D²ᶻᴺ    = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
 
     # Mixed derivatives
-    Dʸ²ᶻᴰ   = kron_s(grid.D²ʸ, grid.Dᶻᴰ )
+    Dʸᶻᴰ    = kron_s(grid.Dʸ,  grid.Dᶻᴰ )
+    Dʸ²ᶻᴰ   = kron_s(grid.Dʸ,  grid.D²ᶻᴰ)
     D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ, grid.D²ᶻᴰ)
 
     # For Fourier differentiation matrix
@@ -83,7 +85,7 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
                     Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dᶻᴺ, D²ᶻᴺ,
-                    Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
+                    Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
     )
 
     return prob
@@ -135,30 +137,29 @@ function TwoDGrid(params::AbstractParams)
 
     # setup Fourier differentiation matrices  
     # Fourier in y-direction: y ∈ [0, L)
-    y,  Dʸ  = FourierDiff(Ny, 1)
+    y1, Dʸ  = FourierDiff(Ny, 1)
     _,  D²ʸ = FourierDiff(Ny, 2)
     _,  D⁴ʸ = FourierDiff(Ny, 4)
 
     # Transform the domain and derivative operators from [0, 2π) → [0, L)
-    scale = (2π / L)
-    y    .= (L / 2π) .* y
-    Dʸ   .*= scale
-    D²ʸ  .*= scale^2
-    D⁴ʸ  .*= scale^4
+    y   = L/2π * y1
+    Dʸ  = (2π/L)^1 * Dʸ
+    D²ʸ = (2π/L)^2 * D²ʸ
+    D⁴ʸ = (2π/L)^4 * D⁴ʸ
 
     # Chebyshev in the z-direction
-    z,  Dᶻ  = chebdif(Nz, 1)
+    z1, Dᶻ  = chebdif(Nz, 1)
     _,  D²ᶻ = chebdif(Nz, 2)
     _,  D³ᶻ = chebdif(Nz, 3)
     _,  D⁴ᶻ = chebdif(Nz, 4)
 
     # Transform the domain and derivative operators from [-1, 1] → [0, H]
-    z, Dᶻ, D²ᶻ  = chebder_transform(z,  Dᶻ, 
+    z, Dᶻ, D²ᶻ  = chebder_transform(z1, Dᶻ, 
                                         D²ᶻ, 
                                         zerotoL_transform, 
                                         H)
 
-    _, _, D⁴ᶻ  = chebder_transform_ho(z, Dᶻ, 
+    _, _, D⁴ᶻ  = chebder_transform_ho(z1, Dᶻ, 
                                         D²ᶻ, 
                                         D³ᶻ, 
                                         D⁴ᶻ, 
@@ -167,12 +168,12 @@ function TwoDGrid(params::AbstractParams)
     T = eltype(Dʸ)
 
    # Convert to mutable matrices to allow BCs
-    Dᶻᴰ  = Matrix(Dᶻ)
-    D²ᶻᴰ = Matrix(D²ᶻ)
-    D⁴ᶻᴰ = Matrix(D⁴ᶻ)
+    Dᶻᴰ  = Matrix(deepcopy(Dᶻ) )
+    D²ᶻᴰ = Matrix(deepcopy(D²ᶻ))
+    D⁴ᶻᴰ = Matrix(deepcopy(D⁴ᶻ))
 
-    Dᶻᴺ  = Matrix(Dᶻ)
-    D²ᶻᴺ = Matrix(D²ᶻ)
+    Dᶻᴺ  = Matrix(deepcopy(Dᶻ) )
+    D²ᶻᴺ = Matrix(deepcopy(D²ᶻ))
 
     #### Create the grid object
     grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
@@ -192,7 +193,8 @@ end
 
 
 
-function show(io::IO, params::AbstractParams) where T
+function show(io::IO, params::AbstractParams)
+    T = typeof(params.L)  # infer float type from a field
     print(io,
         "Eigen Solver Configuration \n",
         "  ├────────────────────── Float Type: $T \n",

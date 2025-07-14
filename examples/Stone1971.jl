@@ -187,8 +187,6 @@ using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
-#using BiGSTARS
-
 
 # ### Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
@@ -198,8 +196,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
     ε::T                = 0.1          # aspect ratio ε ≡ H/L
     k::T                = 0.1          # along-front wavenumber
     E::T                = 1.0e-9       # the Ekman number 
-    Ny::Int64           = 48           # no. of y-grid points
-    Nz::Int64           = 24           # no. of z-grid points
+    Ny::Int64           = 30           # no. of y-grid points
+    Nz::Int64           = 20           # no. of z-grid points
     w_bc::String        = "rigid_lid"  # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"  # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
@@ -242,20 +240,22 @@ end
 ops  = OperatorI(params)
 prob = Problem(grid, ops, params)
 
-# ### Constructing GEVP
+# ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
-    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
+    I⁰ = sparse(Matrix(1.0I, N, N)) 
+    s₁ = size(I⁰, 1); 
+    s₂ = size(I⁰, 2);
 
     ## allocating memory for the LHS and RHS matrices
     labels  = [:w, :ζ, :b]  # eigenfunction labels
     gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
 
     ## the horizontal Laplacian operator
+    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
     ## inverse of the horizontal Laplacian operator
@@ -279,7 +279,7 @@ function generalized_EigValProb(prob, grid, params)
     ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1)
     ## ----------------------------------------------------------------------
     gevp.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
-                                + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
+                            + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
 
     gevp.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
 
@@ -306,7 +306,7 @@ function generalized_EigValProb(prob, grid, params)
     gevp.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
                                 + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
-                                
+
     #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
 
 
@@ -328,14 +328,14 @@ function EigSolver(prob, grid, params)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.method == "shift_invert"
+    if params.eig_solver == "arpack"
         λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
-    elseif params.method == "krylov"
+    elseif params.eig_solver == "krylov"
 
         λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR)
 
-    elseif params.method == "arnoldi"
+    elseif params.eig_solver == "arnoldi"
 
         λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR)
     end
