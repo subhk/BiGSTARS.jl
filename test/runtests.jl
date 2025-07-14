@@ -8,12 +8,12 @@ using Test
 using BiGSTARS
 
 
-# @testset "Stone1971" begin
+@testset "Stone1971" begin
 
-#     include("Stone_1971.jl")
+     include("Stone1971.jl")
 
-#     @test solve_Stone1971(0.1)
-# end
+     @test solve_Stone1971(0.1)
+ end
 
 @testset "rotating RBC" begin
 
