@@ -345,7 +345,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
         
     elseif params.method == "arnoldi"
 
-        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+        λₛ, Χ = solve_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"

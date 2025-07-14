@@ -43,7 +43,7 @@ function Eigs_Arnoldi(𝓛, ℳ;
 end
 
 # --- Retry wrapper with adaptive σ and convergence checking ---
-function EigSolver_shift_invert_arnoldi(𝓛, ℳ;
+function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         σ₀::Float64,
                                         which::Which=LR(),
                                         nev::Int=1,
@@ -51,7 +51,7 @@ function EigSolver_shift_invert_arnoldi(𝓛, ℳ;
                                         n_tries::Int=8,
                                         Δσ₀::Float64=0.02,
                                         decay::Float64=0.8,
-                                        ϵ::Float64=1e-8)
+                                        ϵ::Float64=1e-4)
 
     Δσs_up = [Δσ₀ * decay^(i-1) * abs(σ₀) for i in 1:n_tries]
     Δσs_dn = [-δ for δ in Δσs_up]

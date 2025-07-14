@@ -55,9 +55,10 @@ module BiGSTARS
        # eigenvalue solvers
        Eigs_Arnoldi, 
        Eigs_Krylov,
-       EigSolver_shift_invert_arnoldi,
-       EigSolver_shift_invert_krylov,
-       EigSolver_shift_invert_arpack,
+       Eigs_Arpack,
+       solve_shift_invert_arnoldi,
+       solve_shift_invert_krylov,
+       solve_shift_invert_arpack,
 
        # some utility functions
        print_evals,
@@ -94,7 +95,7 @@ module BiGSTARS
     include("transforms.jl")
     include("shift_invert_arnoldi.jl")
     include("shift_invert_krylov.jl")
-    include("shift_invert.jl")
+    include("shift_invert_arpack.jl")
     include("setBCs.jl")
     include("utils.jl")
     include("problem.jl")
