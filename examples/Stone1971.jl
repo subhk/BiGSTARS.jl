@@ -190,13 +190,13 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 # ### Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 1.0          # horizontal domain size
+    L::T                = 2π         # horizontal domain size
     H::T                = 1.0          # vertical domain size
     Ri::T               = 1.0          # the Richardson number 
     ε::T                = 0.1          # aspect ratio ε ≡ H/L
     k::T                = 0.1          # along-front wavenumber
     E::T                = 1.0e-9       # the Ekman number 
-    Ny::Int64           = 30           # no. of y-grid points
+    Ny::Int64           = 80           # no. of y-grid points
     Nz::Int64           = 20           # no. of z-grid points
     w_bc::String        = "rigid_lid"  # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"  # boundary condition for vertical vorticity
@@ -250,10 +250,6 @@ function generalized_EigValProb(prob, grid, params)
     s₁ = size(I⁰, 1); 
     s₂ = size(I⁰, 2);
 
-    ## allocating memory for the LHS and RHS matrices
-    labels  = [:w, :ζ, :b]  # eigenfunction labels
-    gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
-
     ## the horizontal Laplacian operator
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
@@ -273,6 +269,13 @@ function generalized_EigValProb(prob, grid, params)
     ## Construct the 2nd order derivative
     D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+
+    ## --------------------------------------------------------
+    ## allocating memory for the LHS and RHS matrices
+    ## --------------------------------------------------------
+    labels  = [:w, :ζ, :b]  # eigenfunction labels
+    gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
+    
 
     ## Construct the matrix `A`
     ## ----------------------------------------------------------------------

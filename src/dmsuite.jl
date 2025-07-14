@@ -210,6 +210,76 @@ end
     S.C. Reddy, J.A.C. Weideman 1998.  Corrected for MATLAB R13
     by JACW, April 2003.
 """
+# function FourierDiff(nfou, mder)
+#     # grid points
+#     range_ = 0:1:nfou-1 |> collect
+#     x₀ = 2π * range_ / nfou
+
+#     # grid spacing
+#     dx₀ = 2π/nfou
+
+#     # indices used for flipping trick
+#     nn1 = Int32(floor( (nfou-1)/2 ));
+#     nn2 = Int32(ceil(  (nfou-1)/2 ));
+
+#     if mder == 0
+#         # compute first column of zeroth derivative matrix, which is identity
+#         col1 = zeros(nfou)
+#         col1[1] = 1
+#         row1 = deepcopy(col1)
+
+#     elseif mder == 1
+#         # compute first column of 1st derivative matrix
+#         col0 = 0.5 * [(-1)^k for k ∈ 1:nfou-1]
+#         if nfou % 2 == 0
+#             topc = @. 1.0 / tan( (1:nn2) * 0.5dx₀ )
+#             col2 = col0 .* vcat( topc, -reverse(topc[1:nn1]) )
+#             col1 = vcat( 0, col2 )
+#         else
+#             topc = @. 1.0 / sin( (1:nn2) * 0.5dx₀ )
+#             col1 = vcat( 0, col0 .* vcat( topc, reverse(topc[1:nn1]) ) )
+#         end
+#         # first row
+#         row1 = @. -1.0 * col1
+
+#     elseif mder == 2
+#         # compute first column of 1st derivative matrix
+#         col0 = -0.5 * [(-1)^k for k ∈ 1:nfou-1]   
+#         if nfou % 2 == 0 # corresponds to even number of grid points
+#             topc = @. 1.0 / sin( (1:nn2) * 0.5dx₀ )^2
+#             col2 = col0 .* vcat( topc, reverse(topc[1:nn1]) )
+#             col1 = vcat( -π^2 / 3.0 / dx₀^2 - 1.0/6.0, col2 )
+#         else  # corresponds to odd number of grid points
+#             topc = @. ( 1.0/ tan((1:nn2) * 0.5dx₀)/ sin((1:nn2) * 0.5dx₀) )
+#             col2 = col0 .* vcat( topc, -reverse(topc[1:nn1]) )
+#             col1 = vcat( -π^2 / 3 / dx₀^2 + 1/12, col2 ) 
+#         end
+#         # first row
+#         row1 = 1.0 .* col1
+#     else
+#         # employ FFT to compute 1st column of matrix for mder > 2
+#         nfo1  = floor((nfou-1)/2);
+#         nfo2  = @. -nfou/2 * (rem(mder,2)==0) * ones(rem(nfou,2)==0)
+#         mwave = 1.0im .* vcat(0:1:nfo1, nfo2, -nfo1:-1)
+#         col1  = real( ifft( 
+#                     mwave.^mder .* fft( vcat(1, zeros(nfou-1)) ) 
+#                     ) 
+#                 )
+#         if mder % 2 == 0
+#             row1 = 1.0 .* col1
+#         else
+#             col1 = vcat(0, col1[2:nfou])
+#             row1 = -1.0 .* col1
+#         end
+#     end
+
+#     # 𝒟 = Matrix(Toeplitz(col1, row1))
+
+#     𝒟 = toeplitz(col1, row1)
+
+#     return x₀, 𝒟
+# end
+
 function FourierDiff(nfou, mder)
     # grid points
     range_ = 0:1:nfou-1 |> collect
@@ -273,13 +343,9 @@ function FourierDiff(nfou, mder)
         end
     end
 
-    # 𝒟 = Matrix(Toeplitz(col1, row1))
-
-    𝒟 = toeplitz(col1, row1)
-
+    𝒟 = Toeplitz(col1, row1)
     return x₀, 𝒟
 end
-
 
 
 """

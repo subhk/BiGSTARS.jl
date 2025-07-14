@@ -109,22 +109,22 @@ struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
     "range with ``z``-grid-points"
     z :: Ty
 
-    "Fourier differentiation matrices"
-    Dʸ  :: Tm
-    D²ʸ :: Tm
-    D⁴ʸ :: Tm
+    # Fourier differentiation matrices (sparse)
+    Dʸ  :: SparseMatrixCSC{T, Int}
+    D²ʸ :: SparseMatrixCSC{T, Int}
+    D⁴ʸ :: SparseMatrixCSC{T, Int}
 
-    "Chebyshev differentiation matrices"
-    Dᶻ  :: Tm
-    D²ᶻ :: Tm
-    D⁴ᶻ :: Tm
+    # Chebyshev matrices (sparse)
+    Dᶻ  :: SparseMatrixCSC{T, Int}
+    D²ᶻ :: SparseMatrixCSC{T, Int}
+    D⁴ᶻ :: SparseMatrixCSC{T, Int}
 
-    Dᶻᴰ  :: Tm
-    D²ᶻᴰ :: Tm
-    D⁴ᶻᴰ :: Tm
+    Dᶻᴰ  :: SparseMatrixCSC{T, Int}
+    D²ᶻᴰ :: SparseMatrixCSC{T, Int}
+    D⁴ᶻᴰ :: SparseMatrixCSC{T, Int}
 
-    Dᶻᴺ  :: Tm
-    D²ᶻᴺ :: Tm
+    Dᶻᴺ  :: SparseMatrixCSC{T, Int}
+    D²ᶻᴺ :: SparseMatrixCSC{T, Int}
 end
 
 
