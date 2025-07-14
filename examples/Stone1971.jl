@@ -185,7 +185,7 @@ using NonlinearSolve
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
+using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 
 # ### Define the parameters
@@ -345,7 +345,7 @@ function EigSolver(prob, grid, params, σ₀)
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "||AΧ - λₛBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
+    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 

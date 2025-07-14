@@ -6,10 +6,11 @@ using Test
 # using StaticArrays
 
 using BiGSTARS
-
+using BiGSTARS: AbstractParams
+using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 @testset "Stone1971" begin
-
+    
      include("Stone1971.jl")
 
      @test solve_Stone1971(0.1)
