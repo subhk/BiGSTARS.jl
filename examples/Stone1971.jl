@@ -306,7 +306,8 @@ function generalized_EigValProb(prob, grid, params)
     gevp.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
                                 + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
-    gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
+                                
+    #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
 
 
     ## Construct the matrix `B`
@@ -315,7 +316,7 @@ function generalized_EigValProb(prob, grid, params)
     gevp.Bs.ζ[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
     gevp.Bs.b[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
 
-    gevp.B = ([gevp.Bs.w; gevp.Bs.ζ; gevp.Bs.b])
+    #gevp.B = ([gevp.Bs.w; gevp.Bs.ζ; gevp.Bs.b])
 
     return gevp.A, gevp.B
 end
