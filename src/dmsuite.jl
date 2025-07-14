@@ -3,6 +3,8 @@ using LinearAlgebra
 using Printf
 using FFTW
 
+# using ToeplitzMatrices: toeplitz 
+
 #@inline diagonal(A::AbstractMatrix, k::Integer=0) = view(A, diagind(A, k))
 
 # function toeplitz(x::AbstractVector{T}) where T
@@ -19,6 +21,27 @@ using FFTW
 #     return A
 # end
 
+"""
+    toeplitz(c::AbstractVector, r::AbstractVector)
+```julia
+    julia> toeplitz([1, 2, 3], [1, 4, 5])
+    3×3 Matrix{Int64}:
+    1  4  5
+    2  1  4
+    3  2  1
+"""
+function toeplitz(c::AbstractVector{T}, r::AbstractVector{T}) where T
+    n, m = length(c), length(r)
+    @assert c[1] == r[1] "First elements of column and row must match"
+    A = Matrix{T}(undef, n, m)
+
+    for i in 1:n
+        for j in 1:m
+            A[i, j] = i ≥ j ? c[i - j + 1] : r[j - i + 1]
+        end
+    end
+    return A
+end
 
 function cheb(N)
     @assert N > 0
@@ -121,22 +144,29 @@ function chebdif(ncheb, mder)
     # diagonals of Dₓ
     Dₓ[ℒ] .= ones(ncheb);
 
-    # matrix with entries c(k)/c(j)
-    #C = toeplitz( (-1.0) .^ k);
-    C = Toeplitz( (-1.0) .^ k, (-1.0) .^ k );
-    C = Array(C)
-    C[1, :] = C[1, :] .* 2.0; C[end, :] = C[end, :] .* 2.0;
-    C[:, 1] = C[:, 1] .* 0.5; C[:, end] = C[:, end] .* 0.5;
+    # # matrix with entries c(k)/c(j)
+    # C = Matrix(toeplitz( (-1.0) .^ k));
+    
+    # # C = Toeplitz( (-1.0) .^ k, (-1.0) .^ k );
+    # # C = Array(C)
+    
+    # C[1, :] = C[1, :] .* 2.0; C[end, :] = C[end, :] .* 2.0;
+    # C[:, 1] = C[:, 1] .* 0.5; C[:, end] = C[:, end] .* 0.5;
+
+     # Construct C matrix: c(k)/c(j)
+    c = (-1.0) .^ k
+    c[1]   *= 2.0
+    c[end] *= 2.0
+    C = c ./ c'  # outer division
 
     # Z contains entries 1/(x(k)-x(j))
     Z = 1.0 ./ Dₓ;
     # with zeros on the diagonal.
     Z[ℒ] .= zeros(ncheb);
 
-    # initialize differentiation matrices.
-    D = Matrix(1.0I, ncheb, ncheb);
-
-    Dᵐ = zeros(Float64, mder, ncheb, ncheb);
+    # Initialize differentiation matrix
+    D = Matrix{Float64}(I, ncheb, ncheb)
+    Dᵐ = zeros(Float64, mder, ncheb, ncheb)
 
     for ell = 1:mder
         # off-diagonals
@@ -243,128 +273,14 @@ function FourierDiff(nfou, mder)
         end
     end
 
-    𝒟 = Toeplitz(col1, row1)
+    # 𝒟 = Matrix(Toeplitz(col1, row1))
+
+    𝒟 = toeplitz(col1, row1)
+
     return x₀, 𝒟
 end
 
 
-# """
-# compute first derivative using 4th order centred 
-# difference scheme.z is evenly spaced.
-# """
-# function ddz(z; order_accuracy::Int)
-#     Δz = z[2] - z[1]
-#     N  = length(z)
-#     D  = zeros(Float64, N, N)
-#     if order_accuracy == 4
-#         for k=3:N-2
-#             D[k,k-2] = 1/12;
-#             D[k,k-1] = -2/3;
-#             D[k,k+1] = 2/3;
-#             D[k,k+2] = -1/12;
-#         end
-#         D[1,1] = -3/2; D[1,2] = 2; D[1,3] = -1/2;
-#         D[2,2] = -3/2; D[2,3] = 2; D[2,4] = -1/2;
-        
-#         D[N,N]     = 3/2; D[N,N-1]   = -2;  D[N,N-2]   = 1/2;
-#         D[N-1,N-1] = 3/2; D[N-1,N-2] = -2;  D[N-1,N-3] = 1/2;
-#         return D./Δz
-#     elseif order_accuracy == 2
-#         for k=2:N-1
-#             D[k,k-1] = -1.0;
-#             D[k,k+1] = 1.0;
-#         end
-#         D[1,1] = -3.0; D[1,2]  = 4.0;  D[1,3]   = -1.0;
-#         D[N,N] = 3.0; D[N,N-1] = -4.0; D[N,N-2] = 1.0
-#         return D./2Δz
-#     else
-#         error("Invalid order of accuracy")
-#     end
-# end
-
-# """
-# compute second derivative using 4th order centred 
-# difference scheme. z is evenly spaced.
-# """
-# function ddz2(z; order_accuracy::Int)
-#     Δz = z[2] - z[1]
-#     N  = length(z)
-#     D  = zeros(Float64, N,N);
-#     if order_accuracy == 4
-#         for k=3:N-2
-#             D[k,k-2] = -1/12;
-#             D[k,k-1] = 4/3;
-#             D[k,k]   = -5/2;
-#             D[k,k+1] = 4/3;
-#             D[k,k+2] = -1/12;
-#         end 
-#         D[1,1] = 2.0; D[1,2] = -5.0; D[1,3] = 4.0; D[1,4] = -1.0;
-#         D[2,2] = 2.0; D[2,3] = -5.0; D[2,4] = 4.0; D[2,5] = -1.0;
-
-#         D[N,N]     = 2.0;  D[N,N-1]   = -5.0;  D[N,N-2]   = 4.0; D[N,N-3]   = -1.0;
-#         D[N-1,N-1] = 2.0;  D[N-1,N-2] = -5.0;  D[N-1,N-3] = 4.0; D[N-1,N-4] = -1.0;
-#         return D./Δz^2 
-#     elseif order_accuracy == 2
-#         for k=2:N-1
-#             D[k,k-1] = 1.0;
-#             D[k,k]   = -2.0; 
-#             D[k,k+1] = 1.0;
-#         end
-#         D[1,1] = 2.0; D[1,2]   = -5.0; D[1,3]   = 4.0; D[1,4]   = -1.0;
-#         D[N,N] = 2.0; D[N,N-1] = -5.0; D[N,N-2] = 4.0; D[N,N-3] = -1.0;
-#         return D./Δz^2 
-#     else
-#         error("Invalid order of accuracy")
-#     end
-# end
-
-# """
-# compute fourth derivative using 4th order centred 
-# difference scheme. z is evenly spaced.
-# """
-# function ddz4(z; order_accuracy::Int)
-#     Δz = z[2] - z[1];
-#     N  = length(z);
-#     D  = zeros(Float64, N,N);
-#     if order_accuracy == 4
-#         for k=4:N-3
-#             D[k,k-3] = -1/6;
-#             D[k,k-2] = 2;
-#             D[k,k-1] = -13/2;
-#             D[k,k]   = 28/3;
-#             D[k,k+1] = -13/2; 
-#             D[k,k+2] = 2;
-#             D[k,k+3] = -1/6;
-#         end 
-#         D[1,1] = 3; D[1,2] = -14;  D[1,3] = 26;  D[1,4] = -24;  D[1,5] = 11;  D[1,6] = -2;
-#         D[2,2] = 3; D[2,3] = -14;  D[2,4] = 26;  D[2,5] = -24;  D[2,6] = 11;  D[2,7] = -2;
-#         D[3,3] = 3; D[3,4] = -14;  D[3,5] = 26;  D[3,6] = -24;  D[3,7] = 11;  D[3,8] = -2;
-        
-#         D[N,N]     = 3; D[N,N-1]   = -14; D[N,N-2]   = 26; D[N,N-3]   = -24; D[N,N-4]   = 11; D[N,N-5]   = -2;
-#         D[N-1,N-1] = 3; D[N-1,N-2] = -14; D[N-1,N-3] = 26; D[N-1,N-4] = -24; D[N-1,N-5] = 11; D[N-1,N-6] = -2;
-#         D[N-2,N-2] = 3; D[N-2,N-3] = -14; D[N-2,N-4] = 26; D[N-2,N-5] = -24; D[N-2,N-6] = 11; D[N-2,N-7] = -2;
-#         return D./Δz^4
-#     elseif order_accuracy == 2
-#         for k=3:N-2
-#             D[k,k-2] = 1.0;
-#             D[k,k-1] = -4.0;
-#             D[k,k]   = 6.0;
-#             D[k,k+1] = -4.0; 
-#             D[k,k+2] = 1.0;
-#         end 
-#         D[1,1] = 3.0;  D[1,2] = -14.0; D[1,3] = 26.0; D[1,4] = -24.0; D[1,5] = 11.0; D[1,6] = -2.0;
-#         D[2,2] = 3.0;  D[2,3] = -14.0; D[2,4] = 26.0; D[2,5] = -24.0; D[2,6] = 11.0; D[2,7] = -2.0;
-
-#         D[N,N]   = 3.0;  D[N,N-1] = -14.0; D[N,N-2] = 26.0; D[N,N-3] = -24.0;  
-#         D[N,N-4] = 11.0; D[N,N-5] = -2.0;
-
-#         D[N-1,N-1] = 3.0;  D[N-1,N-2] = -14.0; D[N-1,N-3] = 26.0; D[N-1,N-4] = -24.0;  
-#         D[N-1,N-5] = 11.0; D[N-1,N-6] = -2.0;
-#         return D./Δz^4
-#     else
-#         error("Invalid order of accuracy")
-#     end
-# end
 
 """
 Periodic differentiation matrix constructed using
@@ -414,65 +330,65 @@ function FourierDiff_fdm(Nz, order_derivate::Int)
 end
 
 
-# function FourierDiff_fdm_4th(Nz, order_derivate::Int)
-#     # grid points
-#     range_ = 0:1:Nz-1
-#     z = 2π * range_/Nz |> collect
-#     # grid spacing
-#     del = 2π/Nz
-#     N = length(z)
-#     D = zeros(N, N)
-#     if order_derivate == 1
-#         for k in 3:N-2
-#             D[k,k-2] = 1/12; D[k,k-1] = -2/3;
-#             D[k,k+0] = 0.0;
-#             D[k,k+1] = 2/3;  D[k,k+2] = -1/12;
-#         end
-#         D[1,2] = 2/3;  D[1,3]  = -1/12; D[1,N] = -2/3;  D[1,N-1] = 1/12;    
-#         D[2,1] = -2/3; D[2,3]  = 2/3;   D[2,4] = -1/12; D[2,N]   = 1/12;
+function FourierDiff_fdm_4th(Nz, order_derivate::Int)
+    # grid points
+    range_ = 0:1:Nz-1
+    z = 2π * range_/Nz |> collect
+    # grid spacing
+    del = 2π/Nz
+    N = length(z)
+    D = zeros(N, N)
+    if order_derivate == 1
+        for k in 3:N-2
+            D[k,k-2] = 1/12; D[k,k-1] = -2/3;
+            D[k,k+0] = 0.0;
+            D[k,k+1] = 2/3;  D[k,k+2] = -1/12;
+        end
+        D[1,2] = 2/3;  D[1,3]  = -1/12; D[1,N] = -2/3;  D[1,N-1] = 1/12;    
+        D[2,1] = -2/3; D[2,3]  = 2/3;   D[2,4] = -1/12; D[2,N]   = 1/12;
 
-#         D[N,N-1]   = -2/3; D[N,N-2]   = 1/12; D[N,1]   = 2/3; D[N,2]   = -1/12;
-#         D[N-1,N-2] = -2/3; D[N-1,N-3] = 1/12; D[N-1,N] = 2/3; D[N-1,1] = -1/12;
-#         return z, D./del
-#     elseif order_derivate == 2
-#         for k in 3:N-2
-#             D[k,k-2] = -1/12; D[k,k-1] = 4/3;
-#             D[k,k+0] = -2.5;
-#             D[k,k+1] = 4/3;  D[k,k+2] = -1/12;
-#         end
-#         D[1,1] = -2.5;  D[1,2] = 4/3;  D[1,3] = -1/12; D[1,N] = 4/3;   D[1,N-1] = -1/12;
-#         D[2,1] = 4/3;   D[2,2] = -2.5; D[2,3] = 4/3;   D[2,4] = -1/12; D[2,N] = -1/12; 
-#         D[3,1] = -1/12; D[3,2] = 4/3;  D[3,3] = -2.5;  D[3,4] = 4/3;   D[3,5] = -1/12;
+        D[N,N-1]   = -2/3; D[N,N-2]   = 1/12; D[N,1]   = 2/3; D[N,2]   = -1/12;
+        D[N-1,N-2] = -2/3; D[N-1,N-3] = 1/12; D[N-1,N] = 2/3; D[N-1,1] = -1/12;
+        return z, D./del
+    elseif order_derivate == 2
+        for k in 3:N-2
+            D[k,k-2] = -1/12; D[k,k-1] = 4/3;
+            D[k,k+0] = -2.5;
+            D[k,k+1] = 4/3;  D[k,k+2] = -1/12;
+        end
+        D[1,1] = -2.5;  D[1,2] = 4/3;  D[1,3] = -1/12; D[1,N] = 4/3;   D[1,N-1] = -1/12;
+        D[2,1] = 4/3;   D[2,2] = -2.5; D[2,3] = 4/3;   D[2,4] = -1/12; D[2,N] = -1/12; 
+        D[3,1] = -1/12; D[3,2] = 4/3;  D[3,3] = -2.5;  D[3,4] = 4/3;   D[3,5] = -1/12;
 
-#         D[N,N]   = -2.5;  D[N,N-1]   = 4/3;  D[N,N-2]   = -1/12; D[N,1]     = 4/3;   D[N,2]   = -1/12;
-#         D[N-1,N] = 4/3;   D[N-1,N-1] = -2.5; D[N-1,N-2] = 4/3;   D[N-1,N-3] = -1/12; D[N-1,1] = -1/12;
-#         D[N-2,N] = -1/12; D[N-2,N-1] = 4/3;  D[N-2,N-2] = -2.5;  D[N-2,N-3] = 4/3;   D[N-2,N-4] = -1/12;
-#         return z, D./del^2
-#     elseif order_derivate == 4
-#         for k in 4:N-3
-#             D[k,k-3] = -1/6;  D[k,k-2] = 2; D[k,k-1] = -13/2;
-#             D[k,k+0] = 28/3;
-#             D[k,k+1] = -13/2; D[k,k+2] = 2; D[k,k+3] = -1/6;
-#         end
-#         D[1,1] = 28/3;  D[1,2] = -13/2; D[1,3] = 2;     D[1,4] = -1/6;  D[1,N] = -13/2; D[1,N-1] = 2;  D[1,N-2] = -1/6;
-#         D[2,1] = -13/2; D[2,2] = 28/3;  D[2,3] = -13/2; D[2,4] = 2;     D[2,5] = -1/6;  D[2,N]   = 2;  D[2,N-1] = -1/6;
-#         D[3,1] = 2;     D[3,2] = -13/2; D[3,3] = 28/3;  D[3,4] = -13/2; D[3,5] = 2;     D[3,6] = -1/6; D[3,N]   = -1/6;
-#         D[4,1] = -1/6;  D[4,2] = 2;     D[4,3] = -13/2; D[4,4] = 28/3;  D[4,5] = -13/2; D[4,6] = 2;    D[4,7]   = -1/6;    
+        D[N,N]   = -2.5;  D[N,N-1]   = 4/3;  D[N,N-2]   = -1/12; D[N,1]     = 4/3;   D[N,2]   = -1/12;
+        D[N-1,N] = 4/3;   D[N-1,N-1] = -2.5; D[N-1,N-2] = 4/3;   D[N-1,N-3] = -1/12; D[N-1,1] = -1/12;
+        D[N-2,N] = -1/12; D[N-2,N-1] = 4/3;  D[N-2,N-2] = -2.5;  D[N-2,N-3] = 4/3;   D[N-2,N-4] = -1/12;
+        return z, D./del^2
+    elseif order_derivate == 4
+        for k in 4:N-3
+            D[k,k-3] = -1/6;  D[k,k-2] = 2; D[k,k-1] = -13/2;
+            D[k,k+0] = 28/3;
+            D[k,k+1] = -13/2; D[k,k+2] = 2; D[k,k+3] = -1/6;
+        end
+        D[1,1] = 28/3;  D[1,2] = -13/2; D[1,3] = 2;     D[1,4] = -1/6;  D[1,N] = -13/2; D[1,N-1] = 2;  D[1,N-2] = -1/6;
+        D[2,1] = -13/2; D[2,2] = 28/3;  D[2,3] = -13/2; D[2,4] = 2;     D[2,5] = -1/6;  D[2,N]   = 2;  D[2,N-1] = -1/6;
+        D[3,1] = 2;     D[3,2] = -13/2; D[3,3] = 28/3;  D[3,4] = -13/2; D[3,5] = 2;     D[3,6] = -1/6; D[3,N]   = -1/6;
+        D[4,1] = -1/6;  D[4,2] = 2;     D[4,3] = -13/2; D[4,4] = 28/3;  D[4,5] = -13/2; D[4,6] = 2;    D[4,7]   = -1/6;    
     
-#         D[N,N]   = 28/3;  D[N,N-1] = -13/2; D[N,N-2] = 2;  D[N,N-3]   = -1/6; 
-#         D[N,1]   = -13/2; D[N,2]   = 2;     D[N,3]   = -1/6;
+        D[N,N]   = 28/3;  D[N,N-1] = -13/2; D[N,N-2] = 2;  D[N,N-3]   = -1/6; 
+        D[N,1]   = -13/2; D[N,2]   = 2;     D[N,3]   = -1/6;
         
-#         D[N-1,N]   = -13/2; D[N-1,N-1] = 28/3; D[N-1,N-2] = -13/2; D[N-1,N-3] = 2;    
-#         D[N-1,N-4] = -1/6;  D[N-1,1]   = 2;    D[N-1,2]   = -1/6; 
+        D[N-1,N]   = -13/2; D[N-1,N-1] = 28/3; D[N-1,N-2] = -13/2; D[N-1,N-3] = 2;    
+        D[N-1,N-4] = -1/6;  D[N-1,1]   = 2;    D[N-1,2]   = -1/6; 
 
-#         D[N-2,N]   = 2;  D[N-2,N-1] = -13/2; D[N-2,N-2] = 28/3; D[N-2,N-3] = -13/2;    
-#         D[N-2,N-4] = 2;  D[N-2,N-5] = -1/6;  D[N-2,1]   = -1/6; 
+        D[N-2,N]   = 2;  D[N-2,N-1] = -13/2; D[N-2,N-2] = 28/3; D[N-2,N-3] = -13/2;    
+        D[N-2,N-4] = 2;  D[N-2,N-5] = -1/6;  D[N-2,1]   = -1/6; 
 
-#         D[N-3,N]   = -1/6;  D[N-3,N-1] = 2; D[N-3,N-2] = -13/2; D[N-3,N-3] = 28/3;    
-#         D[N-3,N-4] = -13/2; D[N-3,N-5] = 2; D[N-3,1]   = -1/6; 
+        D[N-3,N]   = -1/6;  D[N-3,N-1] = 2; D[N-3,N-2] = -13/2; D[N-3,N-3] = 28/3;    
+        D[N-3,N-4] = -13/2; D[N-3,N-5] = 2; D[N-3,1]   = -1/6; 
 
-#         return z, D./del^4
-#     else
-#         error("Invalid order of derivate")
-#     end
-# end
+        return z, D./del^4
+    else
+        error("Invalid order of derivate")
+    end
+end

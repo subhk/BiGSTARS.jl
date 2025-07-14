@@ -136,7 +136,7 @@
 # ```
 # ## Generalized eigenvalue problem
 # The above sets of equations with the boundary conditions can be expressed as a 
-# standard generalized eigenvalue problem,
+# standard generalized eigenvalue problem (GEVP),
 # ```math
 # \begin{align}
 #  AX= λBX,
@@ -185,6 +185,7 @@ using NonlinearSolve
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
+using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 # # Define abstract type first
 # abstract type AbstractParams end
@@ -212,17 +213,19 @@ grid  = TwoDGrid(params)
 
 # ### Define the basic state
 function basic_state(params, grid)
-    # Basic state
+    ## Define the basic state
     B₀   = @. params.Ri * grid.z - grid.y     # buoyancy
     U₀   = @. 1.0 * grid.z - 0.5 * params.H   # along-front velocity
 
     return B₀, U₀
 end
 
-Dʸ, D²ʸ, D⁴ʸ, Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ, Dᶻᴺ, D²ᶻᴺ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ = BiGSTARS.Problem(grid, params)
+# ### Construct the necesary operator
+ops  = OperatorI(params)
+prob = Problem(grid, ops, params)
 
-# ### Constructing the derivative operators
-function construct_matrices(Op, mf, grid, params)
+# ### Constructing GEVP
+function generalized_eigenval(Op, mf, grid, params)
 
     B₀, U₀ = basic_state(params, grid)
 
@@ -269,62 +272,61 @@ function construct_matrices(Op, mf, grid, params)
     s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
 
     ## allocating memory for the LHS and RHS matrices
-    𝓛₁ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
-    𝓛₂ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
-    𝓛₃ = SparseMatrixCSC(Zeros{ComplexF64}(s₁, 3s₂))
+    labels  = [:w, :ζ, :b]  # eigenfunction labels
+    GEVPMat = GEVPMatrices(ComplexF64, Float64, N; nblocks=4, labels=labels)
 
-    ℳ₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    ℳ₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    ℳ₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
+    ## the horizontal Laplacian operator
+    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
-    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    H   = SparseMatrixCSC(Zeros(N, N))
-
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
-
-
+    ## inverse of the horizontal Laplacian operator
     H = inverse_Lap_hor(∇ₕ²)
     @assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-4 "difference in L2-norm should be small"
 
-
-    D⁴  = (1.0 * Op.𝒟⁴ʸ 
-        + 1.0/params.ε^4 * Op.𝒟⁴ᶻᴰ 
+    ## Construct the 4th order derivative
+    D⁴  = (1.0 * prob.D⁴ʸ 
+        + 1.0/params.ε^4 * prob.D⁴ᶻᴰ 
         + 1.0 * params.k^4 * I⁰ 
-        - 2.0 * params.k^2 * Op.𝒟²ʸ 
-        - 2.0/params.ε^2 * params.k^2 * Op.𝒟²ᶻᴰ
-        + 2.0/params.ε^2 * Op.𝒟²ʸ²ᶻᴰ)
+        - 2.0 * params.k^2 * prob.D²ʸ 
+        - 2.0/params.ε^2 * params.k^2 * prob.D²ᶻᴰ
+        + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
         
-    D²  = (1.0/params.ε^2 * Op.𝒟²ᶻᴰ + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0/params.ε^2 * Op.𝒟²ᶻᴺ + 1.0 * ∇ₕ²)
+    ## Construct the 2nd order derivative
+    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
+    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    ## 1. uᶻ (vertical velocity)  equation (bcs: uᶻ = ∂ᶻᶻuᶻ = 0 @ z = 0, 1)
-    𝓛₁[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
-                    + 1.0im * params.k * mf.U₀ * D²) * params.ε^2
-    𝓛₁[:,1s₂+1:2s₂] = 1.0 * Op.𝒟ᶻᴺ 
-    𝓛₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
+    ## Construct the matrix `A`
+    ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1)
+    GEVPMat.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ + 1.0im * params.k * mf.U₀ * D²) * params.ε^2
+    GEVPMat.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
+    GEVPMat.As.w[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
 
-    ## 2. ωᶻ (vertical vorticity) equation (bcs: ∂ᶻωᶻ = 0 @ z = 0, 1)
-    𝓛₂[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * Op.𝒟ʸ - 1.0 * Op.𝒟ᶻᴰ
-    𝓛₂[:,1s₂+1:2s₂] = (1.0im * params.k * mf.U₀ * I⁰ - 1.0 * params.E * Dₙ²)
-    𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰
+    ## 2. ζ (vertical vorticity) equation (bcs: ∂ᶻζ = 0 @ z = 0, 1)
+    GEVPMat.As.ζ[:,    1:1s₂] = - 1.0 * mf.∇ᶻU₀ * prob.Dʸ - 1.0 * prob.Dᶻᴰ
+    GEVPMat.As.ζ[:,1s₂+1:2s₂] = (1.0im * params.k * mf.U₀ * I⁰ - 1.0 * params.E * Dₙ²)
+    GEVPMat.As.ζ[:,2s₂+1:3s₂] = 0.0 * I⁰
 
     ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
-    𝓛₃[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰
-                    - 1.0 * mf.∇ʸB₀ * H * Op.𝒟ʸᶻᴰ) 
-    𝓛₃[:,1s₂+1:2s₂] = 1.0im * params.k * mf.∇ʸB₀ * H * I⁰
-    𝓛₃[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
+    GEVPMat.As.b[:,    1:1s₂] = (1.0 * mf.∇ᶻB₀ * I⁰- 1.0 * mf.∇ʸB₀ * H * prob.Dʸᶻᴰ) 
+    GEVPMat.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * mf.∇ʸB₀ * H * I⁰
+    GEVPMat.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
                     + 1.0im * params.k * mf.U₀ * I⁰) 
 
-    𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
+    GEVPMat.A = ([GEVPMat.As.w; 
+                    GEVPMat.As.ζ; 
+                    GEVPMat.As.b]);
 
-    
+
+    ## Construct the matrix `B`
     cnst = -1.0 
-    ℳ₁[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
-    ℳ₂[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
-    ℳ₃[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
-    ℳ = ([ℳ₁; ℳ₂; ℳ₃])
-    
-    return 𝓛, ℳ
+    GEVPMat.Bs.w[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
+    GEVPMat.Bs.ζ[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
+    GEVPMat.Bs.b[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
+
+    GEVPMat.B = ([GEVPMat.Bs.w; 
+                GEVPMat.Bs.ζ; 
+                GEVPMat.Bs.b])
+
+    return GEVPMat.A, GEVPMat.B
 end
 nothing #hide
 
@@ -358,9 +360,6 @@ nothing #hide
 
 # ### Solving the Stone problem
 function solve_Stone1971(k::Float64=0.0)
-
-
-
 
     Op          = Operator{params.Ny * params.Nz}()
     mf          = MeanFlow{params.Ny * params.Nz}()

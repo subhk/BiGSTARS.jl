@@ -11,21 +11,21 @@ const BC_TYPE = Dict(
 bc_type(var::Symbol, bc::String) = get(BC_TYPE, (var, bc), error("Unknown BC: $var => \"$bc\""))
 
 
-function apply_dirchilet_on_D1!(Dᶻᴰ, params) 
+function apply_dirichlet_on_D1!(Dᶻᴰ, params) 
     n = params.Nz
     Dᶻᴰ[1,1]  = 0.0
     Dᶻᴰ[n,n]  = 0.0
     return nothing
 end
 
-function apply_dirchilet_on_D2!(D²ᶻᴰ, params) 
+function apply_dirichlet_on_D2!(D²ᶻᴰ, params) 
     n = params.Nz
     D²ᶻᴰ[1,1] = 0.0
     D²ᶻᴰ[n,n] = 0.0 
     return nothing
 end
 
-function apply_dirchilet_on_D4!(D⁴ᶻᴰ, D²ᶻ, params) 
+function apply_dirichlet_on_D4!(D⁴ᶻᴰ, D²ᶻ, params) 
     n = params.Nz
     for iter ∈ 1:n-1
         D⁴ᶻᴰ[1,iter+1] = (D⁴ᶻᴰ[1,iter+1] + 
@@ -94,8 +94,8 @@ function setBCs!(grid, params, bc::Symbol)
         apply_dirichlet_on_D2!(grid.D²ᶻᴰ,           params)
         apply_dirichlet_on_D4!(grid.D⁴ᶻᴰ, grid.D²ᶻ, params)
     elseif bc == :neumann
-        apply_neumann_on_D1!(grid.Dᶻᴺ,           params)
-        apply_neumann_on_D2!(grid.D²ᶻᴺ, grid.Dᶻ, params)
+        apply_neumann_on_D1!(grid.Dᶻᴺ,              params)
+        apply_neumann_on_D2!(grid.D²ᶻᴺ,   grid.Dᶻ,  params)
     else
         error("Unknown BC symbol: $bc")
     end

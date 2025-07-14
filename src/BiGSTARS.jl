@@ -77,10 +77,12 @@ module BiGSTARS
        #construct_linear_map_pardiso,
        construct_linear_map, 
 
-       TwoDGrid
+       TwoDGrid, 
+
+       GEVPMatrices
 
 
-    import Base: resize!, getindex, setindex!, push!, append!, show, summary
+    import Base: show, summary
 
     "Abstract supertype for grids."
     abstract type AbstractGrid{T, Ty, Tm} end
@@ -96,6 +98,7 @@ module BiGSTARS
     include("setBCs.jl")
     include("utils.jl")
     include("problem.jl")
+    include("matrices.jl")
 
 
 end # module BiGSTARS

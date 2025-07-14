@@ -12,15 +12,15 @@ end
 """
 Container for reusable identity matrices in Kronecker products.
 """
-struct OperatorCache{T}
+struct OperatorI{T}
     Iʸ::SparseMat{T}
     Iᶻ::SparseMat{T}
 end
 
-function OperatorCache(Ny::Int, Nz::Int, T::Type{<:Real}=Float64)
-    Iʸ = sparse(LinearAlgebra.I, Ny, Ny)
-    Iᶻ = sparse(LinearAlgebra.I, Nz, Nz)
-    return OperatorCache{T}(Iʸ, Iᶻ)
+function OperatorI(params::AbstractParams, T::Type{<:Real}=Float64)
+    Iʸ = sparse(LinearAlgebra.I, params.Ny, params.Ny)
+    Iᶻ = sparse(LinearAlgebra.I, params.Nz, params.Nz)
+    return OperatorI{T}(Iʸ, Iᶻ)
 end
 
 
@@ -34,7 +34,6 @@ struct Problem{Tg<:AbstractFloat}
     # Chebyshev in z (Neumann BC)
     Dᶻᴺ    :: SparseMat{Tg}
     D²ᶻᴺ   :: SparseMat{Tg}
-    D⁴ᶻᴺ   :: SparseMat{Tg}
 
     # Chebyshev in z (Dirichlet BC)
     Dᶻᴰ    :: SparseMat{Tg}
@@ -59,7 +58,7 @@ end
 
 
 function Problem(grid::AbstractGrid{T, Ty, Tm}, 
-                cache::OperatorCache{T}, 
+                cache::OperatorI{T}, 
                 params::AbstractParams) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
     # Kronecker products: Dirichlet
@@ -70,10 +69,9 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
     # Kronecker products: Neumann
     Dᶻᴺ   = kron_s(cache.Iʸ, grid.Dᶻᴺ )
     D²ᶻᴺ  = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
-    D⁴ᶻᴺ  = kron_s(cache.Iʸ, grid.D⁴ᶻᴺ)
 
     # Mixed derivatives
-    Dʸ²ᶻᴰ   = kron_s(grid.D²ʸ, grid.Dᶻᴰ)
+    Dʸ²ᶻᴰ   = kron_s(grid.D²ʸ, grid.Dᶻᴰ )
     D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ, grid.D²ᶻᴰ)
 
     # For Fourier differentiation matrix
@@ -168,6 +166,14 @@ function TwoDGrid(params::AbstractParams)
                                         H)
     T = eltype(Dʸ)
 
+   # Convert to mutable matrices to allow BCs
+    Dᶻᴰ  = Matrix(Dᶻ)
+    D²ᶻᴰ = Matrix(D²ᶻ)
+    D⁴ᶻᴰ = Matrix(D⁴ᶻ)
+
+    Dᶻᴺ  = Matrix(Dᶻ)
+    D²ᶻᴺ = Matrix(D²ᶻ)
+
     #### Create the grid object
     grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
         Ny, Nz, L, H, y, z,
@@ -183,6 +189,7 @@ function TwoDGrid(params::AbstractParams)
 
     return grid
 end
+
 
 
 function show(io::IO, params::AbstractParams) where T
