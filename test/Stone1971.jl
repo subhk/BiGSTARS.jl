@@ -196,8 +196,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number 
-    Ny::Int64           = 48            # no. of y-grid points
-    Nz::Int64           = 24            # no. of z-grid points
+    Ny::Int64           = 50            # no. of y-grid points
+    Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
@@ -273,10 +273,9 @@ function generalized_EigValProb(prob, grid, params)
     labels  = [:w, :ζ, :b]  # eigenfunction labels
     gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
 
-
     ## Construct the matrix `A`
     ## ----------------------------------------------------------------------
-    ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1)
+    ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1) 
     ## ----------------------------------------------------------------------
     gevp.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
                             + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
@@ -291,7 +290,7 @@ function generalized_EigValProb(prob, grid, params)
     gevp.As.ζ[:,    1:1s₂] = - 1.0 * bs.fields.∂ᶻU₀ * prob.Dʸ - 1.0 * prob.Dᶻᴰ
 
     gevp.As.ζ[:,1s₂+1:2s₂] = (1.0im * params.k * bs.fields.U₀ * I⁰ 
-                                - 1.0 * params.E * Dₙ²)
+                            - 1.0 * params.E * Dₙ²)
 
     gevp.As.ζ[:,2s₂+1:3s₂] = 0.0 * I⁰
 
@@ -299,12 +298,12 @@ function generalized_EigValProb(prob, grid, params)
     ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
     ## ----------------------------------------------------------------------
     gevp.As.b[:,    1:1s₂] = (1.0 * bs.fields.∂ᶻB₀ * I⁰
-                                - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
+                            - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
 
     gevp.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰
 
     gevp.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
-                                + 1.0im * params.k * bs.fields.U₀ * I⁰) 
+                            + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
 
     #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
@@ -329,7 +328,8 @@ function EigSolver(prob, grid, params, σ₀)
     A, B = generalized_EigValProb(prob, grid, params)
 
     if params.eig_solver == "arpack"
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
+
+        λ, Χ = solve_shift_invert_arpack(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.eig_solver == "krylov"
 
@@ -364,7 +364,7 @@ function solve_Stone1971(k::Float64)
 
     params.k = k
 
-    σ₀   = 0.025 # initial guess for the growth rate
+    σ₀   = 0.02 # initial guess for the growth rate
     params.k = k
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
@@ -380,6 +380,6 @@ function solve_Stone1971(k::Float64)
 end
 nothing #hide
 
-# # ## Result
-solve_Stone1971(0.1) # growth rate is at k=0.1  
-nothing #hide
+# # # ## Result
+# solve_Stone1971(0.1) # growth rate is at k=0.1  
+# nothing #hide

@@ -63,28 +63,28 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
                 params::AbstractParams) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
     # Kronecker products: Dirichlet
-    Dᶻᴰ     = kron_s(cache.Iʸ, grid.Dᶻᴰ )
-    D²ᶻᴰ    = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
-    D⁴ᶻᴰ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
+    Dᶻᴰ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴰ) )
+    D²ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴰ))
+    D⁴ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻᴰ))
 
     # Kronecker products: Neumann
-    Dᶻᴺ     = kron_s(cache.Iʸ, grid.Dᶻᴺ )
-    D²ᶻᴺ    = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
+    Dᶻᴺ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴺ) )
+    D²ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
 
     # Mixed derivatives
-    Dʸᶻᴰ    = kron_s(grid.Dʸ,  grid.Dᶻᴰ )
-    Dʸ²ᶻᴰ   = kron_s(grid.Dʸ,  grid.D²ᶻᴰ)
-    D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ, grid.D²ᶻᴰ)
+    Dʸᶻᴰ    = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.Dᶻᴰ ))
+    Dʸ²ᶻᴰ   = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.D²ᶻᴰ))
+    D²ʸ²ᶻᴰ  = kron_s(Matrix(grid.D²ʸ),  Matrix(grid.D²ᶻᴰ))
 
     # For Fourier differentiation matrix
-    Dʸ      = kron_s(grid.Dʸ,  cache.Iᶻ)
-    D²ʸ     = kron_s(grid.D²ʸ, cache.Iᶻ)
-    D⁴ʸ     = kron_s(grid.D⁴ʸ, cache.Iᶻ)
+    Dʸ      = kron_s(Matrix(grid.Dʸ ), cache.Iᶻ)
+    D²ʸ     = kron_s(Matrix(grid.D²ʸ), cache.Iᶻ)
+    D⁴ʸ     = kron_s(Matrix(grid.D⁴ʸ), cache.Iᶻ)
 
     #### Create the grid object
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
-                    Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dᶻᴺ, D²ᶻᴺ,
+                    Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
     )
 
@@ -148,21 +148,21 @@ function TwoDGrid(params::AbstractParams)
     D⁴ʸ = (2π/L)^4 * D⁴ʸ
 
     # Chebyshev in the z-direction
-    z1, Dᶻ  = chebdif(Nz, 1)
-    _,  D²ᶻ = chebdif(Nz, 2)
-    _,  D³ᶻ = chebdif(Nz, 3)
-    _,  D⁴ᶻ = chebdif(Nz, 4)
+    z1, D1z = chebdif(Nz, 1)
+    _,  D2z = chebdif(Nz, 2)
+    _,  D3z = chebdif(Nz, 3)
+    _,  D4z = chebdif(Nz, 4)
 
     # Transform the domain and derivative operators from [-1, 1] → [0, H]
-    z, Dᶻ, D²ᶻ  = chebder_transform(z1, Dᶻ, 
-                                        D²ᶻ, 
+    z, Dᶻ, D²ᶻ  = chebder_transform(z1, D1z, 
+                                        D2z, 
                                         zerotoL_transform, 
                                         H)
 
-    _, _, D⁴ᶻ  = chebder_transform_ho(z1, Dᶻ, 
-                                        D²ᶻ, 
-                                        D³ᶻ, 
-                                        D⁴ᶻ, 
+    _, _, D⁴ᶻ  = chebder_transform_ho(z1, D1z, 
+                                        D2z, 
+                                        D3z, 
+                                        D4z, 
                                         zerotoL_transform_ho, 
                                         H)
     T = eltype(Dʸ)

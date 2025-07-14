@@ -195,9 +195,9 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     Ri::T               = 1.0           # the Richardson number 
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
-    E::T                = 1.0e-9        # the Ekman number 
-    Ny::Int64           = 40            # no. of y-grid points
-    Nz::Int64           = 20            # no. of z-grid points
+    E::T                = 1.0e-8        # the Ekman number 
+    Ny::Int64           = 48            # no. of y-grid points
+    Nz::Int64           = 24            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
@@ -302,12 +302,12 @@ function generalized_EigValProb(prob, grid, params)
     ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
     ## ----------------------------------------------------------------------
     gevp.As.b[:,    1:1s₂] = (1.0 * bs.fields.∂ᶻB₀ * I⁰
-                                - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
+                            - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
 
     gevp.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰
 
     gevp.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
-                                + 1.0im * params.k * bs.fields.U₀ * I⁰) 
+                            + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
 
     #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);

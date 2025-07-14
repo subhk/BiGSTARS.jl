@@ -21,27 +21,27 @@ using FFTW
 #     return A
 # end
 
-"""
-    toeplitz(c::AbstractVector, r::AbstractVector)
-```julia
-    julia> toeplitz([1, 2, 3], [1, 4, 5])
-    3×3 Matrix{Int64}:
-    1  4  5
-    2  1  4
-    3  2  1
-"""
-function toeplitz(c::AbstractVector{T}, r::AbstractVector{T}) where T
-    n, m = length(c), length(r)
-    @assert c[1] == r[1] "First elements of column and row must match"
-    A = Matrix{T}(undef, n, m)
+# """
+#     toeplitz(c::AbstractVector, r::AbstractVector)
+# ```julia
+#     julia> toeplitz([1, 2, 3], [1, 4, 5])
+#     3×3 Matrix{Int64}:
+#     1  4  5
+#     2  1  4
+#     3  2  1
+# """
+# function toeplitz(c::AbstractVector{T}, r::AbstractVector{T}) where T
+#     n, m = length(c), length(r)
+#     @assert c[1] == r[1] "First elements of column and row must match"
+#     A = Matrix{T}(undef, n, m)
 
-    for i in 1:n
-        for j in 1:m
-            A[i, j] = i ≥ j ? c[i - j + 1] : r[j - i + 1]
-        end
-    end
-    return A
-end
+#     for i in 1:n
+#         for j in 1:m
+#             A[i, j] = i ≥ j ? c[i - j + 1] : r[j - i + 1]
+#         end
+#     end
+#     return A
+# end
 
 function cheb(N)
     @assert N > 0
@@ -144,20 +144,18 @@ function chebdif(ncheb, mder)
     # diagonals of Dₓ
     Dₓ[ℒ] .= ones(ncheb);
 
-    # # matrix with entries c(k)/c(j)
-    # C = Matrix(toeplitz( (-1.0) .^ k));
-    
-    # # C = Toeplitz( (-1.0) .^ k, (-1.0) .^ k );
-    # # C = Array(C)
-    
-    # C[1, :] = C[1, :] .* 2.0; C[end, :] = C[end, :] .* 2.0;
-    # C[:, 1] = C[:, 1] .* 0.5; C[:, end] = C[:, end] .* 0.5;
+    # matrix with entries c(k)/c(j)
+    #C = toeplitz( (-1.0) .^ k);
+    C = Toeplitz( (-1.0) .^ k, (-1.0) .^ k );
+    C = Array(C)
+    C[1, :] = C[1, :] .* 2.0; C[end, :] = C[end, :] .* 2.0;
+    C[:, 1] = C[:, 1] .* 0.5; C[:, end] = C[:, end] .* 0.5;
 
-     # Construct C matrix: c(k)/c(j)
-    c = (-1.0) .^ k
-    c[1]   *= 2.0
-    c[end] *= 2.0
-    C = c ./ c'  # outer division
+    #  # Construct C matrix: c(k)/c(j)
+    # c = (-1.0) .^ k
+    # c[1]   *= 2.0
+    # c[end] *= 2.0
+    # C = c ./ c'  # outer division
 
     # Z contains entries 1/(x(k)-x(j))
     Z = 1.0 ./ Dₓ;

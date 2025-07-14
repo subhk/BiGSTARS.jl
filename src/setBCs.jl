@@ -34,6 +34,10 @@ function apply_dirichlet_on_D4!(D⁴ᶻᴰ, D²ᶻ, params)
           D⁴ᶻᴰ[n,iter] = (D⁴ᶻᴰ[n,iter] + 
                                 -1.0 * D⁴ᶻᴰ[n,n] * D²ᶻ[n,iter])
     end
+
+    D⁴ᶻᴰ[1,1] = 0.0
+    D⁴ᶻᴰ[n,n] = 0.0 
+    
     return nothing
 end
 
@@ -48,10 +52,10 @@ function apply_neumann_on_D2!(D²ᶻᴺ, Dᶻ, params)
     n = params.Nz
     for iter ∈ 1:n-1
         D²ᶻᴺ[1,iter+1] = (D²ᶻᴺ[1,iter+1] + 
-                                -1.0 * D²ᶻᴺ[1,1] * Dᶻ[1,iter+1]/Dᶻ[1,1])
+                            -1.0 * D²ᶻᴺ[1,1] * Dᶻ[1,iter+1]/Dᶻ[1,1])
 
         D²ᶻᴺ[n,iter]   = (D²ᶻᴺ[n,iter] + 
-                                -1.0 * D²ᶻᴺ[n,n] * Dᶻ[n,iter]/Dᶻ[n,n])
+                            -1.0 * D²ᶻᴺ[n,n] * Dᶻ[n,iter]/Dᶻ[n,n])
     end
 
     D²ᶻᴺ[1,1] = 0.0

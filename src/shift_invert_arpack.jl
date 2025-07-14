@@ -56,7 +56,7 @@ Robust ARPACK-based shift-and-invert eigenvalue solver with:
 
 Returns: (λ, Χ, σ_used)
 """
-function solver_shift_invert_arpack(𝓛, ℳ;
+function solve_shift_invert_arpack(𝓛, ℳ;
                         σ₀::Float64,
                         which::Symbol = :LM,
                         sortby::Symbol = :M,
