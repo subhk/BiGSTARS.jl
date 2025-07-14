@@ -327,7 +327,7 @@ nothing #hide
 
 
 # ### Define the eigenvalue solver
-function EigSolver(prob, grid, params)
+function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
@@ -345,7 +345,7 @@ function EigSolver(prob, grid, params)
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λ[1] * ℳ * Χ[:,1])
+    @printf "||AΧ - λₛBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
@@ -361,7 +361,7 @@ function solve_Stone1971(prob, grid, params, k::Float64)
     σ₀   = 0.02 # initial guess for the growth rate
     params.k = k
 
-    λ, Χ = EigSolver(prob, grid, params)
+    λ, Χ = EigSolver(prob, grid, params, σ₀)
 
     ## Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0

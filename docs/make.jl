@@ -69,7 +69,8 @@ end
 format = Documenter.HTML(
     collapselevel  = 2,
     prettyurls     = get(ENV, "CI", nothing) == "true",
-    size_threshold = 2^21,
+    size_threshold      = 120 * 1024^2,   # 100 MiB
+    size_threshold_warn =  20 * 1024^2,    #  20 MiB warning
     canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable"
 )
 
