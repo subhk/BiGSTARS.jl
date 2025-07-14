@@ -81,7 +81,11 @@ module BiGSTARS
        GEVPMatrices, 
 
        # compute necessary derivatives
-       compute_derivatives
+       compute_derivatives, 
+
+       # initialize the basic state
+       initialize_basic_state_from_fields,
+       initialize_basic_state!
 
 
     import Base: show, summary
@@ -102,6 +106,6 @@ module BiGSTARS
     include("problem.jl")
     include("matrices.jl")
     include("compute_derivative.jl")
-
+    include("basic_state.jl")
 
 end # module BiGSTARS

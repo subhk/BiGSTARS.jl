@@ -16,8 +16,21 @@ projected onto the computational grid.
       ∂ʸB₀, ∂ᶻB₀          -- first derivatives of B₀
       ∂ʸU₀, ∂ᶻU₀          -- first derivatives of U₀
       ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀ -- second derivatives of U₀
+      ∂ʸʸB₀, ∂ᶻᶻB₀, ∂ʸᶻB₀ -- second derivatives of B₀
 """
-BaseStateFields = @NamedTuple begin
+# BaseStateFields = @NamedTuple begin
+#     B₀::SparseMatrixCSC{Float64, Int}
+#     U₀::SparseMatrixCSC{Float64, Int}
+#     ∂ʸB₀::SparseMatrixCSC{Float64, Int}
+#     ∂ᶻB₀::SparseMatrixCSC{Float64, Int}
+#     ∂ʸU₀::SparseMatrixCSC{Float64, Int}
+#     ∂ᶻU₀::SparseMatrixCSC{Float64, Int}
+#     ∂ʸʸU₀::SparseMatrixCSC{Float64, Int}
+#     ∂ᶻᶻU₀::SparseMatrixCSC{Float64, Int}
+#     ∂ʸᶻU₀::SparseMatrixCSC{Float64, Int}
+# end
+
+struct BaseStateFields
     B₀::SparseMatrixCSC{Float64, Int}
     U₀::SparseMatrixCSC{Float64, Int}
     ∂ʸB₀::SparseMatrixCSC{Float64, Int}
@@ -27,7 +40,18 @@ BaseStateFields = @NamedTuple begin
     ∂ʸʸU₀::SparseMatrixCSC{Float64, Int}
     ∂ᶻᶻU₀::SparseMatrixCSC{Float64, Int}
     ∂ʸᶻU₀::SparseMatrixCSC{Float64, Int}
+    ∂ʸʸB₀::SparseMatrixCSC{Float64, Int}
+    ∂ᶻᶻB₀::SparseMatrixCSC{Float64, Int}
+    ∂ʸᶻB₀::SparseMatrixCSC{Float64, Int}
 end
+
+# fields = BaseStateFields(
+#     spdiagm(0 => vec(B₀)), spdiagm(0 => vec(U₀)),
+#     zero_diag_sparse(B₀), zero_diag_sparse(B₀),
+#     zero_diag_sparse(U₀), zero_diag_sparse(U₀),
+#     zero_diag_sparse(U₀), zero_diag_sparse(U₀), zero_diag_sparse(U₀)
+# )
+
 
 struct BasicState
     fields::BaseStateFields
@@ -48,13 +72,16 @@ function initialize_basic_state_from_fields(B₀::Matrix{Float64}, U₀::Matrix{
         spdiagm(0 => vec(B₀)), spdiagm(0 => vec(U₀)),
         zero_diag_sparse(B₀), zero_diag_sparse(B₀),
         zero_diag_sparse(U₀), zero_diag_sparse(U₀),
-        zero_diag_sparse(U₀), zero_diag_sparse(U₀), zero_diag_sparse(U₀)
+        zero_diag_sparse(U₀), zero_diag_sparse(U₀), zero_diag_sparse(U₀),
+        zero_diag_sparse(B₀), zero_diag_sparse(B₀), zero_diag_sparse(B₀)
     )
     return BasicState(fields)
 end
 
 """
-    initialize_basic_state!(bs::BasicState, ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀, ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀)
+    initialize_basic_state!(bs::BasicState, ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀,
+                            ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀,
+                            ∂ʸʸB₀, ∂ᶻᶻB₀, ∂ʸᶻB₀)
 
 Assign precomputed first and second derivatives of `B₀` and `U₀`
 to the diagonal matrices in `bs.fields`.
@@ -63,8 +90,9 @@ function initialize_basic_state!(bs::BasicState,
                     ∂ʸB₀::Matrix{Float64}, ∂ᶻB₀::Matrix{Float64},
                     ∂ʸU₀::Matrix{Float64}, ∂ᶻU₀::Matrix{Float64},
                     ∂ʸʸU₀::Matrix{Float64}, ∂ᶻᶻU₀::Matrix{Float64}, 
-                    ∂ʸᶻU₀::Matrix{Float64}
-        )
+                    ∂ʸᶻU₀::Matrix{Float64},
+                    ∂ʸʸB₀::Matrix{Float64}, ∂ᶻᶻB₀::Matrix{Float64},
+                    ∂ʸᶻB₀::Matrix{Float64})
 
     set_diag!(bs.fields.∂ʸB₀,   vec(∂ʸB₀))
     set_diag!(bs.fields.∂ᶻB₀,   vec(∂ᶻB₀))
@@ -73,6 +101,9 @@ function initialize_basic_state!(bs::BasicState,
     set_diag!(bs.fields.∂ʸʸU₀,  vec(∂ʸʸU₀))
     set_diag!(bs.fields.∂ᶻᶻU₀,  vec(∂ᶻᶻU₀))
     set_diag!(bs.fields.∂ʸᶻU₀,  vec(∂ʸᶻU₀))
+    set_diag!(bs.fields.∂ʸʸB₀,  vec(∂ʸʸB₀))
+    set_diag!(bs.fields.∂ᶻᶻB₀,  vec(∂ᶻᶻB₀))
+    set_diag!(bs.fields.∂ʸᶻB₀,  vec(∂ʸᶻB₀))
 
     return nothing
 end

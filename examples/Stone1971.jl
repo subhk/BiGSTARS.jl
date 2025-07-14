@@ -187,11 +187,11 @@ using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
-# # Define abstract type first
-# abstract type AbstractParams end
+#using BiGSTARS
+
 
 # ### Define the parameters
-@with_kw struct Params{T} <: AbstractParams
+@with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0          # horizontal domain size
     H::T                = 1.0          # vertical domain size
     Ri::T               = 1.0          # the Richardson number 
@@ -213,19 +213,27 @@ grid  = TwoDGrid(params)
 
 # ### Define the basic state
 function basic_state(grid, params)
+    
+    Y, Z = ndgrid(grid.y, grid.z)
+    Y    = transpose(Y)
+    Z    = transpose(Z)
+
     ## Define the basic state
-    B₀   = @. params.Ri * grid.z - grid.y     # buoyancy
-    U₀   = @. 1.0 * grid.z - 0.5 * params.H   # along-front velocity
+    B₀   = @. params.Ri * Z - Y          # buoyancy
+    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
     ## Calculate all the necessary derivatives
-    derivs = compute_derivatives(U₀, B₀, y, grid.Dᶻ, grid.D²ᶻ, :All)
+    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
 
     bs = initialize_basic_state_from_fields(B₀, U₀)
 
-    initialize_basic_state!(bs, deriv.∂ʸB₀, deriv.∂ᶻB₀, 
-                                deriv.∂ʸU₀, deriv.∂ᶻU₀, 
-                                deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, 
-                                deriv.∂ʸᶻU₀)
+    initialize_basic_state!(
+            bs,
+            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
+            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
+            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
+            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
+        )
 
     return bs
 end
@@ -245,7 +253,7 @@ function generalized_EigValProb(prob, grid, params)
 
     ## allocating memory for the LHS and RHS matrices
     labels  = [:w, :ζ, :b]  # eigenfunction labels
-    GEVPMat = GEVPMatrices(ComplexF64, Float64, N; nblocks=4, labels=labels)
+    GEVPMat = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
 
     ## the horizontal Laplacian operator
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
@@ -321,7 +329,7 @@ nothing #hide
 # ### Define the eigenvalue solver
 function EigSolver(prob, grid, params)
 
-    A, B = construct_matrices(prob, grid, params)
+    A, B = generalized_EigValProb(prob, grid, params)
 
     if params.method == "shift_invert"
         λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
@@ -346,7 +354,7 @@ end
 nothing #hide
 
 # ### Solving the Stone problem
-function solve_Stone1971(prob, grid, params, k::Float64=0.0)
+function solve_Stone1971(prob, grid, params, k::Float64)
 
     params.k = k
 

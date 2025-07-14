@@ -22,7 +22,7 @@ unwrapvec(v) = v
 
 #if VERSION < v"1.9"
 stack(f, itr) = mapreduce(f, hcat, itr)
-stack(itr) = reduce(hcat, itr)
+stack(itr)    = reduce(hcat, itr)
 #end
 
 struct ShiftAndInvert{TA,TB,TT}
@@ -44,7 +44,7 @@ end
 function nearestval_idx(a, x)
     idx::Int = 0
     for it in eachindex(a)
-        if a[it] == x?
+        if a[it] == x
             idx = it
         end
     end
@@ -73,7 +73,13 @@ function Eigs_Krylov(
                             krylovdim=krylovdim, 
                             verbosity=0)
 
-    λ = which == :LR ? @. 1.0 / λinv + σ : @. 1.0 / λinv
+    # λ = which == :LR ? @. 1.0 / λinv + σ :@. 1.0 / λinv
+
+    if which == :LR
+        λ = @. 1.0 / λinv + σ
+    else
+        λ = @. 1.0 / λinv
+    end
 
     return λ, stack(unwrapvec, Χ)
 end

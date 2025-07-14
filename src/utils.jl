@@ -141,14 +141,21 @@ function remove_spurious(λₛ, X)
     return λₛ, X₁
 end
 
-function inverse_Lap_hor(∇ₕ²)
-    Qm, Rm = qr(∇ₕ²)
-    invR   = inv(Rm) 
-    # by sparsing the matrix speeds up matrix-matrix multiplication 
-    Qm     = sparse(Qm) 
-    Qᵀ     = transpose(Qm)
-    H      = (invR * Qᵀ)
-    return H
+# function inverse_Lap_hor(∇ₕ²)
+#     Qm, Rm = qr(∇ₕ²)
+#     invR   = inv(Rm) 
+#     # by sparsing the matrix speeds up matrix-matrix multiplication 
+#     Qm     = sparse(Qm) 
+#     Qᵀ     = transpose(Qm)
+#     H      = (invR * Qᵀ)
+#     return H
+# end
+
+function inverse_Lap_hor(∇ₕ²::SparseMatrixCSC)
+    F = qr(∇ₕ²)
+    Qm = Matrix(F.Q)
+    H  = F.R \ transpose(Qm)
+    return sparse(H)
 end
 
 struct InverseLaplace{T}

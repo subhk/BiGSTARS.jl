@@ -15,8 +15,13 @@ function compute_first_derivatives_fourier(U₀::Matrix{T},
                                             B₀::Matrix{T}, 
                                             y::AbstractVector{T}) where T
 
-    ∂ʸU₀ = gradient(U₀, y, dims=2)
-    ∂ʸB₀ = gradient(B₀, y, dims=2)
+    if size(U₀)[1] == length(y)
+        ∂ʸU₀ = gradient(U₀, y, dims=1)
+        ∂ʸB₀ = gradient(B₀, y, dims=1)
+    else
+        ∂ʸU₀ = gradient(U₀, y, dims=2)
+        ∂ʸB₀ = gradient(B₀, y, dims=2)
+    end
 
     return ∂ʸU₀, ∂ʸB₀
 end
@@ -31,8 +36,13 @@ function compute_second_derivatives_fourier(U₀::Matrix{T},
                                             B₀::Matrix{T}, 
                                             y::AbstractVector{T}) where T
 
-    ∂ʸU₀ = gradient2(U₀, y, dims=2)
-    ∂ʸB₀ = gradient2(B₀, y, dims=2)
+    if size(U₀)[1] == length(y)
+        ∂ʸU₀ = gradient2(U₀, y, dims=1)
+        ∂ʸB₀ = gradient2(B₀, y, dims=1)
+    else
+        ∂ʸU₀ = gradient2(U₀, y, dims=2)
+        ∂ʸB₀ = gradient2(B₀, y, dims=2)
+    end
 
     return ∂ʸU₀, ∂ʸB₀
 end
@@ -45,26 +55,46 @@ Returns: ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀
 """
 function compute_first_derivatives_chebyshev(U₀::Matrix{T}, 
                                             B₀::Matrix{T}, 
+                                            y::AbstractVector{T},
                                             Dᶻ::AbstractMatrix{T}) where T
 
     ∂ᶻU₀ = similar(U₀)
     ∂ᶻB₀ = similar(U₀)
 
-    mul!(∂ᶻU₀, Dᶻ, U₀)
-    mul!(∂ᶻB₀, Dᶻ, B₀)
+    if size(U₀)[1] == length(y)
+        for it in 1:length(y)
+            ∂ᶻU₀[it,:] = Dᶻ * U₀[it,:]
+            ∂ᶻB₀[it,:] = Dᶻ * B₀[it,:]
+        end
+    else
+        for it in 1:length(y)
+            ∂ᶻU₀[:,it] = Dᶻ * U₀[:,it]
+            ∂ᶻB₀[:,it] = Dᶻ * B₀[:,it]
+        end
+    end
 
     return ∂ᶻU₀, ∂ᶻB₀
 end
 
-function compute_cross_derivative(∂ʸU₀::Matrix{T}, 
+function compute_cross_derivatives(∂ʸU₀::Matrix{T}, 
                                   ∂ʸB₀::Matrix{T}, 
+                                  y::AbstractVector{T},
                                   Dᶻ::AbstractMatrix{T}) where T
 
     ∂ʸᶻU₀ = similar(∂ʸU₀)
-    ∂ʸᶻB₀ = similar(∂ʸᶻB₀)
+    ∂ʸᶻB₀ = similar(∂ʸU₀)
 
-    mul!(∂ʸᶻU₀, Dᶻ, ∂ʸU₀)
-    mul!(∂ʸᶻB₀, Dᶻ, ∂ʸB₀)
+    if size(∂ʸU₀)[1] == length(y)
+        for it in 1:length(y)
+            ∂ʸᶻU₀[it,:] = Dᶻ * ∂ʸU₀[it,:]
+            ∂ʸᶻB₀[it,:] = Dᶻ * ∂ʸB₀[it,:]
+        end
+    else
+        for it in 1:length(y)
+            ∂ʸᶻU₀[:,it] = Dᶻ * ∂ʸU₀[:,it]
+            ∂ʸᶻB₀[:,it] = Dᶻ * ∂ʸB₀[:,it]
+        end
+    end
 
     return ∂ʸᶻU₀, ∂ʸᶻB₀
 end
@@ -77,13 +107,23 @@ Returns: ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀
 """
 function compute_second_derivatives_chebyshev(U₀::Matrix{T}, 
                                             B₀::Matrix{T}, 
+                                            y::AbstractVector{T},
                                             D²ᶻ::AbstractMatrix{T}) where T
 
     ∂ᶻᶻU₀ = similar(U₀)
     ∂ᶻᶻB₀ = similar(U₀)
 
-    mul!(∂ᶻᶻU₀, D²ᶻ, U₀)
-    mul!(∂ᶻᶻB₀, D²ᶻ, B₀)
+    if size(U₀)[1] == length(y)
+        for it in 1:length(y)
+            ∂ᶻᶻU₀[it,:] = D²ᶻ * U₀[it,:]
+            ∂ᶻᶻB₀[it,:] = D²ᶻ * B₀[it,:]
+        end
+    else
+        for it in 1:length(y)
+            ∂ᶻᶻU₀[:,it] = D²ᶻ * U₀[:,it]
+            ∂ᶻᶻB₀[:,it] = D²ᶻ * B₀[:,it]
+        end
+    end
 
     return ∂ᶻᶻU₀, ∂ᶻᶻB₀
 end
@@ -121,13 +161,13 @@ function compute_derivatives(U₀::Matrix{T},
                             gridtype::Symbol) where T
 
     if gridtype == :Fourier
-        return compute_derivatives(U₀, B₀, y, Dᶻ,   Val(:Fourier))
+        return compute_derivatives(U₀, B₀, y, Dᶻ,      Val(:Fourier) )
 
     elseif gridtype == :Chebyshev
-        return compute_derivatives(U₀, B₀, Dᶻ, D²ᶻ, Val(:Chebyshev))
+        return compute_derivatives(U₀, B₀, y, Dᶻ, D²ᶻ, Val(:Chebyshev))
     
     elseif gridtype == :All
-        return compute_derivatives(U₀, B₀, y_or_Dy, Dz, Dzz, Val(:All))
+        return compute_derivatives(U₀, B₀, y, Dᶻ, D²ᶻ, Val(:All)      )
 
     else
         error("Unsupported grid type: $gridtype")
@@ -147,11 +187,11 @@ function compute_derivatives(U₀::Matrix{T},
                             D²ᶻ::AbstractMatrix{T}, 
                             ::Val{:All}) where T
 
-    ∂ʸU₀, ∂ʸB₀     = compute_first_derivatives_fourier(U₀, B₀, y)
-    ∂ʸʸU₀, ∂ʸʸB₀   = compute_second_derivatives_fourier(U₀, B₀, y)
-    ∂ᶻU₀, ∂ᶻB₀     = compute_first_derivatives_chebyshev(U₀, B₀, Dᶻ)
-    ∂ᶻᶻU₀, ∂ᶻᶻB₀   = compute_second_derivatives_chebyshev(U₀, B₀, D²ᶻ)
-    ∂ʸᶻU₀, ∂ʸᶻB₀   = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, Dᶻ)
+    ∂ʸU₀, ∂ʸB₀     = compute_first_derivatives_fourier(   U₀, B₀, y     )
+    ∂ʸʸU₀, ∂ʸʸB₀   = compute_second_derivatives_fourier(  U₀, B₀, y     )
+    ∂ᶻU₀, ∂ᶻB₀     = compute_first_derivatives_chebyshev( U₀, B₀, y, Dᶻ )
+    ∂ᶻᶻU₀, ∂ᶻᶻB₀   = compute_second_derivatives_chebyshev(U₀, B₀, y, D²ᶻ)
+    ∂ʸᶻU₀, ∂ʸᶻB₀   = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, y, Dᶻ)
 
     return Derivatives{T}(
         ∂ʸU₀=∂ʸU₀, ∂ʸB₀=∂ʸB₀,
@@ -160,6 +200,7 @@ function compute_derivatives(U₀::Matrix{T},
         ∂ᶻᶻU₀=∂ᶻᶻU₀, ∂ᶻᶻB₀=∂ᶻᶻB₀,
         ∂ʸᶻU₀=∂ʸᶻU₀, ∂ʸᶻB₀=∂ʸᶻB₀
     )
+end
 
 function compute_derivatives(U₀::Matrix{T}, 
                             B₀::Matrix{T}, 
@@ -167,9 +208,9 @@ function compute_derivatives(U₀::Matrix{T},
                             Dᶻ::AbstractMatrix{T}, 
                             ::Val{:Fourier}) where T
 
-    ∂ʸU₀, ∂ʸB₀ = compute_first_derivatives_fourier(U₀, B₀, y)
+    ∂ʸU₀, ∂ʸB₀   = compute_first_derivatives_fourier(U₀, B₀, y)
     ∂ʸʸU₀, ∂ʸʸB₀ = compute_second_derivatives_fourier(U₀, B₀, y)
-    ∂ʸᶻU₀, ∂ʸᶻB₀ = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, Dᶻ)
+    ∂ʸᶻU₀, ∂ʸᶻB₀ = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, y, Dᶻ)
 
     return Derivatives{T}(
         ∂ʸU₀=∂ʸU₀, ∂ʸB₀=∂ʸB₀,
@@ -180,12 +221,13 @@ end
 
 function compute_derivatives(U₀::Matrix{T}, 
                             B₀::Matrix{T}, 
+                            y::AbstractVector{T},
                             Dᶻ::AbstractMatrix{T}, 
                             D²ᶻ::AbstractMatrix{T}, 
                             ::Val{:Chebyshev}) where T
 
-    ∂ᶻU₀, ∂ᶻB₀   = compute_first_derivatives_chebyshev(U₀, B₀, Dᶻ)
-    ∂ᶻᶻU₀, ∂ᶻᶻB₀ = compute_second_derivatives_chebyshev(U₀, B₀, D²ᶻ)
+    ∂ᶻU₀, ∂ᶻB₀   = compute_first_derivatives_chebyshev( U₀, B₀, y, Dᶻ)
+    ∂ᶻᶻU₀, ∂ᶻᶻB₀ = compute_second_derivatives_chebyshev(U₀, B₀, y, D²ᶻ)
 
     return Derivatives{T}(
         ∂ᶻU₀=∂ᶻU₀, ∂ᶻB₀=∂ᶻB₀,

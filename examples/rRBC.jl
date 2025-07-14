@@ -121,7 +121,7 @@
 # ```
 # where $I$ is the identity matrix.
 #
-# ### Load required packages
+# ## Load required packages
 using LazyGrids
 using LinearAlgebra
 using Printf
@@ -134,10 +134,13 @@ using Parameters
 using Test
 using BenchmarkTools
 
-using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM, SR
+using JLD2
+using ModelingToolkit
+using NonlinearSolve
 
-# ## Let's begin
 using BiGSTARS
+using BiGSTARS: AbstractParams
+using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 # ### Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
@@ -150,57 +153,36 @@ using BiGSTARS
     method::String   = "arnoldi"
 end
 nothing #hide
+params = Params{Float64}()
 
-# ### Define the grid and derivative operators
-@with_kw mutable struct TwoDimGrid{Ny, Nz} 
-    y = @SVector zeros(Float64, Ny)
-    z = @SVector zeros(Float64, Nz)
+# ### Construct grid and derivative operators
+grid  = TwoDGrid(params)
+
+
+# ### Define the basic state
+function basic_state(grid, params)
+    
+    Y, Z = ndgrid(grid.y, grid.z)
+    Y    = transpose(Y)
+    Z    = transpose(Z)
+
+    ## Define the basic state
+    B₀   = @. 1.0 * Z - 1.0    # temperature
+    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
+
+    ## Calculate all the necessary derivatives
+    derivs = compute_derivatives(U₀, B₀, y, grid.Dᶻ, grid.D²ᶻ, :All)
+
+    bs = initialize_basic_state_from_fields(B₀, U₀)
+
+    initialize_basic_state!(bs, deriv.∂ʸB₀, deriv.∂ᶻB₀, 
+                                deriv.∂ʸU₀, deriv.∂ᶻU₀, 
+                                deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, 
+                                deriv.∂ʸᶻU₀)
+
+    return bs
 end
-nothing #hide
 
-@with_kw mutable struct ChebMarix{Ny, Nz} 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-
-    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-
-    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-
-    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-end
-nothing #hide
-
-
-@with_kw mutable struct Operator{N}
-    ## `subperscript N' means Operator with Neumann boundary condition  
-    ## `subperscript D' means Operator with Dirchilet boundary condition 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟ʸᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ʸ²ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ʸ²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-end
-nothing #hide
 
 function construct_matrices(Op, params)
     N  = params.Ny * params.Nz

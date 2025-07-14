@@ -1,6 +1,6 @@
 #using LinearMaps
 
-using ArnoldiMethod: partialschur, partialeigen, LM, LR, LI, SM, SR, SI, Which
+using ArnoldiMethod: partialschur, partialeigen #, LM, LR, LI, SR, SI
 
 # # --- Shift-and-invert operator ---
 # struct ShiftAndInvert{TA,TB,TT}
@@ -22,7 +22,7 @@ using ArnoldiMethod: partialschur, partialeigen, LM, LR, LI, SM, SR, SI, Which
 # --- Generalized Arnoldi eigensolver ---
 function Eigs_Arnoldi(𝓛, ℳ;
                       σ::Float64,
-                      which::Which=LR(),
+                      which=LR(),
                       nev::Int=1,
                       maxiter::Int=100,
                       tol::Float64=1e-12)
@@ -45,7 +45,7 @@ end
 # --- Retry wrapper with adaptive σ and convergence checking ---
 function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         σ₀::Float64,
-                                        which::Which=LR(),
+                                        which=LR(),
                                         nev::Int=1,
                                         maxiter::Int=100,
                                         n_tries::Int=8,
