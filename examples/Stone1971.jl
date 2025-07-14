@@ -190,18 +190,18 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 # ### Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 2π         # horizontal domain size
-    H::T                = 1.0          # vertical domain size
-    Ri::T               = 1.0          # the Richardson number 
-    ε::T                = 0.1          # aspect ratio ε ≡ H/L
-    k::T                = 0.1          # along-front wavenumber
-    E::T                = 1.0e-9       # the Ekman number 
-    Ny::Int64           = 80           # no. of y-grid points
-    Nz::Int64           = 20           # no. of z-grid points
-    w_bc::String        = "rigid_lid"  # boundary condition for vertical velocity
-    ζ_bc::String        = "free_slip"  # boundary condition for vertical vorticity
+    L::T                = 1.0           # horizontal domain size
+    H::T                = 1.0           # vertical domain size
+    Ri::T               = 1.0           # the Richardson number 
+    ε::T                = 0.1           # aspect ratio ε ≡ H/L
+    k::T                = 0.1           # along-front wavenumber
+    E::T                = 1.0e-9        # the Ekman number 
+    Ny::Int64           = 40            # no. of y-grid points
+    Nz::Int64           = 20            # no. of z-grid points
+    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
+    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
-    eig_solver::String  = "krylov"     # eigenvalue solver
+    eig_solver::String  = "krylov"      # eigenvalue solver
 end
 nothing #hide
 params = Params{Float64}()
@@ -275,7 +275,7 @@ function generalized_EigValProb(prob, grid, params)
     ## --------------------------------------------------------
     labels  = [:w, :ζ, :b]  # eigenfunction labels
     gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
-    
+
 
     ## Construct the matrix `A`
     ## ----------------------------------------------------------------------
