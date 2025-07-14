@@ -212,7 +212,7 @@ params = Params{Float64}()
 grid  = TwoDGrid(params)
 
 # ### Define the basic state
-function basic_state(params, grid)
+function basic_state(grid, params)
     ## Define the basic state
     B₀   = @. params.Ri * grid.z - grid.y     # buoyancy
     U₀   = @. 1.0 * grid.z - 0.5 * params.H   # along-front velocity
@@ -235,9 +235,9 @@ ops  = OperatorI(params)
 prob = Problem(grid, ops, params)
 
 # ### Constructing GEVP
-function generalized_EigValProb(Op, mf, grid, params)
+function generalized_EigValProb(prob, grid, params)
 
-    bs = basic_state(params, grid)
+    bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
@@ -319,9 +319,9 @@ nothing #hide
 
 
 # ### Define the eigenvalue solver
-function EigSolver(Op, mf, grid, params, σ₀)
+function EigSolver(prob, grid, params)
 
-    A, B = construct_matrices(Op, mf, grid, params)
+    A, B = construct_matrices(prob, grid, params)
 
     if params.method == "shift_invert"
         λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
@@ -346,18 +346,14 @@ end
 nothing #hide
 
 # ### Solving the Stone problem
-function solve_Stone1971(k::Float64=0.0)
+function solve_Stone1971(prob, grid, params, k::Float64=0.0)
 
-    Op          = Operator{params.Ny * params.Nz}()
-    mf          = MeanFlow{params.Ny * params.Nz}()
-
-    Construct_DerivativeOperator!(diffMatrix, grid, params)
-    ImplementBCs_cheb!(Op, diffMatrix, params)
+    params.k = k
 
     σ₀   = 0.02 # initial guess for the growth rate
     params.k = k
 
-    λ, Χ = EigSolver(Op, mf, grid, params, σ₀)
+    λ, Χ = EigSolver(prob, grid, params)
 
     ## Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
@@ -371,5 +367,5 @@ end
 nothing #hide
 
 # ## Result
-solve_Stone1971(0.1) # growth rate is at k=0.1  
+solve_Stone1971(prob, grid, params, 0.1) # growth rate is at k=0.1  
 nothing #hide
