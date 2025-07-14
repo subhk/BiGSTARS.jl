@@ -14,7 +14,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
      include("Stone1971.jl")
 
      @test solve_Stone1971(0.1)
- end
+end
 
 # @testset "rotating RBC" begin
 
