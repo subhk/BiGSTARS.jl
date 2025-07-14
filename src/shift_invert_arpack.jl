@@ -81,7 +81,7 @@ function solver_shift_invert_arpack(𝓛, ℳ;
 
             if λ_prev !== nothing && abs(λ[1] - λ_prev) < ϵ
                 @printf(" ✓ converged by Δλ = %.2e < %.2e\n", abs(λ[1] - λ_prev), ϵ)
-                return λ, Χ, σ
+                return λ, Χ #, σ
             end
 
             λ_prev = λ[1]

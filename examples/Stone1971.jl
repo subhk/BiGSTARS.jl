@@ -334,18 +334,18 @@ nothing #hide
 # ### Define the eigenvalue solver
 function EigSolver(Op, mf, grid, params, σ₀)
 
-    𝓛, ℳ = construct_matrices(Op, mf, grid, params)
+    A, B = construct_matrices(Op, mf, grid, params)
 
     if params.method == "shift_invert"
-        λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.method == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(𝓛, ℳ; σ₀=σ₀, which=:LR)
-        
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR)
+
     elseif params.method == "arnoldi"
 
-        λₛ, Χ = solve_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
@@ -354,7 +354,7 @@ function EigSolver(Op, mf, grid, params, σ₀)
 
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
-    return λ[1] #, Χ[:,1]
+    return λ[1], Χ[:,1]
 end
 nothing #hide
 
@@ -369,16 +369,16 @@ function solve_Stone1971(k::Float64=0.0)
 
     σ₀   = 0.02 # initial guess for the growth rate
     params.k = k
-    
-    λₛ = EigSolver(Op, mf, grid, params, σ₀)
+
+    λ, Χ = EigSolver(Op, mf, grid, params, σ₀)
 
     ## Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
-    λₛₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
+    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
 
-    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₛₜ
+    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
-    return abs(λₛ.re - λₛₜ) < 1e-3
+    return abs(λ.re - λₜ) < 1e-3
 
 end
 nothing #hide
