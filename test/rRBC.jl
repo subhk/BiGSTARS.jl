@@ -27,7 +27,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 
 # ### Define the parameters
-@with_kw mutable struct Params{T} <: AbstractParams
+@with_kw struct Params{T} <: AbstractParams
     L::T                = 2π      # horizontal domain size
     H::T                = 1.0       # vertical   domain size
     E::T                = 1.0e-4    # inverse of Reynolds number 
@@ -218,10 +218,10 @@ function solve_rRBC(k::Float64)
     ops  = OperatorI(params)
     prob = Problem(grid, ops, params)
 
-    params.k = k
+    ## update the wavenumber
+    params = Params(p; k = k)
 
     σ₀   = 0.0 # initial guess for the growth rate
-    params.k = k
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
