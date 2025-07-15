@@ -60,10 +60,12 @@ function Eigs_Krylov(
                     krylovdim::Int = 100,
                     sortby::Symbol = :M)
 
-    # Construct operator
-    op = which in (:LR, :SR) ? construct_linear_map(𝓛 - σ*ℳ, ℳ) :
-         which in (:LM, :SM) ? construct_linear_map(𝓛, ℳ) :
-         throw(ArgumentError("Unsupported `which`: $which"))
+    op = construct_linear_map(𝓛 - σ * ℳ, ℳ)
+
+    # # Construct operator
+    # op = which in (:LR, :SR) ? construct_linear_map(𝓛 - σ*ℳ, ℳ) :
+    #      which in (:LM, :SM) ? construct_linear_map(𝓛, ℳ) :
+    #      throw(ArgumentError("Unsupported `which`: $which"))
 
     λinv, Χ, info = eigsolve(op, 
                             rand(ComplexF64, size(𝓛,1)), 
@@ -96,8 +98,7 @@ function solve_shift_invert_krylov(
                     n_tries::Int = 8,
                     Δσ₀::Float64 = 0.2,
                     incre::Float64 = 1.2,
-                    ϵ::Float64 = 1e-7,
-    )
+                    ϵ::Float64 = 1e-5,)
 
     Δσs_up = [ Δσ₀ * incre^(i-1) * abs(σ₀) for i in 1:n_tries ]
     Δσs_dn = [-δ for δ in Δσs_up]
@@ -128,7 +129,7 @@ function solve_shift_invert_krylov(
 
             λ_prev = λ[1]
         catch err
-            @warn "Failure at σ = $σ: $(err.msg)"
+            @warn "Failure at σ = $σ: $err"
         end
     end
 

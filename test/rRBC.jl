@@ -32,7 +32,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     H::T                = 1.0       # vertical   domain size
     E::T                = 1.0e-4    # inverse of Reynolds number 
     k::T                = 0.0       # x-wavenumber
-    Ny::Int64           = 240       # no. of y-grid points
+    Ny::Int64           = 120       # no. of y-grid points
     Nz::Int64           = 30        # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
@@ -166,22 +166,40 @@ function EigSolver(prob, grid, params, σ₀)
 
     if params.eig_solver == "arpack"
 
-        λ, Χ = solve_shift_invert_arpack(A, B; σ₀=σ₀, which=:LM, sortby=:R)
+        λ, Χ = solve_shift_invert_arpack(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R, 
+                                        nev = 10,
+                                        maxiter=100)
 
     elseif params.eig_solver == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LM, sortby=:R)
+        λ, Χ = solve_shift_invert_krylov(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R, 
+                                        maxiter=100)
 
     elseif params.eig_solver == "arnoldi"
 
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LM, sortby=:R)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R,
+                                        nev = 10, 
+                                        maxiter=100)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
 
     @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
-    print_evals(λ)
+    ## looking for min Ra 
+    λ, Χ = remove_evals(λ, Χ, 0.0, 1.0e15, "R")
+    λ, Χ = sort_evals_(λ, Χ, :R, rev=false)
+
+    print_evals(complex.(λ))
 
     return λ[1], Χ[:,1]
 end
@@ -209,9 +227,9 @@ function solve_rRBC(k::Float64)
 
     # Theoretical results from Chandrashekar (1961)
     λₜ = 189.7 
-    @printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
+    @printf "Analytical solution of critical Ra: %1.4e \n" λₜ 
 
-    return abs(real(λₛ) - λₜ)/λₜ < 1e-4
+    return abs(real(λ) - λₜ)/λₜ < 1e-4
 
 end
 nothing #hide

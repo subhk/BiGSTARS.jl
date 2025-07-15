@@ -65,7 +65,7 @@ function solve_shift_invert_arpack(𝓛, ℳ;
                         n_tries::Int = 8,
                         Δσ₀::Float64 = 0.2,
                         incre::Float64 = 1.2,
-                        ϵ::Float64 = 1e-7
+                        ϵ::Float64 = 1e-5
         )
 
     # Δσ_up = [Δσ₀ * incre^(i-1) * abs(σ₀) for i in 1:n_tries]
@@ -90,7 +90,7 @@ function solve_shift_invert_arpack(𝓛, ℳ;
 
             λ_prev = λ[1]
         catch err
-            @warn "ARPACK failed at σ = $σ: $(err.msg)"
+            @warn "ARPACK failed at σ = $σ: $err"
         end
     end
 

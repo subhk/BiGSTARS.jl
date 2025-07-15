@@ -51,7 +51,7 @@ Pretty-print the top `n` eigenvalues from the list `λs`, optionally sorted by `
 """
 function print_evals(λs::Vector{<:Complex})
     n = length(λs) 
-    λs_sorted = sort(λs, by=abs, rev=true)
+    λs_sorted = λs #sort(λs, by=abs, rev=true)
     println("Top $n eigenvalues (sorted):")
     println("Idx │ Real Part     Imag Part")
     println("────┼──────────────────────────────")
@@ -61,35 +61,6 @@ function print_evals(λs::Vector{<:Complex})
     end
 end
 
-
-# # sort the eigenvalues
-# function sort_evals(λs, χ, which, sorting="lm")
-#     @assert which ∈ ["M", "I", "R"]
-
-#     if sorting == "lm"
-#         if which == "I"
-#             idx = sortperm(λs, by=imag, rev=true) 
-#         end
-#         if which == "R"
-#             idx = sortperm(λs, by=real, rev=true) 
-#         end
-#         if which == "M"
-#             idx = sortperm(λs, by=abs, rev=true) 
-#         end
-#     else
-#         if which == "I"
-#             idx = sortperm(λs, by=imag, rev=false) 
-#         end
-#         if which == "R"
-#             idx = sortperm(λs, by=real, rev=false) 
-#         end
-#         if which == "M"
-#             idx = sortperm(λs, by=abs, rev=false) 
-#         end
-#     end
-
-#     return λs[idx], χ[:,idx]
-# end
 
 """
     λs_sorted, χ_sorted = sort_evals(λs, χ, "R"; sorting="lm")
