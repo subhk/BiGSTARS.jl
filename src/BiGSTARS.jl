@@ -97,6 +97,9 @@ module BiGSTARS
     "Abstract supertype for parameters."
     abstract type AbstractParams end
 
+    # export it so tests and users can see it
+    export AbstractParams
+
     include("dmsuite.jl")
     include("transforms.jl")
     include("shift_invert_arnoldi.jl")

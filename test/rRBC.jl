@@ -20,6 +20,7 @@ using Test
 using BenchmarkTools
 
 using JLD2
+using Parameters: @with_kw
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
@@ -27,12 +28,12 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 
 # ### Define the parameters
-@with_kw struct Params{T} <: AbstractParams
+@with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 2π      # horizontal domain size
     H::T                = 1.0       # vertical   domain size
     E::T                = 1.0e-4    # inverse of Reynolds number 
     k::T                = 0.0       # x-wavenumber
-    Ny::Int64           = 120       # no. of y-grid points
+    Ny::Int64           = 150       # no. of y-grid points
     Nz::Int64           = 30        # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
@@ -219,7 +220,7 @@ function solve_rRBC(k::Float64)
     prob = Problem(grid, ops, params)
 
     ## update the wavenumber
-    params = Params(p; k = k)
+    params.k = k
 
     σ₀   = 0.0 # initial guess for the growth rate
 
