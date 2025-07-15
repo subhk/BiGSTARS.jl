@@ -196,8 +196,8 @@ function EigSolver(prob, grid, params, σ₀)
     @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     ## looking for min Ra 
-    λ, Χ = remove_evals(λ, Χ, 0.0, 1.0e15, "R")
-    λ, Χ = sort_evals_(λ, Χ, :R, rev=false)
+    λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")
+    λ, Χ = sort_evals_(λ, Χ,  :R, rev=false)
 
     print_evals(complex.(λ))
 
