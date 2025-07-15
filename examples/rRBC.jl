@@ -139,7 +139,7 @@ using Parameters: @with_kw
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
+using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 # ### Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
