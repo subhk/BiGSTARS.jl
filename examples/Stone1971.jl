@@ -204,8 +204,6 @@ end
 nothing #hide
 params = Params{Float64}()
 
-# ### Construct grid and derivative operators
-grid  = TwoDGrid(params)
 
 # ### Define the basic state
 function basic_state(grid, params)
@@ -234,10 +232,6 @@ function basic_state(grid, params)
     return bs
 end
 
-# ### Construct the necesary operator
-ops  = OperatorI(params)
-prob = Problem(grid, ops, params)
-
 # ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
@@ -254,7 +248,6 @@ function generalized_EigValProb(prob, grid, params)
 
     ## inverse of the horizontal Laplacian operator
     H = inverse_Lap_hor(∇ₕ²)
-    #@assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-2 "difference in L2-norm should be small"
 
     ## Construct the 4th order derivative
     D⁴  = (1.0 * prob.D⁴ʸ 
@@ -354,12 +347,20 @@ end
 nothing #hide
 
 # ### Solving the Stone problem
-function solve_Stone1971(prob, grid, params, k::Float64)
+function solve_Stone1971(k::Float64)
 
+    ## Construct grid and derivative operators
+    grid  = TwoDGrid(params)
+
+    ## Construct the necesary operator
+    ops  = OperatorI(params)
+    prob = Problem(grid, ops, params)
+
+    ## update the wavenumber
     params.k = k
 
-    σ₀   = 0.02 # initial guess for the growth rate
-    params.k = k
+    ## initial guess for the growth rate
+    σ₀   = 0.02 
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
@@ -374,6 +375,6 @@ function solve_Stone1971(prob, grid, params, k::Float64)
 end
 nothing #hide
 
-# ## Result
-solve_Stone1971(prob, grid, params, 0.1) # growth rate is at k=0.1  
+# ### Result
+solve_Stone1971(0.1) # growth rate is at k=0.1  
 nothing #hide
