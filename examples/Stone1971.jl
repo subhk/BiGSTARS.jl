@@ -268,9 +268,9 @@ function generalized_EigValProb(prob, grid, params)
     D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    ## ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
@@ -309,17 +309,17 @@ function generalized_EigValProb(prob, grid, params)
         )
     )
 
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in beautiful line
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 2) Assemble in beautiful line
+    ## ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 3) And now you have exactly:
-    #    gevp.A, gevp.B                    → full sparse matrices
-    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view of matrix A
-    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b   → each block-row view of matrix B
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 3) And now you have exactly:
+    ##    gevp.A, gevp.B                    → full sparse matrices
+    ##    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view of matrix A
+    ##    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b   → each block-row view of matrix B
+    ## ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
 end

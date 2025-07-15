@@ -173,7 +173,7 @@ function basic_state(grid, params)
     U₀   = @. 0.0 * Z       # velocity
 
     ## Calculate all the necessary derivatives
-    derivs = compute_derivatives(U₀, B₀, y, grid.Dᶻ, grid.D²ᶻ, :All)
+    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
 
     bs = initialize_basic_state_from_fields(B₀, U₀)
 
@@ -223,9 +223,9 @@ function generalized_EigValProb(prob, grid, params)
     Dₙ² = (1.0  * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
     ## Construct the matrix `A`
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    ## ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: ED⁴ -Dᶻ zero
@@ -264,18 +264,18 @@ function generalized_EigValProb(prob, grid, params)
         )
     )
 
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in beautiful line
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 2) Assemble in beautiful line
+    ## ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
 
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 3) And now you have exactly:
-    #    gevp.A, gevp.B                    → full sparse matrices
-    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
-    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
-    # ──────────────────────────────────────────────────────────────────────────────
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 3) And now you have exactly:
+    ##    gevp.A, gevp.B                    → full sparse matrices
+    ##    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    ##    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    ## ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
 end
@@ -338,7 +338,7 @@ function solve_rRBC(prob, grid, params, k::Float64)
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
-    # Theoretical results from Chandrashekar (1961)
+    ## Theoretical results from Chandrashekar (1961)
     λₜ = 189.7 
     @printf "Analytical solution of critical Ra: %1.4e \n" λₜ 
 
