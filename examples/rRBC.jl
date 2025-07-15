@@ -157,8 +157,9 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 end
 nothing #hide
 
+
 # ### Define the basic state
-function basic_state(grid, params)
+function basic_state(grid, params::AbstractParams)
     
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
@@ -185,7 +186,7 @@ function basic_state(grid, params)
 end
 
 # ### Constructing Generalized EVP
-function generalized_EigValProb(prob, grid, params)
+function generalized_EigValProb(prob, grid, params::AbstractParams)
 
     bs = basic_state(grid, params)
 
@@ -274,7 +275,7 @@ nothing #hide
 
 
 # ### Define the eigenvalue solver
-function EigSolver(prob, grid, params, σ₀)
+function EigSolver(prob, grid, params::AbstractParams, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
