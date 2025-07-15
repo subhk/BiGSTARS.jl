@@ -63,8 +63,8 @@ function solve_shift_invert_arpack(𝓛, ℳ;
                         nev::Int = 1,
                         maxiter::Int = 300,
                         n_tries::Int = 8,
-                        Δσ₀::Float64 = 0.1,
-                        incre::Float64 = 1.1,
+                        Δσ₀::Float64 = 0.2,
+                        incre::Float64 = 1.2,
                         ϵ::Float64 = 1e-7
         )
 

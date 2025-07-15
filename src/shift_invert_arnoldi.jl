@@ -49,8 +49,8 @@ function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         nev::Int=1,
                                         maxiter::Int=100,
                                         n_tries::Int=8,
-                                        Δσ₀::Float64=0.02,
-                                        incre::Float64=1.1,
+                                        Δσ₀::Float64=0.2,
+                                        incre::Float64=1.2,
                                         ϵ::Float64=1e-7)
 
     Δσs_up = [Δσ₀ * incre^(i-1) * abs(σ₀) for i in 1:n_tries]

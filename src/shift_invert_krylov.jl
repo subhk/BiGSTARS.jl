@@ -57,7 +57,7 @@ function Eigs_Krylov(
                     σ::Float64,
                     which::Symbol = :LR,
                     maxiter::Int = 200,
-                    krylovdim::Int = 400
+                    krylovdim::Int = 100
     )
 
     # Construct operator
@@ -72,8 +72,6 @@ function Eigs_Krylov(
                             maxiter=maxiter, 
                             krylovdim=krylovdim, 
                             verbosity=0)
-
-    # λ = which == :LR ? @. 1.0 / λinv + σ :@. 1.0 / λinv
 
     if which == :LR
         λ = @. 1.0 / λinv + σ
@@ -90,10 +88,10 @@ function solve_shift_invert_krylov(
                     σ₀::Float64,
                     which::Symbol = :LR,
                     maxiter::Int = 200,
-                    krylovdim::Int = 400,
+                    krylovdim::Int = 100,
                     n_tries::Int = 8,
-                    Δσ₀::Float64 = 0.1,
-                    incre::Float64 = 1.1,
+                    Δσ₀::Float64 = 0.2,
+                    incre::Float64 = 1.2,
                     ϵ::Float64 = 1e-7,
     )
 

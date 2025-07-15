@@ -200,7 +200,7 @@ using BiGSTARS: GEVPMatrices
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
-    eig_solver::String  = "krylov"      # eigenvalue solver
+    eig_solver::String  = "arpack"      # eigenvalue solver
 end
 nothing #hide
 params = Params{Float64}()
@@ -269,60 +269,57 @@ function generalized_EigValProb(prob, grid, params)
     D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    labels  = [:w, :ζ, :b]  # eigenfunction labels
-
     # ──────────────────────────────────────────────────────────────────────────────
     # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
     # ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse((-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
-                sparse(prob.Dᶻᴺ),
-                sparse(-∇ₕ²)
-            ),
+                sparse(complex.(-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(complex.(prob.Dᶻᴺ)),
+                sparse(complex.(-∇ₕ²))
+        ),
         ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
-        sparse(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ),
-        sparse(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²),
-        spzeros(ComplexF64, s₁, s₂)
-            ),
+                sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
+                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+                spzeros(ComplexF64, s₁, s₂)
+        ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-        sparse(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ),
-        sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
-        sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
+                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
+                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
         )
     )
 
     ## Construct the matrix `A`
     Bblocks = (
         w = (  # w-equation mass: [–ε²∂²], zero, zero
-            sparse(-params.ε^2 * D²),
-            spzeros(Float64, s₁, s₂),
-            spzeros(Float64, s₁, s₂)
-            ),
+                sparse(-params.ε^2 * D²),
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂)
+        ),
         ζ = (  # ζ-equation mass: zero, [–I], zero
-            spzeros(Float64, s₁, s₂),
-            sparse(-I⁰),
-            spzeros(Float64, s₁, s₂)
-            ),
+                spzeros(Float64, s₁, s₂),
+                sparse(-I⁰),
+                spzeros(Float64, s₁, s₂)
+        ),
         b = (  # b-equation mass: zero, zero, [–I]
-            spzeros(Float64, s₁, s₂),
-            spzeros(Float64, s₁, s₂),
-            sparse(-I⁰)
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                sparse(-I⁰)
         )
     )
 
     # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in one beautiful line
+    # 2) Assemble in beautiful line
     # ──────────────────────────────────────────────────────────────────────────────
-    gevp = GEVPMatrices(ComplexF64, Float64, Ablocks, Bblocks; labels=labels)
-
+    gevp = GEVPMatrices(Ablocks, Bblocks)
 
     # ──────────────────────────────────────────────────────────────────────────────
     # 3) And now you have exactly:
-    #        gevp.A, gevp.B                    → full sparse matrices
-    #        gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
-    #        gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    #    gevp.A, gevp.B                    → full sparse matrices
+    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view of matrix A
+    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b   → each block-row view of matrix B
     # ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
