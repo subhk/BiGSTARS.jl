@@ -143,21 +143,23 @@ using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
 
 # ### Define the parameters
-@with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 2π          # horizontal domain size
-    H::T        = 1.0         # vertical domain size
-    k::T        = 0.0         # x-wavenumber
-    E::T        = 1.0e-4      # Ekman number 
-    Ny::Int64   = 280         # no. of y-grid points
-    Nz::Int64   = 18          # no. of z-grid points
-    method::String   = "arnoldi"
+@with_kw mutable struct Params{T} <: AbstractParams
+    L::T                = 2π            # horizontal domain size
+    H::T                = 1.0           # vertical   domain size
+    E::T                = 1.0e-4        # inverse of Reynolds number 
+    k::T                = 0.0           # x-wavenumber
+    Ny::Int64           = 120           # no. of y-grid points
+    Nz::Int64           = 30            # no. of Chebyshev points
+    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
+    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
+    b_bc::String        = "fixed"        # boundary condition for temperature
+    eig_solver::String  = "arnoldi"      # eigenvalue solver
 end
 nothing #hide
 params = Params{Float64}()
 
 # ### Construct grid and derivative operators
 grid  = TwoDGrid(params)
-
 
 # ### Define the basic state
 function basic_state(grid, params)
@@ -167,142 +169,185 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. 1.0 * Z - 1.0    # temperature
-    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
+    B₀   = @. Z - params.H  # temperature
+    U₀   = @. 0.0 * Z       # velocity
 
     ## Calculate all the necessary derivatives
     derivs = compute_derivatives(U₀, B₀, y, grid.Dᶻ, grid.D²ᶻ, :All)
 
     bs = initialize_basic_state_from_fields(B₀, U₀)
 
-    initialize_basic_state!(bs, deriv.∂ʸB₀, deriv.∂ᶻB₀, 
-                                deriv.∂ʸU₀, deriv.∂ᶻU₀, 
-                                deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, 
-                                deriv.∂ʸᶻU₀)
+    initialize_basic_state!(
+            bs,
+            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
+            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
+            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
+            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
+        )
 
     return bs
 end
 
+# ### Construct the necesary operator
+ops  = OperatorI(params)
+prob = Problem(grid, ops, params)
 
-function construct_matrices(Op, params)
+# ### Constructing Generalized EVP
+function generalized_EigValProb(prob, grid, params)
+
+    bs = basic_state(grid, params)
+
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N)) #Eye{Float64}(N)
-    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
+    I⁰ = sparse(Matrix(1.0I, N, N)) 
+    s₁ = size(I⁰, 1); 
+    s₂ = size(I⁰, 2);
 
-    ## allocating memory for the LHS and RHS matrices
-    𝓛₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    𝓛₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    𝓛₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-
-    ℳ₁ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    ℳ₂ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-    ℳ₃ = SparseMatrixCSC(Zeros{Float64}(s₁, 3s₂))
-
-    @printf "Start constructing matrices \n"
-    ## -------------------- construct matrix  ------------------------
-    ## lhs of the matrix (size := 3 × 3)
-    ## eigenvectors: [uᶻ ωᶻ θ]ᵀ
-
+    ## the horizontal Laplacian operator
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
+    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
-    D⁴ = (1.0 * Op.𝒟⁴ʸ + 1.0 * Op.𝒟⁴ᶻᴰ + 2.0 * Op.𝒟²ʸ²ᶻᴰ 
+    ## inverse of the horizontal Laplacian operator
+    H = inverse_Lap_hor(∇ₕ²)
+    #@assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-2 "difference in L2-norm should be small"
+
+    ## Construct the 4th order derivative
+    D⁴  = (1.0 * prob.D⁴ʸ 
+        + 1.0 * prob.D⁴ᶻᴰ 
         + 1.0 * params.k^4 * I⁰ 
-        - 2.0 * params.k^2 * Op.𝒟²ʸ 
-        - 2.0 * params.k^2 * Op.𝒟²ᶻᴰ)
+        - 2.0 * params.k^2 * prob.D²ʸ 
+        - 2.0 * params.k^2 * prob.D²ᶻᴰ
+        + 2.0 * prob.D²ʸ²ᶻᴰ)
+        
+    ## Construct the 2nd order derivative
+    D²  = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)
+    Dₙ² = (1.0  * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    D²  = 1.0 * Op.𝒟²ᶻᴰ + 1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰
-    Dₙ² = 1.0 * Op.𝒟²ᶻᴺ + 1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰
+    ## Construct the matrix `A`
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    # ──────────────────────────────────────────────────────────────────────────────
+    ## Construct the matrix `A`
+    Ablocks = (
+        w = (  # w-equation: ED⁴ -Dᶻ zero
+                sparse(params.E * D⁴),
+                sparse(-prob.Dᶻᴺ),
+                spzeros(Float64, s₁, s₂)
+        ),
+        ζ = (  # ζ-equation: Dᶻ ED² zero
+                sparse(prob.Dᶻᴰ),
+                sparse(params.E * Dₙ²),
+                spzeros(Float64, s₁, s₂)
+        ),
+        b = (  # b-equation: I zero D²
+                sparse(I⁰),
+                spzeros(Float64, s₁, s₂),
+                sparse(D²)
+        )
+    )
 
-    ## 1. uᶻ (vertical velocity) equation
-    𝓛₁[:,    1:1s₂] =  1.0 * params.E * D⁴ 
-    𝓛₁[:,1s₂+1:2s₂] = -1.0 * Op.𝒟ᶻᴺ
-    𝓛₁[:,2s₂+1:3s₂] =  0.0 * I⁰ 
+    ## Construct the matrix `B`
+    Bblocks = (
+        w = (  # w-equation: zero, zero -∇ₕ²
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                sparse(-∇ₕ²)
+        ),
+        ζ = (  # ζ-equation: zero, zero, zero
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂)
+        ),
+        b = (  # b-equation: zero, zero, zero
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂)
+        )
+    )
 
-    ## 2. ωᶻ (vertical vorticity) equation 
-    𝓛₂[:,    1:1s₂] = 1.0 * Op.𝒟ᶻᴰ
-    𝓛₂[:,1s₂+1:2s₂] = 1.0 * params.E * Dₙ²
-    𝓛₂[:,2s₂+1:3s₂] = 0.0 * I⁰        
-
-    ## 3. θ (temperature) equation 
-    𝓛₃[:,    1:1s₂] = 1.0 * I⁰ 
-    𝓛₃[:,1s₂+1:2s₂] = 0.0 * I⁰
-    𝓛₃[:,2s₂+1:3s₂] = 1.0 * D²     
-
-    𝓛 = ([𝓛₁; 𝓛₂; 𝓛₃]);
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 2) Assemble in beautiful line
+    # ──────────────────────────────────────────────────────────────────────────────
+    gevp = GEVPMatrices(Ablocks, Bblocks)
 
 
-    ℳ₁[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 3) And now you have exactly:
+    #    gevp.A, gevp.B                    → full sparse matrices
+    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    # ──────────────────────────────────────────────────────────────────────────────
 
-    ℳ = ([ℳ₁; ℳ₂; ℳ₃])
-
-    return 𝓛, ℳ
+    return gevp.A, gevp.B
 end
 nothing #hide
 
+
 # ### Define the eigenvalue solver
-function EigSolver(Op, params, σ₀)
+function EigSolver(prob, grid, params, σ₀)
 
-    𝓛, ℳ = construct_matrices(Op,  params)
-    
-    N = params.Ny * params.Nz 
-    MatrixSize = 3N
-    @assert size(𝓛, 1)  == MatrixSize && 
-            size(𝓛, 2)  == MatrixSize &&
-            size(ℳ, 1)  == MatrixSize &&
-            size(ℳ, 2)  == MatrixSize "matrix size does not match!"
+    A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.method == "shift_invert"
+    if params.eig_solver == "arpack"
 
-        λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
+        λ, Χ = solve_shift_invert_arpack(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R, 
+                                        nev = 10,
+                                        maxiter=100)
 
-    elseif params.method == "krylov"
+    elseif params.eig_solver == "krylov"
 
-         λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
+        λ, Χ = solve_shift_invert_krylov(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R, 
+                                        maxiter=100)
 
-    elseif params.method == "arnoldi"
+    elseif params.eig_solver == "arnoldi"
 
-        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, 
-                                            σ₀=0.0, 
-                                            maxiter=50000, 
-                                            which=LM())
-
-        λₛ, Χ = remove_evals(λₛ, Χ, 10.0, 1.0e15, "R")
-        λₛ, Χ = sort_evals(λₛ, Χ, "R", "")
-
+        λ, Χ = solve_shift_invert_arnoldi(A, B; 
+                                        σ₀=σ₀, 
+                                        which=:LM, 
+                                        sortby=:R,
+                                        nev = 10, 
+                                        maxiter=100)
     end
+    ## ======================================================================
+    @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "Obtained critical Ra: %f \n" real(λₛ[1]) 
+    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
-    return λₛ[1] #, Χ[:,1]
+    ## looking for min Ra 
+    λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")
+    λ, Χ = sort_evals_(λ, Χ,  :R, rev=false)
+
+    print_evals(complex.(λ))
+
+    return λ[1], Χ[:,1]
 end
 nothing #hide
 
 # ### solving the rRBC problem
-function solve_rRBC(k::Float64)
-    params      = Params{Float64}(k=0.5)
-    grid        = TwoDimGrid{params.Ny,  params.Nz}()
-    diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
-    Op          = Operator{params.Ny * params.Nz}()
-    Construct_DerivativeOperator!(diffMatrix, grid, params)
-    ImplementBCs_cheb!(Op, diffMatrix, params)
-    
-    σ₀   = 0.0
+function solve_rRBC(prob, grid, params, k::Float64)
+
     params.k = k
-    
-    λₛ = EigSolver(Op, params, σ₀)
 
-    ## Theoretical results from Chandrashekar (1961)
-    λₛₜ = 189.7 
+    σ₀   = 0.0 # initial guess for the growth rate
+    params.k = k
 
-    @printf "Analytical solution of critical Ra: %f \n" λₛₜ
+    λ, Χ = EigSolver(prob, grid, params, σ₀)
 
-    return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
-    
+    # Theoretical results from Chandrashekar (1961)
+    λₜ = 189.7 
+    @printf "Analytical solution of critical Ra: %1.4e \n" λₜ 
+
+    return abs(real(λ) - λₜ)/λₜ < 1e-4
+
 end
 nothing #hide
 
 
 # ## Result
-solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
+solve_rRBC(prob, grid, params, 0.0) # Critical Rayleigh number is at k=0.0
 nothing #hide

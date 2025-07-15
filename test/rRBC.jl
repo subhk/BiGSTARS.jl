@@ -206,7 +206,7 @@ end
 nothing #hide
 
 
-# ### Solving the Stone problem
+# ### Solving the rRBC problem
 function solve_rRBC(k::Float64)
 
     params = Params{Float64}()
