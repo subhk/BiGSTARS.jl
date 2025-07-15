@@ -110,6 +110,24 @@ function sort_evals(λs::AbstractVector, χ::AbstractMatrix, which::String; sort
 end
 
 
+
+"""
+    sort_evals_(λ, Χ, by::Symbol; rev::Bool)
+
+Sort eigenvalues `λ` and corresponding eigenvectors `Χ` by:
+- `:R` → real part
+- `:I` → imaginary part
+- `:M` → magnitude (abs)
+
+Set `rev=true` for descending (default), `false` for ascending.
+"""
+function sort_evals_(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
+    sortfun = by == :R ? real : by == :I ? imag : abs
+    idx = sortperm(λ, by=sortfun, rev=rev)
+    return λ[idx], Χ[:, idx]
+end
+
+
 function remove_evals(λs, χ, lower, higher, which)
     
     @assert which ∈ ["M", "I", "R"]

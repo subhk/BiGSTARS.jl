@@ -59,6 +59,7 @@ module BiGSTARS
        # some utility functions
        print_evals,
        sort_evals,
+       sort_evals_,
        remove_evals,
        remove_spurious,
        gradient,

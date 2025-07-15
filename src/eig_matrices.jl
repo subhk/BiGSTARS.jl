@@ -2,12 +2,12 @@
     GEVPMatrices(Ablocks::NamedTuple, Bblocks::NamedTuple)
 
     Parametric `GEVPMatrices{TA,TB}` struct with an inner constructor:
-        - Infers element types `TA<:Complex` and `TB<:Real` from the first blocks
+        - Infers element types `TA<:Number` and `TB<:Number` from the first blocks
         - Detects an n×m block grid and block size N
         - Assembles full sparse `A` and `B` via fast `kron`
         - Provides `.As` and `.Bs` NamedTuples of block-row views
 """
-struct GEVPMatrices{TA<:Complex, TB<:Real}
+struct GEVPMatrices{TA<:Number, TB<:Number}
     A  :: SparseMatrixCSC{TA,Int}
     B  :: SparseMatrixCSC{TB,Int}
     As :: NamedTuple
@@ -26,8 +26,8 @@ struct GEVPMatrices{TA<:Complex, TB<:Real}
         N = size(first_row[1], 1)
 
         # 2) Infer TA, TB
-        TA_inf = eltype(first_row[1]); @assert TA_inf <: Complex
-        TB_inf = eltype(Bblocks[row_labels[1]][1]); @assert TB_inf <: Real
+        TA_inf = eltype(first_row[1]); 
+        TB_inf = eltype(Bblocks[row_labels[1]][1]); 
 
         # 3) Allocate A, B
         A = spzeros(TA_inf, n*N, m*N)

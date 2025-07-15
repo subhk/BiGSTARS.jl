@@ -57,8 +57,8 @@ function Eigs_Krylov(
                     σ::Float64,
                     which::Symbol = :LR,
                     maxiter::Int = 200,
-                    krylovdim::Int = 100
-    )
+                    krylovdim::Int = 100,
+                    sortby::Symbol = :M)
 
     # Construct operator
     op = which in (:LR, :SR) ? construct_linear_map(𝓛 - σ*ℳ, ℳ) :
@@ -79,7 +79,10 @@ function Eigs_Krylov(
         λ = @. 1.0 / λinv
     end
 
-    return λ, stack(unwrapvec, Χ)
+    #return λ, stack(unwrapvec, Χ)
+
+    return sort_evals_(λ, stack(unwrapvec, Χ), sortby; rev=true)
+
 end
 
 
@@ -87,6 +90,7 @@ function solve_shift_invert_krylov(
                     𝓛, ℳ;
                     σ₀::Float64,
                     which::Symbol = :LR,
+                    sortby::Symbol = :M,
                     maxiter::Int = 200,
                     krylovdim::Int = 100,
                     n_tries::Int = 8,

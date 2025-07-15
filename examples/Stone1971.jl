@@ -184,7 +184,6 @@ using JLD2
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
-using BiGSTARS: GEVPMatrices
 
 
 # ### Define the parameters

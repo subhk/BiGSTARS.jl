@@ -199,7 +199,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
-    eig_solver::String  = "arpack"      # eigenvalue solver
+    eig_solver::String  = "krylov"      # eigenvalue solver
 end
 nothing #hide
 # params = Params{Float64}()
@@ -278,17 +278,17 @@ function generalized_EigValProb(prob, grid, params)
         ),
         ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
                 sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+                sparse(complex.(1.0im * params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
+                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
+                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
         )
     )
 
-    ## Construct the matrix `A`
+    ## Construct the matrix `B`
     Bblocks = (
         w = (  # w-equation: [–ε²∂²], zero, zero
                 sparse(-params.ε^2 * D²),
@@ -336,11 +336,11 @@ function EigSolver(prob, grid, params, σ₀)
 
     elseif params.eig_solver == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.eig_solver == "arnoldi"
 
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
@@ -385,6 +385,6 @@ function solve_Stone1971(k::Float64)
 end
 nothing #hide
 
-# # # ## Result
-# solve_Stone1971(0.1) # growth rate is at k=0.1  
-# nothing #hide
+# # ## Result
+solve_Stone1971(0.1) # growth rate is at k=0.1  
+nothing #hide

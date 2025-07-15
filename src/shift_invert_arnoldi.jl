@@ -25,7 +25,8 @@ function Eigs_Arnoldi(𝓛, ℳ;
                       which=LR(),
                       nev::Int=1,
                       maxiter::Int=100,
-                      tol::Float64=1e-12)
+                      tol::Float64=1e-12, 
+                      sortby::Symbol = :M)
 
     op = construct_linear_map(𝓛 - σ * ℳ, ℳ)
 
@@ -39,6 +40,8 @@ function Eigs_Arnoldi(𝓛, ℳ;
     μ, Χ = partialeigen(decomp)
     λ = @. 1.0 / μ + σ
 
+    λ, Χ = sort_evals_(λ, Χ, sortby; rev=true)
+
     return λ, Χ, history
 end
 
@@ -46,6 +49,7 @@ end
 function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         σ₀::Float64,
                                         which=LR(),
+                                        sortby::Symbol = :M,
                                         nev::Int=1,
                                         maxiter::Int=100,
                                         n_tries::Int=8,

@@ -1,20 +1,20 @@
 
 
-"""
-    sort_evals_(λ, Χ, by::Symbol; rev::Bool)
+# """
+#     sort_evals_(λ, Χ, by::Symbol; rev::Bool)
 
-Sort eigenvalues `λ` and corresponding eigenvectors `Χ` by:
-- `:R` → real part
-- `:I` → imaginary part
-- `:M` → magnitude (abs)
+# Sort eigenvalues `λ` and corresponding eigenvectors `Χ` by:
+# - `:R` → real part
+# - `:I` → imaginary part
+# - `:M` → magnitude (abs)
 
-Set `rev=true` for descending (default), `false` for ascending.
-"""
-function sort_evals_(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
-    sortfun = by == :R ? real : by == :I ? imag : abs
-    idx = sortperm(λ, by=sortfun, rev=rev)
-    return λ[idx], Χ[:, idx]
-end
+# Set `rev=true` for descending (default), `false` for ascending.
+# """
+# function sort_evals_(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
+#     sortfun = by == :R ? real : by == :I ? imag : abs
+#     idx = sortperm(λ, by=sortfun, rev=rev)
+#     return λ[idx], Χ[:, idx]
+# end
 
 """
     Eigs_Arpack(𝓛, ℳ; σ, which=:LM, nev=1, maxiter=300, tol=1e-8, sortby=:M)

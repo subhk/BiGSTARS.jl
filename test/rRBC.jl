@@ -20,8 +20,6 @@ using Test
 using BenchmarkTools
 
 using JLD2
-using ModelingToolkit
-using NonlinearSolve
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
@@ -39,8 +37,9 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "fixed"        # boundary condition for temperature
-    eig_solver::String  = "krylov"      # eigenvalue solver
+    eig_solver::String  = "arnoldi"      # eigenvalue solver
 end
+nothing #hide
 
 # ### Define the basic state
 function basic_state(grid, params)
@@ -68,6 +67,7 @@ function basic_state(grid, params)
 
     return bs
 end
+nothing #hide
 
 
 # ### Constructing Generalized EVP
@@ -100,47 +100,64 @@ function generalized_EigValProb(prob, grid, params)
     D²  = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)
     Dₙ² = (1.0  * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    ## --------------------------------------------------------
-    ## allocating memory for the LHS and RHS matrices
-    ## --------------------------------------------------------
-    labels  = [:w, :ζ, :b]  # eigenfunction labels
-
-    blocksA = [rand(ComplexF64, s₁, s₂) for _ in 1:3] # length must match length(labels)
-    blocksB = [rand(Float64,    s₁, s₂) for _ in 1:3]
-
-    #gevp   = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
-
-    gevp    = GEVPMatrices(ComplexF64, Float64, blocksA, blocksB; labels=labels)
-
     ## Construct the matrix `A`
-    ## ----------------------------------------------------------------------
-    ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1) 
-    ## ----------------------------------------------------------------------
-    gevp.As.w[:,    1:1s₂] = 1.0 * params.E * D⁴ 
-    gevp.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
-    gevp.As.w[:,2s₂+1:3s₂] = 0.0 * I⁰ 
-
-
-    ## ----------------------------------------------------------------------
-    ## 2. ζ (vertical vorticity) equation (bcs: ∂ᶻζ = 0 @ z = 0, 1)
-    ## ----------------------------------------------------------------------
-    gevp.As.ζ[:,    1:1s₂] = 1.0 * prob.Dᶻᴰ
-    gevp.As.ζ[:,1s₂+1:2s₂] = 1.0 * params.E * Dₙ²
-    gevp.As.ζ[:,2s₂+1:3s₂] = 0.0 * I⁰
-
-    ## ----------------------------------------------------------------------
-    ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
-    ## ----------------------------------------------------------------------
-    gevp.As.b[:,    1:1s₂] = 1.0 * I⁰ 
-    gevp.As.b[:,1s₂+1:2s₂] = 0.0 * I⁰
-    gevp.As.b[:,2s₂+1:3s₂] = 1.0 * D²    
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    # ──────────────────────────────────────────────────────────────────────────────
+    ## Construct the matrix `A`
+    Ablocks = (
+        w = (  # w-equation: ED⁴ -Dᶻ zero
+                sparse(params.E * D⁴),
+                sparse(-prob.Dᶻᴺ),
+                spzeros(Float64, s₁, s₂)
+        ),
+        ζ = (  # ζ-equation: Dᶻ ED² zero
+                sparse(prob.Dᶻᴰ),
+                sparse(params.E * Dₙ²),
+                spzeros(Float64, s₁, s₂)
+        ),
+        b = (  # b-equation: I zero D²
+                sparse(I⁰),
+                spzeros(Float64, s₁, s₂),
+                sparse(D²)
+        )
+    )
 
     ## Construct the matrix `B`
-    cnst = -1.0 
-    gevp.Bs.w[:,2s₂+1:3s₂]  = -1.0 * ∇ₕ²
+    Bblocks = (
+        w = (  # w-equation: zero, zero -∇ₕ²
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                sparse(-∇ₕ²)
+        ),
+        ζ = (  # ζ-equation: zero, zero, zero
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂)
+        ),
+        b = (  # b-equation: zero, zero, zero
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂),
+                spzeros(Float64, s₁, s₂)
+        )
+    )
+
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 2) Assemble in beautiful line
+    # ──────────────────────────────────────────────────────────────────────────────
+    gevp = GEVPMatrices(Ablocks, Bblocks)
+
+
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 3) And now you have exactly:
+    #    gevp.A, gevp.B                    → full sparse matrices
+    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    # ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
 end
+nothing #hide
 
 # ### Define the eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
@@ -153,11 +170,11 @@ function EigSolver(prob, grid, params, σ₀)
 
     elseif params.eig_solver == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LM)
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LM, sortby=:R)
 
     elseif params.eig_solver == "arnoldi"
 
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LM)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LM, sortby=:R)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
@@ -185,7 +202,7 @@ function solve_rRBC(k::Float64)
 
     params.k = k
 
-    σ₀   = 50.0 # initial guess for the growth rate
+    σ₀   = 0.0 # initial guess for the growth rate
     params.k = k
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
@@ -204,94 +221,3 @@ solve_rRBC(0.0) # growth rate is at k=0.1
 nothing #hide
 
 
-# function EigSolver(Op, params, σ₀)
-
-#     printstyled("kₓ: $(params.kₓ) \n"; color=:blue)
-
-#     𝓛, ℳ = construct_matrices(Op,  params)
-    
-#     N = params.Ny * params.Nz 
-#     MatrixSize = 3N
-#     @assert size(𝓛, 1)  == MatrixSize && 
-#             size(𝓛, 2)  == MatrixSize &&
-#             size(ℳ, 1)  == MatrixSize &&
-#             size(ℳ, 2)  == MatrixSize "matrix size does not match!"
-
-#     if params.method == "shift_invert"
-#         printstyled("Eigensolver using Arpack eigs with shift and invert method ...\n"; 
-#                     color=:red)
-
-#         λₛ, Χ = EigSolver_shift_invert_arpack( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
-        
-#         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
-
-#     elseif params.method == "krylov"
-#         printstyled("KrylovKit Method ... \n"; color=:red)
-
-#         # look for the largest magnitude of eigenvalue (:LM)
-#          λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LM)
-        
-#         #@printf "found eigenvalue (at first): %f + im %f \n" λₛ[1].re λₛ[1].im
-
-#     elseif params.method == "arnoldi"
-
-#         printstyled("Arnoldi: based on Implicitly Restarted Arnoldi Method ... \n"; 
-#                         color=:red)
-
-#         # decomp, history = partialschur(construct_linear_map(𝓛, ℳ), 
-#         #                             nev=20, 
-#         #                             tol=0.0, 
-#         #                             restarts=50000, 
-#         #                             which=LM())
-
-#         # println(history)
-
-#         # λₛ⁻¹, Χ = partialeigen(decomp)
-#         # λₛ = @. 1.0 / λₛ⁻¹
-
-#         λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, 
-#                                             σ₀=0.0, 
-#                                             maxiter=50000, 
-#                                             which=LM())
-
-#         λₛ, Χ = remove_evals(λₛ, Χ, 10.0, 1.0e15, "R")
-#         λₛ, Χ = sort_evals(λₛ, Χ, "R", "")
-
-#     end
-#     # ======================================================================
-
-#     @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
-    
-#     #print_evals(λₛ, length(λₛ))
-#     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
-
-#     # 𝓛 = nothing
-#     # ℳ = nothing
-
-#     #return nothing #
-#     return λₛ[1] #, Χ[:,1]
-# end
-
-# function solve_rRBC(kₓ::Float64)
-#     params      = Params{Float64}(kₓ=0.5)
-#     grid        = TwoDimGrid{params.Ny,  params.Nz}()
-#     diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
-#     Op          = Operator{params.Ny * params.Nz}()
-#     Construct_DerivativeOperator!(diffMatrix, grid, params)
-#     ImplementBCs_cheb!(Op, diffMatrix, params)
-    
-#     σ₀   = 50.0
-#     params.kₓ = kₓ
-    
-#     λₛ = EigSolver(Op, params, σ₀)
-
-#     # Theoretical results from Chandrashekar (1961)
-#     λₛₜ = 189.7 
-#     @printf "Analytical solution of Stone (1971): %1.4e \n" λₛₜ 
-
-#     return abs(real(λₛ) - λₛₜ)/λₛₜ < 1e-4
-    
-# end
-
-# #end #module
-# # ========== end of the module ==========================
