@@ -202,8 +202,6 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     eig_solver::String  = "arpack"      # eigenvalue solver
 end
 nothing #hide
-params = Params{Float64}()
-
 
 # ### Define the basic state
 function basic_state(grid, params)
@@ -348,6 +346,9 @@ nothing #hide
 
 # ### Solving the Stone problem
 function solve_Stone1971(k::Float64)
+
+    ## Calling problem parameters
+    params = Params{Float64}()
 
     ## Construct grid and derivative operators
     grid  = TwoDGrid(params)

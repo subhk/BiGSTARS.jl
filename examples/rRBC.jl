@@ -156,7 +156,6 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
     eig_solver::String  = "arnoldi"      # eigenvalue solver
 end
 nothing #hide
-params = Params{Float64}()
 
 # ### Define the basic state
 function basic_state(grid, params)
@@ -322,6 +321,9 @@ nothing #hide
 
 # ### solving the rRBC problem
 function solve_rRBC(k::Float64)
+
+    ## Calling problem parameters
+    params = Params{Float64}()
 
     ## Construct grid and derivative operators
     grid  = TwoDGrid(params)
