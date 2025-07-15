@@ -187,7 +187,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 
 # ### Define the parameters
-@with_kw mutable struct Param{T} <: AbstractParams
+@with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0           # horizontal domain size
     H::T                = 1.0           # vertical domain size
     Ri::T               = 1.0           # the Richardson number 
@@ -354,7 +354,7 @@ nothing #hide
 # ### Solving the Stone problem
 function solve_Stone1971(k::Float64)
 
-    params = Param{Float64}()
+    params = Params{Float64}()
 
     # ### Construct grid and derivative operators
     grid  = TwoDGrid(params)

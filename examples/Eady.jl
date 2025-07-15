@@ -134,112 +134,45 @@ using BiGSTARS
 
 # ### Define the parameters
 @with_kw mutable struct Params{T<:Real} @deftype T
-    L::T        = 1.0         # horizontal domain size
-    H::T        = 1.0         # vertical domain size
-    Ri::T       = 1.0         # the Richardson number
-    k::T        = 0.0         # x-wavenumber
-    E::T        = 1.0e-16     # Ekman number 
-    Ny::Int64   = 50          # no. of y-grid points
-    Nz::Int64   = 30          # no. of z-grid points
-    method::String = "krylov"
+    L::T                = 1.0         # horizontal domain size
+    H::T                = 1.0         # vertical domain size
+    Ri::T               = 1.0         # the Richardson number
+    k::T                = 0.0         # x-wavenumber
+    E::T                = 1.0e-16     # Ekman number 
+    Ny::Int64           = 50          # no. of y-grid points
+    Nz::Int64           = 30          # no. of z-grid points
+    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
+    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
+    b_bc::String        = "zero_flux"   # boundary condition for buoyancy
+    eig_solver::String  = "krylov"      # eigenvalue solver
 end
+nothing #hide
 
-@with_kw mutable struct TwoDimGrid{Ny, Nz} 
-    y = @SVector zeros(Float64, Ny)
-    z = @SVector zeros(Float64, Nz)
-end
+# ### Define the basic state
+function basic_state(grid, params)
+    
+    Y, Z = ndgrid(grid.y, grid.z)
+    Y    = transpose(Y)
+    Z    = transpose(Z)
 
-@with_kw mutable struct ChebMarix{Ny, Nz} 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Ny, Ny))
+    ## Define the basic state
+    B₀   = @. params.Ri * Z - Y          # buoyancy
+    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
-    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(Nz, Nz))
+    ## Calculate all the necessary derivatives
+    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
 
-    𝒟ᶻᴺ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴺ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
+    bs = initialize_basic_state_from_fields(B₀, U₀)
 
-    𝒟ᶻᴰ::Array{Float64,  2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟²ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-    𝒟⁴ᶻᴰ::Array{Float64, 2}  = SparseMatrixCSC(Zeros(Nz, Nz))
-end
+    initialize_basic_state!(
+            bs,
+            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
+            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
+            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
+            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
+        )
 
-@with_kw mutable struct Operator{N}
-    ## `subperscript N' means Operator with Neumann boundary condition  
-    ## `subperscript D' means Operator with Dirchilet boundary condition 
-    𝒟ʸ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟⁴ʸ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-
-    𝒟ᶻ::Array{Float64,  2}   = SparseMatrixCSC(Zeros(N, N))
-    𝒟²ᶻ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-end
-
-@with_kw mutable struct MeanFlow{N} 
-    B₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-    U₀::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-
-  ∇ʸU₀::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-  ∇ᶻU₀::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-  
-  ∇ᶻB₀⁻¹::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-  ∇ᶻB₀⁻²::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-
-  ∇ʸQ₀::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N))
-
-  ∇ᶻᶻB₀::Array{Float64, 2}  = SparseMatrixCSC(Zeros(N, N))
-end
-
-
-function Construct_DerivativeOperator!(diffMatrix, grid, params)
-    N = params.Ny * params.Nz
-
-    ## ------------- setup differentiation matrices  -------------------
-    ## Fourier in y-direction: y ∈ [0, L)
-    y1, diffMatrix.𝒟ʸ  = FourierDiff(params.Ny, 1)
-    _,  diffMatrix.𝒟²ʸ = FourierDiff(params.Ny, 2)
-    _,  diffMatrix.𝒟⁴ʸ = FourierDiff(params.Ny, 4)
-
-    ## Transform the domain and derivative operators from [0, 2π) → [0, L)
-    grid.y         = params.L/2π  * y1
-    diffMatrix.𝒟ʸ  = (2π/params.L)^1 * diffMatrix.𝒟ʸ
-    diffMatrix.𝒟²ʸ = (2π/params.L)^2 * diffMatrix.𝒟²ʸ
-    diffMatrix.𝒟⁴ʸ = (2π/params.L)^4 * diffMatrix.𝒟⁴ʸ
-
-    z1, D1z = chebdif(params.Nz, 1)
-    _,  D2z = chebdif(params.Nz, 2)
-    _,  D3z = chebdif(params.Nz, 3)
-    _,  D4z = chebdif(params.Nz, 4)
-
-    ## Transform the domain and derivative operators from [-1, 1] → [0, H]
-    grid.z, diffMatrix.𝒟ᶻ, diffMatrix.𝒟²ᶻ  = chebder_transform(z1,  D1z, 
-                                                                    D2z, 
-                                                                    zerotoL_transform, 
-                                                                    params.H)
-    _, _, diffMatrix.𝒟⁴ᶻ = chebder_transform_ho(z1, D1z, 
-                                                    D2z, 
-                                                    D3z, 
-                                                    D4z, 
-                                                    zerotoL_transform_ho, 
-                                                    params.H)
-
-    return nothing
-end
-
-function ImplementBCs_cheb!(Op, diffMatrix, params)
-    Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
-    Iᶻ = sparse(Matrix(1.0I, params.Nz, params.Nz)) 
-
-    kron!( Op.𝒟ʸ   ,  diffMatrix.𝒟ʸ  ,  Iᶻ ) 
-    kron!( Op.𝒟²ʸ  ,  diffMatrix.𝒟²ʸ ,  Iᶻ )
-
-    kron!( Op.𝒟ᶻ   ,  Iʸ , diffMatrix.𝒟ᶻ   )
-    kron!( Op.𝒟²ᶻ  ,  Iʸ , diffMatrix.𝒟²ᶻ  )
-
-    return nothing
+    return bs
 end
 
 function BasicState!(diffMatrix, mf, grid, params)
