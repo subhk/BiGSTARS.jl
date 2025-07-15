@@ -158,7 +158,7 @@ nothing #hide
 
 
 # ### Define the basic state
-function basic_state(grid, params::AbstractParams)
+function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
     Y    = transpose(Y)
@@ -185,7 +185,7 @@ function basic_state(grid, params::AbstractParams)
 end
 
 # ### Constructing Generalized EVP
-function generalized_EigValProb(prob, grid, params::AbstractParams)
+function generalized_EigValProb(prob, grid, params)
 
     bs = basic_state(grid, params)
 
@@ -274,7 +274,7 @@ nothing #hide
 
 
 # ### Define the eigenvalue solver
-function EigSolver(prob, grid, params::AbstractParams, σ₀)
+function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
