@@ -2,22 +2,24 @@
 
 <!-- description --> 
   **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
-<strong>https://subhk.github.io/BiGSTARSDocumentation/stable</strong>
 
  <!-- Badges -->
  <p align="left">
     <a href="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml">
         <img alt="CI Status" src="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg">
     </a>
+</p>
+
+## Docs
+<!-- Badges -->
+ <p align="left">
     <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
         <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20-blue">
     </a>
       <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
-        <img alt="latest docs" src="https://img.shields.io/badge/documentation-in%20development-orange">
+        <img alt="latest docs" src="https://img.shields.io/badge/documentation-dev%20-orange">
     </a>
 </p>
-
-
 
 ## Installation
 
