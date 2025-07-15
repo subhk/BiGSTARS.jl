@@ -202,10 +202,6 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     eig_solver::String  = "krylov"      # eigenvalue solver
 end
 nothing #hide
-# params = Params{Float64}()
-
-# # ### Construct grid and derivative operators
-# grid  = TwoDGrid(params)
 
 # ### Define the basic state
 function basic_state(grid, params)

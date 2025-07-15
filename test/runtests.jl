@@ -7,7 +7,7 @@ using Test
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid, Params
+using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 @testset "Stone1971" begin
     
