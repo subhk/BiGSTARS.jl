@@ -142,7 +142,7 @@ using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 # ### Define the parameters
-@with_kw mutable struct Params{T} <: AbstractParams
+@with_kw mutable struct Param{T} <: AbstractParams
     L::T                = 2π            # horizontal domain size
     H::T                = 1.0           # vertical   domain size
     E::T                = 1.0e-4        # inverse of Reynolds number 
@@ -323,7 +323,7 @@ nothing #hide
 function solve_rRBC(k::Float64)
 
     ## Calling problem parameters
-    params = Params{Float64}()
+    params = Param{Float64}()
 
     ## Construct grid and derivative operators
     grid  = TwoDGrid(params)
