@@ -19,8 +19,8 @@ end
     It flattens and delegates to the fast bulk constructor.
 """
 function GEVPMatrices(::Type{TA}, ::Type{TB},
-                      Ablocks::NamedTuple{L,Tuple{Vararg{NTuple{3,AbstractMatrix{TA}}}}},
-                      Bblocks::NamedTuple{L,Tuple{Vararg{NTuple{3,AbstractMatrix{TB}}}}};
+                      Ablocks::NamedTuple,
+                      Bblocks::NamedTuple;
                       labels::Union{Nothing,Vector{Symbol}}=nothing
                      ) where {TA<:Complex, TB<:Real, L}
 
