@@ -135,8 +135,7 @@ using Test
 using BenchmarkTools
 
 using JLD2
-using ModelingToolkit
-using NonlinearSolve
+using Parameters: @with_kw
 
 using BiGSTARS
 using BiGSTARS: AbstractParams

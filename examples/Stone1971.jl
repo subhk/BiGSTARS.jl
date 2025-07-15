@@ -180,6 +180,7 @@ using Test
 using BenchmarkTools
 
 using JLD2
+using Parameters: @with_kw
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
