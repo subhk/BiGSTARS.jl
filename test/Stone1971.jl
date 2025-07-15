@@ -345,8 +345,6 @@ function EigSolver(prob, grid, params, σ₀)
 
     print_evals(λ)
 
-    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
-
     return λ[1], Χ[:,1]
 end
 nothing #hide
@@ -361,7 +359,7 @@ function solve_Stone1971(k::Float64)
 
     # ### Construct the necesary operator
     ops  = OperatorI(params)
-    prob = Problem(grid, ops, params)
+    prob = Problem(grid, ops)
 
     params.k = k
 

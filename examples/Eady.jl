@@ -127,23 +127,20 @@ using Test
 using BenchmarkTools
 
 using JLD2
-using ModelingToolkit
-using NonlinearSolve
 
 using BiGSTARS
+using BiGSTARS: AbstractParams
+using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 # ### Define the parameters
-@with_kw mutable struct Params{T<:Real} @deftype T
+@with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0         # horizontal domain size
     H::T                = 1.0         # vertical domain size
     Ri::T               = 1.0         # the Richardson number
-    k::T                = 0.0         # x-wavenumber
-    E::T                = 1.0e-16     # Ekman number 
+    k::T                = 0.1         # x-wavenumber
+    E::T                = 1.0e-9     # Ekman number 
     Ny::Int64           = 50          # no. of y-grid points
     Nz::Int64           = 30          # no. of z-grid points
-    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
-    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
-    b_bc::String        = "zero_flux"   # boundary condition for buoyancy
     eig_solver::String  = "krylov"      # eigenvalue solver
 end
 nothing #hide
@@ -172,92 +169,82 @@ function basic_state(grid, params)
             deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
         )
 
-    return bs
+    return bs, deriv
 end
 
-function BasicState!(diffMatrix, mf, grid, params)
-    Y, Z = ndgrid(grid.y, grid.z)
-    Y    = transpose(Y)
-    Z    = transpose(Z)
 
-    ## imposed buoyancy profile
-    B₀      = @. 1.0params.Ri * Z - Y  
-    ∂ʸB₀    = - 1.0 .* ones(size(Y))  
-    ∂ᶻB₀    = 1.0params.Ri .* ones(size(Y))  
-    ∂ᶻᶻB₀   = zeros(size(Y))  
+# ### Constructing Generalized EVP
+function generalized_EigValProb(prob, grid, params)
 
-    ∂ᶻB₀⁻¹  = @. 1.0/∂ᶻB₀ 
-    ∂ᶻB₀⁻²  = @. 1.0/(∂ᶻB₀ * ∂ᶻB₀) 
+    bs, deriv = basic_state(grid, params)
 
-    ## along-front profile 
-    U₀      = @. 1.0 * Z - 0.5
-    ∂ᶻU₀    = ones(size(Y))  
-    ∂ʸU₀    = zeros(size(Y))  
-
-    ## y-gradient of the QG PV
-    ∂ʸQ₀    = zeros(size(Y))  
-
-      B₀  = B₀[:]
-      U₀  = U₀[:]
-    ∂ʸB₀  = ∂ʸB₀[:] 
-    ∂ᶻB₀  = ∂ᶻB₀[:] 
-    ∂ᶻU₀  = ∂ᶻU₀[:]
-    ∂ʸU₀  = ∂ʸU₀[:] 
-
-    ∂ʸQ₀  = ∂ʸQ₀[:] 
-
-    ∂ᶻᶻB₀ = ∂ᶻᶻB₀[:]
-
-    ∂ᶻB₀⁻¹ = ∂ᶻB₀⁻¹[:] 
-    ∂ᶻB₀⁻² = ∂ᶻB₀⁻²[:]
-
-    mf.B₀[diagind(mf.B₀)] = B₀
-    mf.U₀[diagind(mf.U₀)] = U₀
-
-    mf.∇ʸU₀[diagind(mf.∇ʸU₀)]   = ∂ʸU₀
-    mf.∇ᶻU₀[diagind(mf.∇ᶻU₀)]   = ∂ᶻU₀
-
-    mf.∇ʸQ₀[diagind(mf.∇ʸQ₀)]   = ∂ʸQ₀
-
-    mf.∇ᶻB₀⁻¹[diagind(mf.∇ᶻB₀⁻¹)] = ∂ᶻB₀⁻¹
-    mf.∇ᶻB₀⁻²[diagind(mf.∇ᶻB₀⁻²)] = ∂ᶻB₀⁻²
-
-    mf.∇ᶻᶻB₀[diagind(mf.∇ᶻᶻB₀)] = ∂ᶻᶻB₀
-
-    return nothing
-end
-
-function construct_matrices(Op, mf, params)
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N)) 
-    s₁ = size(I⁰, 1); s₂ = size(I⁰, 2)
+    Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
+    s₁ = size(I⁰, 1); 
+    s₂ = size(I⁰, 2);
 
-    ## allocating memory for the LHS and RHS matrices
-    𝓛 = SparseMatrixCSC(Zeros{ComplexF64}(s₁, s₂))
-    ℳ = SparseMatrixCSC(Zeros{ Float64  }(s₁, s₂))
+    ## the horizontal Laplacian operator
+    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
+    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
+
+    # some quanntities required later
+    bs_∂ᶻB₀⁻¹  = @. 1.0/deriv.∂ᶻB₀
+    bs_∂ᶻB₀⁻²  = @. 1.0/(deriv.∂ᶻB₀ * deriv.∂ᶻB₀) 
+    
+    ∂ᶻB₀⁻¹::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+    ∂ᶻB₀⁻²::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
+    ∂ʸQ₀::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N)) # PV gradient is zero
+
+    ## converting to matrics 
+    ∂ᶻB₀⁻¹[diagind(∂ᶻB₀⁻¹)] = bs_∂ᶻB₀⁻¹
+    ∂ᶻB₀⁻²[diagind(∂ᶻB₀⁻²)] = bs_∂ᶻB₀⁻²
+
+    ## definition of perturbation PV, q = D₂³ᵈ{ψ}
+    D₂³ᵈ = (1.0 * ∇ₕ²
+            + 1.0  * ∂ᶻB₀⁻¹ * prob.D²ᶻ
+            - 1.0  * bs.fields.∂ᶻᶻB₀  * ∂ᶻB₀⁻² * prob.Dᶻ)
+
+    ## Construct the matrix `A`
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## Construct the matrix `A`
+    Ablocks = (
+        ψ = (  # ψ-equation
+                sparse(1.0im * params.k * bs.fields.U₀ * D₂³ᵈ
+                    + 1.0im * params.k * ∂ʸQ₀ * I⁰
+                    - 1.0 * params.E * ∇ₕ² * D₂³ᵈ
+                ) 
+        ),
+    )
+
+    ## Construct the matrix `B`
+    Bblocks = (
+        ψ = (  # ψ-equation: [-D₂³ᵈ]
+                sparse(-D₂³ᵈ)
+        ),
+    )
+
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 2) Assemble in beautiful line
+    ## ──────────────────────────────────────────────────────────────────────────────
+    gevp = GEVPMatrices(Ablocks, Bblocks)
+
+
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 3) And now you have exactly:
+    ##    gevp.A, gevp.B                    → full sparse matrices
+    ##    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    ##    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    ## ──────────────────────────────────────────────────────────────────────────────
 
     B = SparseMatrixCSC(Zeros{ComplexF64}(s₁, s₂))
     C = SparseMatrixCSC(Zeros{ Float64  }(s₁, s₂))
 
-    ## -------------------- construct matrix  ------------------------
-    ## lhs of the matrix (size := 2 × 2)
-    ## eigenvectors: [ψ]
-    ∇ₕ² = SparseMatrixCSC(Zeros{Float64}(N, N))
-    ∇ₕ² = (1.0 * Op.𝒟²ʸ - 1.0 * params.k^2 * I⁰)
-
-    ## definition of perturbation PV, q = D₂³ᵈ{ψ}
-    D₂³ᵈ = (1.0 * ∇ₕ²
-            + 1.0  * mf.∇ᶻB₀⁻¹ * Op.𝒟²ᶻ
-            - 1.0  * mf.∇ᶻᶻB₀  * mf.∇ᶻB₀⁻² * Op.𝒟ᶻ)
-
-    ## 1. ψ equation
-    𝓛[:,1:1s₂] = (1.0im * params.k * mf.U₀   * D₂³ᵈ
-                + 1.0im * params.k * mf.∇ʸQ₀ * I⁰ #)
-                - 1.0 * params.E * ∇ₕ² * D₂³ᵈ)
-
-    ℳ[:,1:1s₂] = -1.0 * D₂³ᵈ
-
-    ## Implementing boundary conditions
+    ## ──────────────────────────────────────────────────────────────────────────────
+    ## 4) Implementing boundary conditions
+    ## ──────────────────────────────────────────────────────────────────────────────
     _, zi = ndgrid(1:1:params.Ny, 1:1:params.Nz)
     zi    = transpose(zi);
     zi    = zi[:];
@@ -265,86 +252,88 @@ function construct_matrices(Op, mf, params)
     bcᶻᵗ  = findall( x -> (x==params.Nz), zi )
 
     ## Implementing boundary condition for 𝓛 matrix in the z-direction: 
-    B[:,1:1s₂] = 1.0im * params.k * mf.U₀ * Op.𝒟ᶻ - 1.0im * params.k * mf.∇ᶻU₀ * I⁰
+    B[:,1:1s₂] = 1.0im * params.k * bs.fields.U₀ * prob.Dᶻ 
+                - 1.0im * params.k * bs.fields.∂ᶻU₀ * I⁰
     
     ## Bottom boundary condition @ z=0  
-    @. 𝓛[bcᶻᵇ, :] = B[bcᶻᵇ, :]
+    @. gevp.A[bcᶻᵇ, :] = B[bcᶻᵇ, :]
     
     ## Top boundary condition @ z = 1
-    @. 𝓛[bcᶻᵗ, :] = B[bcᶻᵗ, :]
+    @. gevp.A[bcᶻᵗ, :] = B[bcᶻᵗ, :]
 
     ## Implementing boundary condition for ℳ matrix in the z-direction: 
-    C[:,1:1s₂] = -1.0 * Op.𝒟ᶻ
+    C[:,1:1s₂] = -1.0 * prob.Dᶻ
 
     ## Bottom boundary condition @ z=0  
-    @. ℳ[bcᶻᵇ, :] = C[bcᶻᵇ, :]
+    @. gevp.B[bcᶻᵇ, :] = C[bcᶻᵇ, :]
 
     ## Top boundary condition @ z = 1
-    @. ℳ[bcᶻᵗ, :] = C[bcᶻᵗ, :]
+    @. gevp.B[bcᶻᵗ, :] = C[bcᶻᵗ, :]
 
-    return 𝓛, ℳ
+    return gevp.A, gevp.B
 end
 nothing #hide
 
 
 # ### Define the eigenvalue solver
-function EigSolver(Op, mf, grid, params, σ₀)
+function EigSolver(prob, grid, params, σ₀)
 
-    𝓛, ℳ = construct_matrices(Op, mf, params)
-    
-     if params.method == "shift_invert"
-        λₛ = EigSolver_shift_invert( 𝓛, ℳ, σ₀=σ₀)
+    A, B = generalized_EigValProb(prob, grid, params)
 
-    elseif params.method == "krylov"
+    if params.eig_solver == "arpack"
 
-        λₛ, Χ = EigSolver_shift_invert_krylov( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
-        
-    elseif params.method == "arnoldi"
+        λ, Χ = solve_shift_invert_arpack(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
-        λₛ, Χ = EigSolver_shift_invert_arnoldi( 𝓛, ℳ, σ₀=σ₀, maxiter=40, which=:LR)
+    elseif params.eig_solver == "krylov"
+
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
+
+    elseif params.eig_solver == "arnoldi"
+
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
     end
     ## ======================================================================
-    @assert length(λₛ) > 0 "No eigenvalue(s) found!"
+    @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "||𝓛Χ - λₛℳΧ||₂: %f \n" norm(𝓛 * Χ[:,1] - λₛ[1] * ℳ * Χ[:,1])
-    
-    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λₛ[1]) imag(λₛ[1])
+    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
-    return λₛ[1] #, Χ[:,1]
+    print_evals(λ)
+
+    return λ[1], Χ[:,1]
 end
 nothing #hide
 
-# ### Solving the Eady (1949) problem
-function solve_Eady1949(k::Float64=0.0)
-    params      = Params{Float64}(k=0.5)
-    grid        = TwoDimGrid{params.Ny,  params.Nz}()
-    diffMatrix  = ChebMarix{ params.Ny,  params.Nz}()
-    Op          = Operator{params.Ny * params.Nz}()
-    mf          = MeanFlow{params.Ny * params.Nz}()
 
-    Construct_DerivativeOperator!(diffMatrix, grid, params)
-    ImplementBCs_cheb!(Op, diffMatrix, params)
+# ### Solving the Stone problem
+function solve_Eady(k::Float64)
 
-    BasicState!(diffMatrix, mf, grid, params)
+    params = Params{Float64}()
 
-    σ₀   = 0.01 # initial guess for the growth rate
+    # ### Construct grid and derivative operators
+    grid  = TwoDGrid(params)
+
+    # ### Construct the necesary operator
+    ops  = OperatorI(params)
+    prob = Problem(grid, ops)
+
     params.k = k
-    
-    λₛ = EigSolver(Op, mf, grid, params, σ₀)
+
+    σ₀   = 0.02 # initial guess for the growth rate
+
+    λ, Χ = EigSolver(prob, grid, params, σ₀)
 
     ## Analytical solution of Eady (1949) for the growth rate
     μ  = 1.0 * params.k * √params.Ri
-    λₛₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
+    λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
 
-    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₛₜ
+    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
-    return abs(λₛ.re - λₛₜ) < 1e-3
-    
+    return abs(λ.re - λₜ) < 1e-3
+
 end
 nothing #hide
 
-# ## Result
-solve_Eady1949(0.1) # growth rate is at k=0.1  
+# # ## Result
+solve_Eady(0.1) # growth rate is at k=0.1  
 nothing #hide
-
 

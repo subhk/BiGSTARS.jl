@@ -31,6 +31,11 @@ struct Problem{Tg<:AbstractFloat}
     D²ʸ    :: SparseMat{Tg}
     D⁴ʸ    :: SparseMat{Tg}
 
+    # Chebychev with any BC
+    Dᶻ     :: SparseMat{Tg}
+    D²ᶻ    :: SparseMat{Tg}
+    D⁴ᶻ    :: SparseMat{Tg}
+
     # Chebyshev in z (Neumann BC)
     Dᶻᴺ    :: SparseMat{Tg}
     D²ᶻᴺ   :: SparseMat{Tg}
@@ -59,8 +64,12 @@ end
 
 
 function Problem(grid::AbstractGrid{T, Ty, Tm}, 
-                cache::OperatorI{T}, 
-                params::AbstractParams) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
+                cache::OperatorI{T}) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
+
+    # Kronecker products: no BC
+    Dᶻ      = kron_s(cache.Iʸ, Matrix(grid.Dᶻ) )
+    D²ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D²ᶻ))
+    D⁴ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻ))
 
     # Kronecker products: Dirichlet
     Dᶻᴰ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴰ) )
@@ -83,6 +92,7 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
 
     #### Create the grid object
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
+                    Dᶻ, D²ᶻ, D⁴ᶻ,
                     Dᶻᴺ, D²ᶻᴺ,
                     Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ

@@ -6,7 +6,7 @@
 # Stone (1971) investigated non-hydrostatic effects on BCI using Eady’s framework. 
 # He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases 
 # while the growth rate diminishes relative to predictions from the quasigeostrophic (QG) approximation.
-# ## Basic state
+# 
 # The basic state is given by
 # ```math
 # \begin{align}
@@ -187,7 +187,7 @@ using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
 
-# ### Define the parameters
+# ### Parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0           # horizontal domain size
     H::T                = 1.0           # vertical domain size
@@ -204,7 +204,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 nothing #hide
 
-# ### Define the basic state
+# ### Basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -230,6 +230,7 @@ function basic_state(grid, params)
 
     return bs
 end
+nothing #hide
 
 # ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
@@ -318,7 +319,7 @@ end
 nothing #hide
 
 
-# ### Define the eigenvalue solver
+# ### Eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
@@ -345,7 +346,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 nothing #hide
 
-# ### Solving the Stone problem
+# ### Solving the problem
 function solve_Stone1971(k::Float64)
 
     ## Calling problem parameters
@@ -356,7 +357,7 @@ function solve_Stone1971(k::Float64)
 
     ## Construct the necesary operator
     ops  = OperatorI(params)
-    prob = Problem(grid, ops, params)
+    prob = Problem(grid, ops)
 
     ## update the wavenumber
     params.k = k
@@ -366,11 +367,11 @@ function solve_Stone1971(k::Float64)
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
-    ## Analytical solution of Stone (1971) for the growth rate
-    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
-    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
+    ## Analytical solution of Eady (1949) for the growth rate
+    μ  = 1.0 * params.k * √params.Ri
+    λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
 
-    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
+    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
 

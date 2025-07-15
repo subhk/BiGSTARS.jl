@@ -15,7 +15,6 @@
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
 # is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
 #
-# ## Basic state
 # The background temperature profile $\overline{\theta}$ is given by 
 # ```math
 # \overline{\theta} = 1 - z.
@@ -141,7 +140,7 @@ using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
-# ### Define the parameters
+# ### Parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 2π            # horizontal domain size
     H::T                = 1.0           # vertical   domain size
@@ -157,7 +156,7 @@ end
 nothing #hide
 
 
-# ### Define the basic state
+# ### Basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -183,6 +182,7 @@ function basic_state(grid, params)
 
     return bs
 end
+nothing #hide
 
 # ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
@@ -273,7 +273,7 @@ end
 nothing #hide
 
 
-# ### Define the eigenvalue solver
+# ### Eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
@@ -319,7 +319,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 nothing #hide
 
-# ### solving the rRBC problem
+# ### Solving the problem
 function solve_rRBC(k::Float64)
 
     ## Calling problem parameters
@@ -330,7 +330,7 @@ function solve_rRBC(k::Float64)
 
     ## Construct the necesary operator
     ops  = OperatorI(params)
-    prob = Problem(grid, ops, params)
+    prob = Problem(grid, ops)
 
     ## update the wavenumber
     #params = Params(p; k = k)

@@ -2,15 +2,13 @@
 
 ## Overview
 
-`BiGSTARS.jl`:A Julia toolkit for bi-global linear stability analysis for geophysical flows using Chebyshev-Fourier spectral collocation method.
-
+`BiGSTARS.jl` — a Julia toolkit for bi-global linear-stability analysis of geophysical flows, built on a Chebyshev–Fourier spectral-collocation method.
 
 ## Examples
 
-Examples aim to demonstrate the main functionalities of each module.
-Have a look at our Examples collection!
+The examples illustrate the key features of every module.  
+Browse the collection to see BiGSTARS.jl in action!
 
 * [Stone1971 example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971/)
-* [Eady example] (https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Eady/)
 * [rRBC example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/rRBC/)
 

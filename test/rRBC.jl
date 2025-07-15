@@ -217,7 +217,7 @@ function solve_rRBC(k::Float64)
 
     # ### Construct the necesary operator
     ops  = OperatorI(params)
-    prob = Problem(grid, ops, params)
+    prob = Problem(grid, ops)
 
     ## update the wavenumber
     params.k = k
