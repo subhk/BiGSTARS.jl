@@ -180,12 +180,11 @@ using Test
 using BenchmarkTools
 
 using JLD2
-using ModelingToolkit
-using NonlinearSolve
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
+using BiGSTARS: GEVPMatrices
 
 
 # ### Define the parameters
@@ -270,56 +269,61 @@ function generalized_EigValProb(prob, grid, params)
     D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
-    ## --------------------------------------------------------
-    ## allocating memory for the LHS and RHS matrices
-    ## --------------------------------------------------------
     labels  = [:w, :ζ, :b]  # eigenfunction labels
-    gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
 
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    # ──────────────────────────────────────────────────────────────────────────────
+    ## Construct the matrix `A`
+    Ablocks = (
+        w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
+                sparse((-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(prob.Dᶻᴺ),
+                sparse(-∇ₕ²)
+            ),
+        ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
+        sparse(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ),
+        sparse(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²),
+        spzeros(ComplexF64, s₁, s₂)
+            ),
+        b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
+        sparse(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ),
+        sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
+        sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
+        )
+    )
 
     ## Construct the matrix `A`
-    ## ----------------------------------------------------------------------
-    ## 1. w (vertical velocity)  equation (bcs: w = ∂ᶻᶻw = 0 @ z = 0, 1)
-    ## ----------------------------------------------------------------------
-    gevp.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
-                            + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
+    Bblocks = (
+        w = (  # w-equation mass: [–ε²∂²], zero, zero
+            sparse(-params.ε^2 * D²),
+            spzeros(Float64, s₁, s₂),
+            spzeros(Float64, s₁, s₂)
+            ),
+        ζ = (  # ζ-equation mass: zero, [–I], zero
+            spzeros(Float64, s₁, s₂),
+            sparse(-I⁰),
+            spzeros(Float64, s₁, s₂)
+            ),
+        b = (  # b-equation mass: zero, zero, [–I]
+            spzeros(Float64, s₁, s₂),
+            spzeros(Float64, s₁, s₂),
+            sparse(-I⁰)
+        )
+    )
 
-    gevp.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
-
-    gevp.As.w[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
-
-    ## ----------------------------------------------------------------------
-    ## 2. ζ (vertical vorticity) equation (bcs: ∂ᶻζ = 0 @ z = 0, 1)
-    ## ----------------------------------------------------------------------
-    gevp.As.ζ[:,    1:1s₂] = - 1.0 * bs.fields.∂ᶻU₀ * prob.Dʸ - 1.0 * prob.Dᶻᴰ
-
-    gevp.As.ζ[:,1s₂+1:2s₂] = (1.0im * params.k * bs.fields.U₀ * I⁰ 
-                                - 1.0 * params.E * Dₙ²)
-
-    gevp.As.ζ[:,2s₂+1:3s₂] = 0.0 * I⁰
-
-    ## ----------------------------------------------------------------------
-    ## 3. b (buoyancy) equation (bcs: b = 0 @ z = 0, 1)
-    ## ----------------------------------------------------------------------
-    gevp.As.b[:,    1:1s₂] = (1.0 * bs.fields.∂ᶻB₀ * I⁰
-                            - 1.0 * bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ) 
-
-    gevp.As.b[:,1s₂+1:2s₂] = 1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰
-
-    gevp.As.b[:,2s₂+1:3s₂] = (-1.0 * params.E * Dₙ² 
-                            + 1.0im * params.k * bs.fields.U₀ * I⁰) 
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 2) Assemble in one beautiful line
+    # ──────────────────────────────────────────────────────────────────────────────
+    gevp = GEVPMatrices(ComplexF64, Float64, Ablocks, Bblocks; labels=labels)
 
 
-    #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
-
-
-    ## Construct the matrix `B`
-    cnst = -1.0 
-    gevp.Bs.w[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
-    gevp.Bs.ζ[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
-    gevp.Bs.b[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
-
-    #gevp.B = ([gevp.Bs.w; gevp.Bs.ζ; gevp.Bs.b])
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 3) And now you have exactly:
+    #        gevp.A, gevp.B                    → full sparse matrices
+    #        gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    #        gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
+    # ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
 end

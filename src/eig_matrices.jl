@@ -1,42 +1,76 @@
 """
-    GEVPMatrices(TA, TB, N; nblocks=3, labels=nothing)
+    GEVPMatrices(TA, TB, blocksA, blocksB; labels=nothing)
 
-Create square sparse matrices `A` and `B` of size `(nblocks × N, nblocks × N)`.
-Provides block-row views via `NamedTuple` access: `As` and `Bs`, where each entry 
-(e.g. `As.w`) is a view into a row-block of `A`.
-
-# Arguments
-- `TA`, `TB`: element types for `A` and `B`, respectively.
-- `N`: size of each block row.
-- `nblocks`: number of block rows (and columns).
-- `labels`: optional `Vector{Symbol}` for naming each block-row. Defaults to `:A1`, `:A2`, ...
-
-# Returns
-- `GEVPMatrices` struct with `.A`, `.B`, `.As`, `.Bs` fields.
+    Low-level constructor: builds full sparse A and B from vectors of
+    blocks via fast sparse×sparse kron on the diagonal.
 """
-struct GEVPMatrices{TA<:Complex, TB<:Real, NA, NB}
-    A  :: SparseMatrixCSC{TA, Int}
-    B  :: SparseMatrixCSC{TB, Int}
-    As :: NA  # NamedTuple of views into block-rows of A
-    Bs :: NB  # NamedTuple of views into block-rows of B
+struct GEVPMatrices{TA<:Complex, TB<:Real}
+    A  :: SparseMatrixCSC{TA,Int}
+    B  :: SparseMatrixCSC{TB,Int}
+    As :: NamedTuple
+    Bs :: NamedTuple
 end
 
-function GEVPMatrices(::Type{TA}, ::Type{TB}, N::Int;
-                      nblocks::Int=3,
-                      labels::Union{Nothing, Vector{Symbol}}=nothing) where {TA<:Complex, TB<:Real}
+"""
+    GEVPMatrices(TA, TB, Ablocks::NamedTuple, Bblocks::NamedTuple)
 
-    labels = labels === nothing ? Symbol.("A" .* string.(1:nblocks)) : labels
-    @assert length(labels) == nblocks "Number of labels must match number of blocks."
+    High-level constructor that accepts `NamedTuple`s of 3-tuples of
+    small N×N blocks, keyed by labels (e.g. `:w`, `:ζ`, `:b`).
+    It flattens and delegates to the fast bulk constructor.
+"""
+function GEVPMatrices(::Type{TA}, ::Type{TB},
+                      Ablocks::NamedTuple{L,Tuple{Vararg{NTuple{3,AbstractMatrix{TA}}}}},
+                      Bblocks::NamedTuple{L,Tuple{Vararg{NTuple{3,AbstractMatrix{TB}}}}};
+                      labels::Union{Nothing,Vector{Symbol}}=nothing
+                     ) where {TA<:Complex, TB<:Real, L}
 
-    total_size = nblocks * N
-    A = spzeros(TA, total_size, total_size)
-    B = spzeros(TB, total_size, total_size)
+    # # Preserve insertion order of labels
+    # labels = collect(keys(Ablocks))
 
-    # As = (; (label => @view A[(i-1)*N+1:i*N, :] for (i, label) in enumerate(labels))...)
-    # Bs = (; (label => @view B[(i-1)*N+1:i*N, :] for (i, label) in enumerate(labels))...)
+    # use provided labels or default to the NamedTuple keys
+    labels = labels === nothing ? collect(keys(Ablocks)) : labels
+    @assert length(labels) == length(keys(Ablocks))
 
-    As = (; ((label => @view A[(i-1)*N+1:i*N, :]) for (i, label) in enumerate(labels))...)
-    Bs = (; ((label => @view B[(i-1)*N+1:i*N, :]) for (i, label) in enumerate(labels))...)
+    # Flatten each 3-tuple in order
+    blocksA = [ blk for l in labels for blk in Ablocks[l] ]
+    blocksB = [ blk for l in labels for blk in Bblocks[l] ]
 
-    return GEVPMatrices{TA, TB, typeof(As), typeof(Bs)}(A, B, As, Bs)
+    # Delegate to main constructor
+    return GEVPMatrices(TA, TB, blocksA, blocksB; labels=labels)
 end
+
+
+function GEVPMatrices(::Type{TA}, ::Type{TB},
+                      blocksA::Vector{<:AbstractMatrix{TA}},
+                      blocksB::Vector{<:AbstractMatrix{TB}};
+                      labels::Union{Nothing,Vector{Symbol}}=nothing
+                     ) where {TA<:Complex, TB<:Real}
+
+    nblocks = length(blocksA)
+    @assert length(blocksB) == nblocks
+    N = size(blocksA[1],1)
+    labels = labels === nothing ? Symbol.([string(l) for l in 1:nblocks]) : labels
+    @assert length(labels)==nblocks
+
+    total = nblocks * N
+    A = spzeros(TA, total, total)
+    B = spzeros(TB, total, total)
+
+    # Slot blocks onto diagonal via sparse kron
+    for i in 1:nblocks
+        Ei = sparse([i],[i],[one(Int)], nblocks, nblocks)
+        A += kron(Ei, sparse(blocksA[i]))
+        B += kron(Ei, sparse(blocksB[i]))
+    end
+
+    # # Build NamedTuple views
+    As = (; map(i -> labels[i] => view(A, (i-1)*N+1:i*N, :), 1:nblocks)...)
+    Bs = (; map(i -> labels[i] => view(B, (i-1)*N+1:i*N, :), 1:nblocks)...)
+
+    # build the NamedTuples of block-row views
+    # As = (; (labels[i] => view(A, (i-1)*N+1:i*N, :)) for i in 1:nblocks )
+    # Bs = (; (labels[i] => view(B, (i-1)*N+1:i*N, :)) for i in 1:nblocks )
+
+    return GEVPMatrices{TA,TB}(A, B, As, Bs)
+end
+

@@ -180,8 +180,6 @@ using Test
 using BenchmarkTools
 
 using JLD2
-using ModelingToolkit
-using NonlinearSolve
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
@@ -196,7 +194,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number 
-    Ny::Int64           = 50            # no. of y-grid points
+    Ny::Int64           = 40            # no. of y-grid points
     Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
@@ -252,7 +250,7 @@ function generalized_EigValProb(prob, grid, params)
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
     ## inverse of the horizontal Laplacian operator
-    H = inverse_Lap_hor(∇ₕ²)
+    H = sparse(inverse_Lap_hor(∇ₕ²))
     #@assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-2 "difference in L2-norm should be small"
 
     ## Construct the 4th order derivative
@@ -271,7 +269,13 @@ function generalized_EigValProb(prob, grid, params)
     ## allocating memory for the LHS and RHS matrices
     ## --------------------------------------------------------
     labels  = [:w, :ζ, :b]  # eigenfunction labels
-    gevp    = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
+
+    blocksA = [rand(ComplexF64, s₁, s₂) for _ in 1:3] # length must match length(labels)
+    blocksB = [rand(Float64,    s₁, s₂) for _ in 1:3]
+
+    #gevp   = GEVPMatrices(ComplexF64, Float64, N; nblocks=3, labels=labels)
+
+    gevp    = GEVPMatrices(ComplexF64, Float64, blocksA, blocksB; labels=labels)
 
     ## Construct the matrix `A`
     ## ----------------------------------------------------------------------
@@ -280,7 +284,7 @@ function generalized_EigValProb(prob, grid, params)
     gevp.As.w[:,    1:1s₂] = (-1.0 * params.E * D⁴ 
                             + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2
 
-    gevp.As.w[:,1s₂+1:2s₂] = 1.0 * prob.Dᶻᴺ 
+    gevp.As.w[:,1s₂+1:2s₂] = prob.Dᶻᴺ 
 
     gevp.As.w[:,2s₂+1:3s₂] = -1.0 * ∇ₕ²
 
@@ -306,16 +310,11 @@ function generalized_EigValProb(prob, grid, params)
                             + 1.0im * params.k * bs.fields.U₀ * I⁰) 
 
 
-    #gevp.A = ([gevp.As.w; gevp.As.ζ; gevp.As.b]);
-
-
     ## Construct the matrix `B`
     cnst = -1.0 
     gevp.Bs.w[:,    1:1s₂] = 1.0cnst * params.ε^2 * D²;
     gevp.Bs.ζ[:,1s₂+1:2s₂] = 1.0cnst * I⁰;
     gevp.Bs.b[:,2s₂+1:3s₂] = 1.0cnst * I⁰;
-
-    #gevp.B = ([gevp.Bs.w; gevp.Bs.ζ; gevp.Bs.b])
 
     return gevp.A, gevp.B
 end
@@ -344,7 +343,9 @@ function EigSolver(prob, grid, params, σ₀)
 
     @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
+    print_evals(λ)
+
+    #@printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
     return λ[1], Χ[:,1]
 end
@@ -380,6 +381,6 @@ function solve_Stone1971(k::Float64)
 end
 nothing #hide
 
-# # # ## Result
-# solve_Stone1971(0.1) # growth rate is at k=0.1  
-# nothing #hide
+# # ## Result
+solve_Stone1971(0.1) # growth rate is at k=0.1  
+nothing #hide
