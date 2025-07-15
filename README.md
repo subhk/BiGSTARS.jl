@@ -11,7 +11,7 @@
 </p>
 
 ## Docs
-!-- Badges -->
+<!-- Badges -->
  <p align="left">
     <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
         <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20-blue">
