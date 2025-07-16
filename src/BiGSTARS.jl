@@ -44,7 +44,7 @@ module BiGSTARS
     #    FourierDiff,
     #    FourierDiff_fdm, 
 
-       FourierDiffn
+       FourierDiffn,
 
        # Setting boundary conditions
        setBCs!,
