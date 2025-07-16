@@ -23,8 +23,8 @@
 
 ## Installation
 
-Open the Julia REPL, press ] to enter **package-manager** mode, and then run the commands below.
-This will add the package and automatically build (instantiate) all of its dependencies:
+Open the Julia REPL, press ] to enter **package-manager** mode, and run the following commands. 
+These will add **BiGSTARS** and automatically instantiate all of its dependencies:
 
 ```julia
 julia> ]
