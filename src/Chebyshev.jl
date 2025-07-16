@@ -82,7 +82,7 @@ end
 #══════════════════════════════════════════════════════════════════════════════#
 
 """
-    ChebyshevDifferentiation{T<:Real}
+    ChebyshevDiffn{T<:Real}
 
 A spectral differentiation operator using Chebyshev polynomials.
 
@@ -103,7 +103,7 @@ For domain transformation ζ ∈ [-1,1] → x ∈ [a,b]:
 Scaling factor α = 2/(b-a) ensures correct derivative computation:
     dⁿf/dxⁿ = αⁿ * (dⁿf/dζⁿ)
 """
-struct ChebyshevDifferentiation{T<:Real}
+struct ChebyshevDiffn{T<:Real}
     n          :: Int
     domain     :: Tuple{T,T}
     max_order  :: Int
@@ -115,7 +115,7 @@ struct ChebyshevDifferentiation{T<:Real}
 end
 
 """
-    ChebyshevDifferentiation(n, domain, max_order=1)
+    ChebyshevDiffn(n, domain, max_order=1)
 
 Construct a Chebyshev differentiation operator.
 
@@ -127,7 +127,7 @@ Construct a Chebyshev differentiation operator.
 # Example
 ```julia
 # Create operator for 16 points on [0, 2π] with derivatives up to 2nd order
-cd = ChebyshevDifferentiation(16, [0.0, 2π], 2)
+cd = ChebyshevDiffn(16, [0.0, 2π], 2)
 
 # Use it to differentiate
 f = sin.(cd.x)
@@ -135,7 +135,7 @@ df_dx = cd.D₁ * f      # first derivative
 d2f_dx2 = cd.D₂ * f    # second derivative
 ```
 """
-function ChebyshevDifferentiation(
+function ChebyshevDiffn(
     n::Int,
     domain::AbstractVector{T},
     max_order::Int = 1
@@ -171,15 +171,15 @@ function ChebyshevDifferentiation(
     D₃ = D₃̂ === nothing ? nothing : α^3 * D₃̂
     D₄ = D₄̂ === nothing ? nothing : α^4 * D₄̂
     
-    return ChebyshevDifferentiation(n, (a, b), max_order, x, D₁, D₂, D₃, D₄)
+    return ChebyshevDiffn(n, (a, b), max_order, x, D₁, D₂, D₃, D₄)
 end
 
 #══════════════════════════════════════════════════════════════════════════════#
 #                              PRETTY PRINTING                                 #
 #══════════════════════════════════════════════════════════════════════════════#
 
-function Base.show(io::IO, cd::ChebyshevDifferentiation{T}) where T
-    println(io, "ChebyshevDifferentiation{$T}")
+function Base.show(io::IO, cd::ChebyshevDiffn{T}) where T
+    println(io, "Chebyshev Differentiation{$T}")
     println(io, "  ├─ Grid points: $(cd.n)")
     println(io, "  ├─ Domain: [$(cd.domain[1]), $(cd.domain[2])]")
     println(io, "  ├─ Max order: $(cd.max_order)")
@@ -208,7 +208,7 @@ Compute the derivative of function values `f` at the Chebyshev grid points.
 # Returns
 - `Vector`: Derivative values at grid points
 """
-function derivative(cd::ChebyshevDifferentiation, f::Vector, order::Int=1)
+function derivative(cd::ChebyshevDiffn, f::Vector, order::Int=1)
     @assert 1 ≤ order ≤ cd.max_order "Derivative order $order not available"
     @assert length(f) == cd.n "Function vector length must match grid size"
     
@@ -224,7 +224,7 @@ function derivative(cd::ChebyshevDifferentiation, f::Vector, order::Int=1)
 end
 
 # Convenient operator overloading
-Base.:*(cd::ChebyshevDifferentiation, f::Vector) = derivative(cd, f, 1)
+Base.:*(cd::ChebyshevDiffn, f::Vector) = derivative(cd, f, 1)
 
 #══════════════════════════════════════════════════════════════════════════════#
 #                              EXAMPLE USAGE                                   #
@@ -243,7 +243,7 @@ function demo_chebyshev_differentiation()
     # Create differentiation operator
     n = 16
     domain = [0.0, 2π]
-    cd = ChebyshevDifferentiation(n, domain, 2)
+    cd = ChebyshevDiffn(n, domain, 2)
     
     println("\n", cd)
     

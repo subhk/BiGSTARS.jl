@@ -147,34 +147,48 @@ function TwoDGrid(params::AbstractParams)
 
     # setup Fourier differentiation matrices  
     # Fourier in y-direction: y ∈ [0, L)
-    y1, Dʸ  = FourierDiff(Ny, 1)
-    _,  D²ʸ = FourierDiff(Ny, 2)
-    _,  D⁴ʸ = FourierDiff(Ny, 4)
+    # y1, Dʸ  = FourierDiff(Ny, 1)
+    # _,  D²ʸ = FourierDiff(Ny, 2)
+    # _,  D⁴ʸ = FourierDiff(Ny, 4)
 
-    # Transform the domain and derivative operators from [0, 2π) → [0, L)
-    y   = L/2π * y1
-    Dʸ  = (2π/L)^1 * Dʸ
-    D²ʸ = (2π/L)^2 * D²ʸ
-    D⁴ʸ = (2π/L)^4 * D⁴ʸ
+    # # Transform the domain and derivative operators from [0, 2π) → [0, L)
+    # y   = L/2π * y1
+    # Dʸ  = (2π/L)^1 * Dʸ
+    # D²ʸ = (2π/L)^2 * D²ʸ
+    # D⁴ʸ = (2π/L)^4 * D⁴ʸ
 
+    fd  = FourierDiffn(Ny; L = L) 
+    y   = fd.x
+    Dʸ  = fd.D₁
+    D²ʸ = fd.D₂
+    D⁴ʸ = fd.D₄     
+
+    
     # Chebyshev in the z-direction
-    z1, D1z = chebdif(Nz, 1)
-    _,  D2z = chebdif(Nz, 2)
-    _,  D3z = chebdif(Nz, 3)
-    _,  D4z = chebdif(Nz, 4)
+    # z1, D1z = chebdif(Nz, 1)
+    # _,  D2z = chebdif(Nz, 2)
+    # _,  D3z = chebdif(Nz, 3)
+    # _,  D4z = chebdif(Nz, 4)
 
-    # Transform the domain and derivative operators from [-1, 1] → [0, H]
-    z, Dᶻ, D²ᶻ  = chebder_transform(z1, D1z, 
-                                        D2z, 
-                                        zerotoL_transform, 
-                                        H)
+    # # Transform the domain and derivative operators from [-1, 1] → [0, H]
+    # z, Dᶻ, D²ᶻ  = chebder_transform(z1, D1z, 
+    #                                     D2z, 
+    #                                     zerotoL_transform, 
+    #                                     H)
 
-    _, _, D⁴ᶻ  = chebder_transform_ho(z1, D1z, 
-                                        D2z, 
-                                        D3z, 
-                                        D4z, 
-                                        zerotoL_transform_ho, 
-                                        H)
+    # _, _, D⁴ᶻ  = chebder_transform_ho(z1, D1z, 
+    #                                     D2z, 
+    #                                     D3z, 
+    #                                     D4z, 
+    #                                     zerotoL_transform_ho, 
+    #                                     H)
+
+    cd  = ChebyshevDiffn(Nz, [0.0, L], 4)
+    z   = cd.x
+    Dᶻ  = cd.D₁
+    D²ᶻ = cd.D₂
+    D⁴ᶻ = cd.D₄
+
     T = eltype(Dʸ)
 
    # Convert to mutable matrices to allow BCs

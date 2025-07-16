@@ -25,26 +25,26 @@ module BiGSTARS
     # 
     export
        # Chebychev matrix
-       cheb,
-       chebdif,   
-       chebder_transform,
-       chebder_transform_ho,  
-       MinusLtoPlusL_transform, 
-       MinusLtoZero_transform,
-       zerotoL_transform, 
-       transform_02π_to_0L,
-       zerotoL_transform_ho, 
-       zerotoone_transform, 
-       cheb_coord_transform, 
-       cheb_coord_transform_ho,   
+    #    cheb,
+    #    chebdif,   
+    #    chebder_transform,
+    #    chebder_transform_ho,  
+    #    MinusLtoPlusL_transform, 
+    #    MinusLtoZero_transform,
+    #    zerotoL_transform, 
+    #    transform_02π_to_0L,
+    #    zerotoL_transform_ho, 
+    #    zerotoone_transform, 
+    #    cheb_coord_transform, 
+    #    cheb_coord_transform_ho,   
 
-       #ChebyshevDiff,
+        ChebyshevDiffn,
 
        # Fourier differentiation matrix
-       FourierDiff,
-       FourierDiff_fdm, 
+    #    FourierDiff,
+    #    FourierDiff_fdm, 
 
-       #FourierDiff,
+       FourierDiffn
 
        # Setting boundary conditions
        setBCs!,
@@ -104,11 +104,10 @@ module BiGSTARS
     # export it so tests and users can see it
     export AbstractParams
 
-    include("dmsuite.jl")
+    # include("dmsuite.jl")
 
-    # include("Fourier.jl")
-    # include("Chebyshev.jl")
-    
+    include("Fourier.jl")
+    include("Chebyshev.jl")
     include("transforms.jl")
     include("shift_invert_arnoldi.jl")
     include("shift_invert_krylov.jl")
