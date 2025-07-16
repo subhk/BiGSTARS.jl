@@ -16,11 +16,11 @@ function compute_first_derivatives_fourier(U₀::Matrix{T},
                                             y::AbstractVector{T}) where T
 
     if size(U₀)[1] == length(y)
-        ∂ʸU₀ = gradient(U₀, y, dims=1)
-        ∂ʸB₀ = gradient(B₀, y, dims=1)
+        ∂ʸU₀ = gradient(U₀, y, dims=1, order=1)
+        ∂ʸB₀ = gradient(B₀, y, dims=1, order=1)
     else
-        ∂ʸU₀ = gradient(U₀, y, dims=2)
-        ∂ʸB₀ = gradient(B₀, y, dims=2)
+        ∂ʸU₀ = gradient(U₀, y, dims=2, order=1)
+        ∂ʸB₀ = gradient(B₀, y, dims=2, order=1)
     end
 
     return ∂ʸU₀, ∂ʸB₀
@@ -37,11 +37,11 @@ function compute_second_derivatives_fourier(U₀::Matrix{T},
                                             y::AbstractVector{T}) where T
 
     if size(U₀)[1] == length(y)
-        ∂ʸU₀ = gradient2(U₀, y, dims=1)
-        ∂ʸB₀ = gradient2(B₀, y, dims=1)
+        ∂ʸU₀ = gradient(U₀, y, dims=1, order=2)
+        ∂ʸB₀ = gradient(B₀, y, dims=1, order=2)
     else
-        ∂ʸU₀ = gradient2(U₀, y, dims=2)
-        ∂ʸB₀ = gradient2(B₀, y, dims=2)
+        ∂ʸU₀ = gradient(U₀, y, dims=2, order=2)
+        ∂ʸB₀ = gradient(B₀, y, dims=2, order=2)
     end
 
     return ∂ʸU₀, ∂ʸB₀

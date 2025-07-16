@@ -66,8 +66,10 @@ module BiGSTARS
        sort_evals_,
        remove_evals,
        remove_spurious,
+
+       # calculate gradient 
        gradient,
-       gradient2, 
+       derivative,
 
        # wrappers for vectors
        wrapvec,
@@ -118,5 +120,6 @@ module BiGSTARS
     include("eig_matrices.jl")
     include("compute_derivative.jl")
     include("basic_state.jl")
+    include("gradient.jl")
 
 end # module BiGSTARS
