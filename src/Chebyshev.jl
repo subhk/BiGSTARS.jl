@@ -196,12 +196,12 @@ end
 #══════════════════════════════════════════════════════════════════════════════#
 
 """
-    derivative(cd::ChebyshevDifferentiation, f::Vector, order::Int=1)
+    derivative(cd::ChebyshevDiffn, f::Vector, order::Int=1)
 
 Compute the derivative of function values `f` at the Chebyshev grid points.
 
 # Arguments
-- `cd::ChebyshevDifferentiation`: The differentiation operator
+- `cd::ChebyshevDiffn`: The differentiation operator
 - `f::Vector`: Function values at grid points cd.x
 - `order::Int=1`: Derivative order (1 ≤ order ≤ cd.max_order)
 

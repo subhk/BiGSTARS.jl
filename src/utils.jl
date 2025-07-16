@@ -223,7 +223,7 @@ function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where 
     if ndims(f) == 1
         itp = Spline1D(x, f, bc="nearest")
         @inbounds for i in eachindex(x)
-            sol[i] = derivative(itp, x[i]; nu=1)
+            sol[i] = Dierckx.derivative(itp, x[i]; nu=1)
         end
 
     elseif ndims(f) == 2
@@ -231,14 +231,14 @@ function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where 
             @inbounds for j in 1:n[2]
                 itp = Spline1D(x, view(f, :, j), bc="nearest")
                 for i in 1:n[1]
-                    sol[i, j] = derivative(itp, x[i]; nu=1)
+                    sol[i, j] = Dierckx.derivative(itp, x[i]; nu=1)
                 end
             end
         else  # dims == 2
             @inbounds for i in 1:n[1]
                 itp = Spline1D(x, view(f, i, :), bc="nearest")
                 for j in 1:n[2]
-                    sol[i, j] = derivative(itp, x[j]; nu=1)
+                    sol[i, j] = Dierckx.derivative(itp, x[j]; nu=1)
                 end
             end
         end
@@ -248,7 +248,7 @@ function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where 
             @inbounds for j in 1:n[2], k in 1:n[3]
                 itp = Spline1D(x, view(f, :, j, k), bc="nearest")
                 for i in 1:n[1]
-                    sol[i, j, k] = derivative(itp, x[i]; nu=1)
+                    sol[i, j, k] = Dierckx.derivative(itp, x[i]; nu=1)
                 end
             end
 
@@ -256,7 +256,7 @@ function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where 
             @inbounds for i in 1:n[1], k in 1:n[3]
                 itp = Spline1D(x, view(f, i, :, k), bc="nearest")
                 for j in 1:n[2]
-                    sol[i, j, k] = derivative(itp, x[j]; nu=1)
+                    sol[i, j, k] = Dierckx.derivative(itp, x[j]; nu=1)
                 end
             end
 
@@ -264,10 +264,11 @@ function gradient(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where 
             @inbounds for i in 1:n[1], j in 1:n[2]
                 itp = Spline1D(x, view(f, i, j, :), bc="nearest")
                 for k in 1:n[3]
-                    sol[i, j, k] = derivative(itp, x[k]; nu=1)
+                    sol[i, j, k] = Dierckx.derivative(itp, x[k]; nu=1)
                 end
             end
         end
+
     else
         error("gradient currently only supports 1D, 2D, or 3D arrays.")
     end
@@ -283,7 +284,7 @@ function gradient2(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where
 
     if nd == 1
         itp = Spline1D(x, f, bc="nearest")
-        sol .= derivative.(Ref(itp), x; nu=2)
+        sol .= Dierckx.derivative.(Ref(itp), x; nu=2)
 
     elseif nd == 2
         @assert nd ≥ dims
@@ -291,13 +292,13 @@ function gradient2(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where
             for j in axes(f, 2)
                 fj = view(f, :, j)
                 itp = Spline1D(x, fj, bc="nearest")
-                sol[:, j] .= derivative.(Ref(itp), x; nu=2)
+                sol[:, j] .= Dierckx.derivative.(Ref(itp), x; nu=2)
             end
         else
             for i in axes(f, 1)
                 fi = view(f, i, :)
                 itp = Spline1D(x, fi, bc="nearest")
-                sol[i, :] .= derivative.(Ref(itp), x; nu=2)
+                sol[i, :] .= Dierckx.derivative.(Ref(itp), x; nu=2)
             end
         end
 
@@ -307,19 +308,19 @@ function gradient2(f::AbstractArray{T}, x::AbstractVector{T}; dims::Int=1) where
             for j in axes(f, 2), k in axes(f, 3)
                 fjk = view(f, :, j, k)
                 itp = Spline1D(x, fjk, bc="nearest")
-                sol[:, j, k] .= derivative.(Ref(itp), x; nu=2)
+                sol[:, j, k] .= Dierckx.derivative.(Ref(itp), x; nu=2)
             end
         elseif dims == 2
             for i in axes(f, 1), k in axes(f, 3)
                 fik = view(f, i, :, k)
                 itp = Spline1D(x, fik, bc="nearest")
-                sol[i, :, k] .= derivative.(Ref(itp), x; nu=2)
+                sol[i, :, k] .= Dierckx.derivative.(Ref(itp), x; nu=2)
             end
         else
             for i in axes(f, 1), j in axes(f, 2)
                 fij = view(f, i, j, :)
                 itp = Spline1D(x, fij, bc="nearest")
-                sol[i, j, :] .= derivative.(Ref(itp), x; nu=2)
+                sol[i, j, :] .= Dierckx.derivative.(Ref(itp), x; nu=2)
             end
         end
     else
