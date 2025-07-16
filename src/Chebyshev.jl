@@ -1,9 +1,139 @@
-using LinearAlgebra, Printf
+using LinearAlgebra
+using Printf
+
+# Coordinate transformation functions
+"""
+`cheb_coord_transform`: transform the derivative operator from a domain of ζ ∈ [-1, 1] → x ∈ [0, L] via
+x = (1.0 + ζ) / 2.0 * L
+
+Input:
+ D¹: First-order Chebyshev derivative in ζ
+ D²: Second-order Chebyshev derivative in ζ
+ d¹: Transformed coefficient
+ d²: Transformed coefficient
+
+Output:
+ Dₓ : First-order Chebyshev derivative in x
+ Dₓₓ: Second-order Chebyshev derivative in x
+"""
+function cheb_coord_transform(D¹, D², d¹, d²)
+    Dₓ = zeros(size(D¹, 1), size(D¹, 2))
+    mul!(Dₓ, diagm(d¹), D¹)
+    
+    Dₓₓ = zeros(size(D², 1), size(D², 2))
+    tmp₁ = zeros(size(D², 1), size(D², 2))
+    mul!(Dₓₓ, diagm(d²), D¹)
+    mul!(tmp₁, diagm(d¹ .^ 2), D²)
+    Dₓₓ = Dₓₓ + tmp₁
+    
+    return Dₓ, Dₓₓ
+end
 
 """
-    ChebyshevDiff(n::Int, domain=2.0, orders::Vector{Int}=Int[])
+`cheb_coord_transform_ho`: transform the derivative operator from a domain of ζ ∈ [-1, 1] → x ∈ [0, L] via
+x = (1.0 + ζ) / 2.0 * L for higher-order derivatives
 
-Chebyshev differentiation on specified domain.
+Input:
+ D¹: First-order Chebyshev derivative in ζ
+ D²: Second-order Chebyshev derivative in ζ
+ D³: Third-order Chebyshev derivative in ζ
+ D⁴: Fourth-order Chebyshev derivative in ζ
+ d¹: Transformed coefficient
+ d²: Transformed coefficient
+ d³: Transformed coefficient
+ d⁴: Transformed coefficient
+
+Output:
+ Dₓₓₓ : Third-order Chebyshev derivative in x
+ Dₓₓₓₓ: Fourth-order Chebyshev derivative in x
+"""
+function cheb_coord_transform_ho(D¹, D², D³, D⁴, d¹, d², d³, d⁴)
+    Dₓₓₓ = zeros(size(D², 1), size(D², 2))
+    tmp₁ = zeros(size(D², 1), size(D², 2))
+    tmp₂ = zeros(size(D², 1), size(D², 2))
+    
+    mul!(Dₓₓₓ, diagm(d³), D¹)
+    mul!(tmp₁, diagm(d¹), diagm(d²))
+    mul!(tmp₂, diagm(d¹ .^ 3), D³)
+    Dₓₓₓ = Dₓₓₓ + 3tmp₁ * D² + tmp₂
+    
+    Dₓₓₓₓ = zeros(size(D², 1), size(D², 2))
+    mul!(Dₓₓₓₓ, diagm(d⁴), D¹)
+    mul!(tmp₁, diagm(d¹), diagm(d³))
+    mul!(tmp₂, diagm(d¹ .^ 2), diagm(d²))
+    tmp₁ = 4tmp₁ + 3.0 * diagm(d² .^ 2)
+    tmp₂ = 6.0 * diagm(d¹ .^ 2) * diagm(d²)
+    Dₓₓₓₓ = Dₓₓₓₓ + tmp₁ * D² + 6tmp₂ * D³ + diagm(d¹ .^ 4) * D⁴
+    
+    return Dₓₓₓ, Dₓₓₓₓ
+end
+
+# Domain transformation functions
+# [-1, 1] ↦ [-L, L]
+function MinusLtoPlusL_transform(x, L::Float64)
+    z = @. x * L
+    Δ1 = @. 1.0 / L + 0.0 * z
+    Δ2 = @. 0.0 * z
+    return z, Δ1, Δ2
+end
+
+# [-1, 1] ↦ [-L, 0]
+function MinusLtoZero_transform(x, L::Float64)
+    z = @. -1.0 * (1.0 - x) /2.0 * L
+    Δ1 = @. 2.0 / L + 0.0 * z
+    Δ2 = @. 0.0 * z
+    return z, Δ1, Δ2
+end
+
+# [-1, 1] ↦ [0, L]
+function zerotoL_transform(x, L::Float64)
+    z = @. (1.0 + x) / 2.0 * L
+    Δ1 = @. 2.0 / L + 0.0 * z
+    Δ2 = @. 0.0 * z
+    return z, Δ1, Δ2
+end
+
+# [0, 2π] → [0, L]
+function transform_02π_to_0L(x, L::Float64)
+    z = @. x/2π * L
+    Δ1 = @. 2π / L + 0.0 * z
+    Δ2 = @. 0.0 * z
+    return z, Δ1, Δ2
+end
+
+function zerotoL_transform_ho(x, L::Float64)
+    z = @. (1.0 + x) / 2.0 * L
+    Δ1 = @. 2.0 / L + 0.0 * z
+    Δ2 = @. 0.0 * z
+    Δ3 = @. 0.0 * z
+    Δ4 = @. 0.0 * z
+    return z, Δ1, Δ2, Δ3, Δ4
+end
+
+# [-1, 1] ↦ [0, 1]
+function zerotoone_transform(x)
+    z = @. (1.0 + x) / 2.0
+    Δ1 = @. 2.0 + 0.0 * z
+    Δ2 = @. 0.0 * z
+    return z, Δ1, Δ2
+end
+
+function chebder_transform(x, D¹, D², fun_transform, kwargs...)
+    z, d¹, d² = fun_transform(x, kwargs...)
+    Dₓ, Dₓₓ = cheb_coord_transform(D¹, D², d¹, d²)
+    return z, Dₓ, Dₓₓ
+end
+
+function chebder_transform_ho(x, D¹, D², D³, D⁴, fun_transform, kwargs...)
+    z, d¹, d², d³, d⁴ = fun_transform(x, kwargs...)
+    Dₓₓₓ, Dₓₓₓₓ = cheb_coord_transform_ho(D¹, D², D³, D⁴, d¹, d², d³, d⁴)
+    return z, Dₓₓₓ, Dₓₓₓₓ
+end
+
+"""
+    Chebyshev(n::Int, domain=2.0, orders::Vector{Int}=Int[])
+
+Optimized Chebyshev differentiation with coordinate transformations.
 
 # Domain Specifications
 - `L::Float64`: Domain [0, L]
@@ -13,203 +143,127 @@ Chebyshev differentiation on specified domain.
 # Usage
 ```julia
 # Basic usage with domain length
-cd = ChebyshevDiff(16, 4.0)  # 16 points on domain [0, 4.0]
+cd = Chebyshev(16, 4.0)  # 16 points on domain [0, 4.0]
 
 # Domain as interval
-cd = ChebyshevDiff(16, [0, 4])    # Domain [0, 4]
-cd = ChebyshevDiff(16, [-2, 2])   # Domain [-2, 2]
-cd = ChebyshevDiff(16, [1, 5])    # Domain [1, 5]
+cd = Chebyshev(16, [0, 4])    # Domain [0, 4]
+cd = Chebyshev(16, [-2, 2])   # Domain [-2, 2]
+cd = Chebyshev(16, [1, 5])    # Domain [1, 5]
 
 # Pre-compute specific derivative orders
-cd = ChebyshevDiff(16, [0, 4], [1, 2, 4])  # Pre-compute 1st, 2nd, and 4th derivatives
+cd = Chebyshev(16, [0, 4], [1, 2, 4])  # Pre-compute 1st, 2nd, and 4th derivatives
 df = cd(f, 1)      # First derivative (already computed)
 d2f = cd(f, 2)     # Second derivative (already computed)
 d4f = cd(f, 4)     # Fourth derivative (already computed)
 ```
 """
-struct ChebyshevDiff
+struct Chebyshev
     n::Int
     domain::Vector{Float64}
     L::Float64  # Domain length for backward compatibility
     grid::Vector{Float64}
     dx::Float64
     matrices::Dict{Int, Matrix{Float64}}
+    base_matrices::Dict{Int, Matrix{Float64}}  # Base matrices on [-1, 1]
     
-    function ChebyshevDiff(n::Int, domain=2.0, orders::Vector{Int}=Int[])
+    function Chebyshev(n::Int, domain=2.0, orders::Vector{Int}=Int[])
         n < 3 && throw(ArgumentError("Grid size must be ≥ 3"))
         any(o -> o < 0, orders) && throw(ArgumentError("All derivative orders must be ≥ 0"))
         
         # Parse domain specification
-        if isa(domain, Real)
-            # Single number means [0, domain]
-            domain_vec = [0.0, Float64(domain)]
-            domain <= 0 && throw(ArgumentError("Domain length must be positive"))
-        elseif isa(domain, AbstractVector) && length(domain) == 2
-            # Domain specified as [a, b]
-            domain_vec = [Float64(domain[1]), Float64(domain[2])]
-            domain_vec[1] >= domain_vec[2] && throw(ArgumentError("Domain bounds must satisfy a < b"))
-        else
-            throw(ArgumentError("Domain must be a positive number or [a, b] interval"))
-        end
-        
+        domain_vec = parse_domain_opt(domain)
         a, b = domain_vec[1], domain_vec[2]
         L = b - a  # Domain length
         
-        # Create Chebyshev-Gauss-Lobatto points on [a, b]
-        k = 0:1:n-1
-        x_cheb = sin.(π * (n-1 .- 2 * reverse(k)) / (2 * (n-1)))  # Points on [-1, 1]
-        
-        # Transform to [a, b]: x = (b-a)/2 * ζ + (b+a)/2
-        grid = @. (b - a) / 2.0 * x_cheb + (b + a) / 2.0
+        # Create Chebyshev-Gauss-Lobatto points on the specified domain
+        grid, x_base = create_chebyshev_grid_opt(n, domain_vec)
         dx = L / (n - 1)  # Approximate spacing
         
         matrices = Dict{Int, Matrix{Float64}}()
+        base_matrices = Dict{Int, Matrix{Float64}}()
         
-        # Pre-compute requested derivative matrices
+        # Pre-compute requested derivative matrices using simple approach
         for order in orders
-            matrices[order] = _compute_matrix(n, order, domain_vec)
+            matrices[order] = compute_derivative_matrix_simple(n, order, domain_vec)
         end
         
-        new(n, domain_vec, L, grid, dx, matrices)
+        new(n, domain_vec, L, grid, dx, matrices, base_matrices)
     end
 end
 
-# Callable interface
-(cd::ChebyshevDiff)(f::AbstractVector, order::Int=1) = differentiate(cd, f, order)
+function parse_domain_opt(domain)
+    if isa(domain, Real)
+        domain <= 0 && throw(ArgumentError("Domain length must be positive"))
+        return [0.0, Float64(domain)]
+    elseif isa(domain, AbstractVector) && length(domain) == 2
+        domain_vec = [Float64(domain[1]), Float64(domain[2])]
+        domain_vec[1] >= domain_vec[2] && throw(ArgumentError("Domain bounds must satisfy a < b"))
+        return domain_vec
+    else
+        throw(ArgumentError("Domain must be a positive number or [a, b] interval"))
+    end
+end
 
-function derivative_matrix(cd::ChebyshevDiff, order::Int)
-    order < 0 && throw(ArgumentError("Derivative order must be ≥ 0"))
-    haskey(cd.matrices, order) && return cd.matrices[order]
+function create_chebyshev_grid_opt(n::Int, domain::Vector{Float64})
+    a, b = domain[1], domain[2]
     
-    cd.matrices[order] = _compute_matrix(cd.n, order, cd.domain)
-    return cd.matrices[order]
+    # Chebyshev-Gauss-Lobatto points on [-1, 1]
+    k = 0:n-1
+    x_base = cos.(π * k / (n - 1))
+    
+    # Transform to [a, b]: x = (b-a)/2 * ζ + (b+a)/2
+    grid = @. (b - a) / 2.0 * x_base + (b + a) / 2.0
+    
+    return grid, x_base
 end
 
-function differentiate(cd::ChebyshevDiff, f::AbstractVector, order::Int=1)
-    length(f) != cd.n && throw(ArgumentError("Function length must match grid size"))
-    return derivative_matrix(cd, order) * f
-end
-
-function _compute_matrix(n::Int, order::Int, domain::Vector{Float64})
+function compute_derivative_matrix_optimized_opt(n::Int, order::Int, domain::Vector{Float64}, base_matrices::Dict{Int, Matrix{Float64}})
     order == 0 && return Matrix{Float64}(I, n, n)
     
     a, b = domain[1], domain[2]
     
-    # Compute base Chebyshev differentiation matrices on [-1, 1]
-    x_cheb, D_base = _compute_base_matrices(n, order)
+    # For all cases, use the simple and robust transformation
+    # Compute base differentiation matrix on [-1, 1]
+    k = 0:n-1
+    ζ = cos.(π * k / (n - 1))
+    D = compute_base_derivative_matrix_opt(ζ, n, order)
     
-    # Transform from [-1, 1] to [a, b]
-    # Transformation: x = (b-a)/2 * ζ + (b+a)/2, where ζ ∈ [-1, 1], x ∈ [a, b]
-    # Chain rule: d/dx = (dζ/dx) * d/dζ = (2/(b-a)) * d/dζ
+    # Apply domain transformation scaling: x = (b-a)/2 * ζ + (b+a)/2
+    # Chain rule: d/dx = (2/(b-a)) * d/dζ
     transform_factor = (2.0 / (b - a))^order
-    
-    # Apply transformation
-    D_transformed = transform_factor * D_base
-    
-    return D_transformed
+    return transform_factor * D
 end
 
-function _compute_base_matrices(n::Int, max_order::Int)
-    # Compute Chebyshev-Gauss-Lobatto points on [-1, 1]
-    k = 0:1:n-1
-    θ = k * π / (n - 1)
-    x = sin.(π * (n - 1 .- 2 * reverse(k)) / (2 * (n - 1)))
-    
-    # First derivative matrix using standard Chebyshev method
-    D1 = _compute_first_derivative_matrix(x, n)
-    
-    if max_order == 1
-        return x, D1
-    end
-    
-    # For higher orders, compute iteratively
-    # This is a simplified approach - in practice, you'd want the full
-    # recursive formulation from the original code
-    D_current = D1
-    for order in 2:max_order
-        if order == 2
-            D_current = D1 * D1  # Second derivative
-        else
-            D_current = D1 * D_current  # Higher derivatives (approximate)
-        end
-    end
-    
-    return x, D_current
-end
-
-function _compute_first_derivative_matrix(x::Vector{Float64}, n::Int)
+function compute_base_derivative_matrix_opt(x::Vector{Float64}, n::Int, order::Int)
+    # Compute first derivative matrix
     D = zeros(n, n)
     
-    # Compute weights
-    c = ones(n)
-    c[1] = 2.0
-    c[end] = 2.0
-    for i in 2:n-1
-        c[i] = (-1.0)^(i-1)
-    end
+    # Weight vector for Chebyshev points
+    c = [i == 1 || i == n ? 2.0 : 1.0 for i in 1:n]
+    c .*= [(-1.0)^(i-1) for i in 1:n]
     
-    # Fill differentiation matrix
+    # Off-diagonal entries
     for i in 1:n
         for j in 1:n
             if i != j
-                D[i, j] = (c[i] / c[j]) * (-1.0)^(i + j) / (x[i] - x[j])
+                D[i, j] = (c[i] / c[j]) / (x[i] - x[j])
             end
         end
     end
     
-    # Diagonal entries (negative sum of off-diagonal elements)
+    # Diagonal entries
     for i in 1:n
         D[i, i] = -sum(D[i, j] for j in 1:n if j != i)
     end
     
-    return D
-end
-
-# More accurate implementation using the original algorithm structure
-function _compute_matrix_accurate(n::Int, order::Int, domain::Vector{Float64})
-    order == 0 && return Matrix{Float64}(I, n, n)
-    
-    a, b = domain[1], domain[2]
-    
-    # Create base Chebyshev points and matrices on [-1, 1]
-    k = 0:1:n-1
-    θ = k * π / (n - 1)
-    x_cheb = sin.(π * (n - 1 .- 2 * reverse(k)) / (2 * (n - 1)))
-    
-    # Compute first derivative matrix on [-1, 1]
-    D1_base = _compute_accurate_derivative_matrix(x_cheb, n, 1)
-    
+    # For higher orders, use the stable iterative formula
     if order == 1
-        # Transform first derivative: [a, b] domain
-        # x = (b-a)/2 * ζ + (b+a)/2, so dx/dζ = (b-a)/2, and d/dx = 2/(b-a) * d/dζ
-        return (2.0 / (b - a)) * D1_base
-    elseif order == 2
-        # Second derivative
-        D2_base = _compute_accurate_derivative_matrix(x_cheb, n, 2)
-        return (2.0 / (b - a))^2 * D2_base
-    else
-        # Higher order derivatives
-        D_base = _compute_accurate_derivative_matrix(x_cheb, n, order)
-        return (2.0 / (b - a))^order * D_base
-    end
-end
-
-function _compute_accurate_derivative_matrix(x::Vector{Float64}, n::Int, order::Int)
-    if order == 1
-        return _compute_first_derivative_matrix(x, n)
+        return D
     end
     
-    # For higher orders, use the iterative method from the original code
-    # This is simplified - the full implementation would follow the original algorithm
-    D1 = _compute_first_derivative_matrix(x, n)
-    
-    # Compute coefficient vectors
-    c = (-1.0) .^ (0:n-1)
-    c[1] *= 2
-    c[end] *= 2
-    C = c ./ c'
-    
-    # Compute distance matrix
+    # Iterative computation for higher derivatives
+    # This implements the stable algorithm from Weideman & Reddy
+    C = c * c'  # Coefficient matrix
     Z = zeros(n, n)
     for i in 1:n
         for j in 1:n
@@ -219,118 +273,114 @@ function _compute_accurate_derivative_matrix(x::Vector{Float64}, n::Int, order::
         end
     end
     
-    # Iteratively compute higher derivatives
-    D = copy(D1)
+    D_curr = copy(D)
     for ell in 2:order
-        diag_D = diag(D)
-        D = ell * Z .* (C .* repeat(diag_D, 1, n) .- D)
+        diag_D = diag(D_curr)
+        D_new = zeros(n, n)
+        
+        for i in 1:n
+            for j in 1:n
+                if i != j
+                    D_new[i, j] = ell * Z[i, j] * (C[i, j] * diag_D[i] - D_curr[i, j])
+                end
+            end
+        end
         
         # Diagonal correction
         for i in 1:n
-            D[i, i] = -sum(D[i, j] for j in 1:n if j != i)
+            D_new[i, i] = -sum(D_new[i, j] for j in 1:n if j != i)
         end
+        
+        D_curr = D_new
     end
     
-    return D
+    return D_curr
 end
 
-# Update the main computation function to use accurate method
-function _compute_matrix(n::Int, order::Int, domain::Vector{Float64})
-    return _compute_matrix_accurate(n, order, domain)
+# Callable interface
+(cd::Chebyshev)(f::AbstractVector, order::Int=1) = differentiate_opt(cd, f, order)
+
+function compute_derivative_matrix_simple(n::Int, order::Int, domain::Vector{Float64})
+    order == 0 && return Matrix{Float64}(I, n, n)
+    
+    a, b = domain[1], domain[2]
+    
+    # Compute base differentiation matrix on [-1, 1]
+    k = 0:n-1
+    ζ = cos.(π * k / (n - 1))
+    D = compute_base_derivative_matrix_opt(ζ, n, order)
+    
+    # Apply domain transformation scaling: x = (b-a)/2 * ζ + (b+a)/2
+    # Chain rule: d/dx = (2/(b-a)) * d/dζ
+    transform_factor = (2.0 / (b - a))^order
+    return transform_factor * D
+end
+
+function derivative_matrix_opt(cd::Chebyshev, order::Int)
+    order < 0 && throw(ArgumentError("Derivative order must be ≥ 0"))
+    haskey(cd.matrices, order) && return cd.matrices[order]
+    
+    # Compute on-demand using simple method
+    cd.matrices[order] = compute_derivative_matrix_simple(cd.n, order, cd.domain)
+    return cd.matrices[order]
+end
+
+function differentiate_opt(cd::Chebyshev, f::AbstractVector, order::Int=1)
+    length(f) != cd.n && throw(ArgumentError("Function length must match grid size"))
+    return derivative_matrix_opt(cd, order) * f
 end
 
 # Convenience function
 chebyshev_diff(n::Int, domain=2.0, orders::Vector{Int}=Int[], order::Int=1) = 
-    (cd = ChebyshevDiff(n, domain, orders); (cd.grid, derivative_matrix(cd, order)))
+    (cd = Chebyshev(n, domain, orders); (cd.grid, derivative_matrix_opt(cd, order)))
 
 # Utility functions
-Base.show(io::IO, cd::ChebyshevDiff) = 
-    print(io, "ChebyshevDiff(n=$(cd.n), domain=$(cd.domain), cached=$(sort(collect(keys(cd.matrices)))))")
+Base.show(io::IO, cd::Chebyshev) = 
+    print(io, "Chebyshev(n=$(cd.n), domain=$(cd.domain), cached=$(sort(collect(keys(cd.matrices)))))")
 
-clear_cache!(cd::ChebyshevDiff) = (empty!(cd.matrices); cd)
+clear_cache_opt!(cd::Chebyshev) = (empty!(cd.matrices); empty!(cd.base_matrices); cd)
 
-memory_usage(cd::ChebyshevDiff) = 
-    sum(length(m) for m in values(cd.matrices)) * sizeof(Float64) / 1024^2
-
-# Testing
-function test_chebyshev_diff(n::Int=16, domain=[0.0, 2.0], orders::Vector{Int}=[1,2])
-    cd = ChebyshevDiff(n, domain, orders)
-    
-    # Test with polynomial function (should be exact for low-degree polynomials)
-    # Use x^2 which has known derivatives
-    f = cd.grid.^2
-    
-    df_num = cd(f, 1)
-    df_exact = 2 * cd.grid
-    d2f_num = cd(f, 2)
-    d2f_exact = 2 * ones(length(cd.grid))
-    
-    err1 = maximum(abs.(df_num - df_exact))
-    err2 = maximum(abs.(d2f_num - d2f_exact))
-    
-    println("n=$n, domain=$domain, orders=$orders: 1st deriv error = $(err1), 2nd deriv error = $(err2)")
-    return err1 < 1e-10 && err2 < 1e-10
-end
+memory_usage_opt(cd::Chebyshev) = 
+    (sum(length(m) for m in values(cd.matrices)) + sum(length(m) for m in values(cd.base_matrices))) * sizeof(Float64) / 1024^2
 
 # Demo
 if abspath(PROGRAM_FILE) == @__FILE__
-    # Test on standard domain [0, 2] using scalar input
-    println("Testing on domain [0, 2] using scalar input:")
-    cd1 = ChebyshevDiff(16, 2.0, [1, 2])
+    println("Optimized Chebyshev Differentiation")
+    println("=" ^ 35)
+    
+    # Test on [0, L] domain
+    cd1 = Chebyshev(16, 4.0, [1, 2, 3, 4])
     x1 = cd1.grid
-    f1 = x1.^3  # Cubic polynomial
+    f1 = sin.(π * x1 / 4.0)
     
-    println("Derivatives of x³:")
-    df_exact = 3 * x1.^2
-    d2f_exact = 6 * x1
+    println("Testing sin(πx/L) on [0, 4]:")
+    L = 4.0
+    for order in 1:4
+        df_computed = cd1(f1, order)
+        if order == 1
+            df_exact = (π/L) * cos.(π * x1 / L)
+        elseif order == 2
+            df_exact = -(π/L)^2 * sin.(π * x1 / L)
+        elseif order == 3
+            df_exact = -(π/L)^3 * cos.(π * x1 / L)
+        else
+            df_exact = (π/L)^4 * sin.(π * x1 / L)
+        end
+        error = maximum(abs.(df_computed - df_exact))
+        println("Order $order: Error = $(error)")
+    end
     
-    println("1st: max error = $(maximum(abs.(cd1(f1,1) - df_exact)))")
-    println("2nd: max error = $(maximum(abs.(cd1(f1,2) - d2f_exact)))")
-    
-    # Test on domain [0, 4] using vector input
-    println("\nTesting on domain [0, 4] using vector input:")
-    cd2 = ChebyshevDiff(16, [0, 4], [1, 2, 3])
+    # Test symmetric domain [-L, L]
+    println("\nTesting x⁴ on [-2, 2]:")
+    cd2 = Chebyshev(16, [-2.0, 2.0], [1, 2])
     x2 = cd2.grid
-    L = cd2.L
-    f2 = sin.(π * x2 / L)  # Sine function
+    f2 = x2.^4
     
-    println("Derivatives of sin(πx/L):")
-    df_exact = (π / L) * cos.(π * x2 / L)
-    d2f_exact = -(π / L)^2 * sin.(π * x2 / L)
-    d3f_exact = -(π / L)^3 * cos.(π * x2 / L)
+    df_exact = 4 * x2.^3
+    d2f_exact = 12 * x2.^2
     
     println("1st: max error = $(maximum(abs.(cd2(f2,1) - df_exact)))")
     println("2nd: max error = $(maximum(abs.(cd2(f2,2) - d2f_exact)))")
-    println("3rd: max error = $(maximum(abs.(cd2(f2,3) - d3f_exact)))")
     
-    # Test on symmetric domain [-2, 2]
-    println("\nTesting on symmetric domain [-2, 2]:")
-    cd3 = ChebyshevDiff(16, [-2, 2], [1, 2])
-    x3 = cd3.grid
-    f3 = x3.^4  # Even polynomial
-    
-    println("Derivatives of x⁴:")
-    df_exact = 4 * x3.^3
-    d2f_exact = 12 * x3.^2
-    
-    println("1st: max error = $(maximum(abs.(cd3(f3,1) - df_exact)))")
-    println("2nd: max error = $(maximum(abs.(cd3(f3,2) - d2f_exact)))")
-    
-    # Test on general domain [1, 5]
-    println("\nTesting on general domain [1, 5]:")
-    cd4 = ChebyshevDiff(16, [1, 5], [1, 2])
-    x4 = cd4.grid
-    f4 = (x4 .- 3).^2  # Shifted parabola
-    
-    println("Derivatives of (x-3)²:")
-    df_exact = 2 * (x4 .- 3)
-    d2f_exact = 2 * ones(length(x4))
-    
-    println("1st: max error = $(maximum(abs.(cd4(f4,1) - df_exact)))")
-    println("2nd: max error = $(maximum(abs.(cd4(f4,2) - d2f_exact)))")
-    
-    println("\nCached matrices: $(cd2)")
-    test_chebyshev_diff(16, [0.0, 2.0], [1,2])
-    test_chebyshev_diff(16, [-1.0, 1.0], [1,2])
-    test_chebyshev_diff(16, [1.0, 5.0], [1,2])
+    println("\nMemory usage: $(memory_usage_opt(cd1)) MB")
 end

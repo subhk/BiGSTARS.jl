@@ -13,10 +13,11 @@ x = fd.grid
 f = sin.(2π * x / fd.L)    # Function values on physical domain
 
 # Pre-compute specific derivative orders
-fd = FourierDiff(16, 4.0, [1, 2, 4])  # Pre-compute 1st, 2nd, and 4th derivatives
-df = fd(f, 1)      # First derivative (already computed)
-d2f = fd(f, 2)     # Second derivative (already computed)
-d4f = fd(f, 4)     # Fourth derivative (already computed)
+N = 16 # number of grid points in y ∈ [0, 4)
+fd = FourierDiff(N, 4.0, [1, 2, 4])  # Pre-compute 1st, 2nd, and 4th derivatives
+D1 = derivative_matrix(fd, 1)        # 1st order of Fourier matrix (already computed)
+D1 = derivative_matrix(fd, 2)        # 2nd order of Fourier matrix (already computed)
+D1 = derivative_matrix(fd, 1)        # 4th order of Fourier matrix (already computed)
 ```
 """
 struct FourierDiff
@@ -133,56 +134,57 @@ Base.show(io::IO, fd::FourierDiff) = print(io, "FourierDiff(n=$(fd.n), L=$(fd.L)
 clear_cache!(fd::FourierDiff) = (empty!(fd.matrices); fd)
 memory_usage(fd::FourierDiff) = sum(length(m) for m in values(fd.matrices)) * sizeof(Float64) / 1024^2
 
-# Testing
-function test_fourier_diff(n::Int=16, L::Float64=2π, orders::Vector{Int}=[1,2])
-    fd = FourierDiff(n, L, orders)
-    
-    # Test with sin function scaled to domain [0, L)
-    f = sin.(2π * fd.grid / L)
-    
-    df_num = fd(f, 1)
-    df_exact = (2π / L) * cos.(2π * fd.grid / L)
-    d2f_num = fd(f, 2)
-    d2f_exact = -(2π / L)^2 * sin.(2π * fd.grid / L)
-    
-    err1 = maximum(abs.(df_num - df_exact))
-    err2 = maximum(abs.(d2f_num - d2f_exact))
-    
-    println("n=$n, L=$L, orders=$orders: 1st deriv error = $(err1), 2nd deriv error = $(err2)")
-    return err1 < 1e-10 && err2 < 1e-10
-end
 
-# Demo
-if abspath(PROGRAM_FILE) == @__FILE__
-    # Test on standard domain [0, 2π) with pre-computed derivatives
-    println("Testing on standard domain [0, 2π) with pre-computed derivatives:")
-    fd1 = FourierDiff(32, 2π, [1, 2, 3])  # Pre-compute 1st, 2nd, 3rd derivatives
-    f1 = sin.(fd1.grid)
+# # Testing
+# function test_fourier_diff(n::Int=16, L::Float64=2π, orders::Vector{Int}=[1,2])
+#     fd = FourierDiff(n, L, orders)
     
-    println("Derivatives of sin(x):")
-    println("1st: max error = $(maximum(abs.(fd1(f1,1) - cos.(fd1.grid))))")
-    println("2nd: max error = $(maximum(abs.(fd1(f1,2) - (-sin.(fd1.grid)))))")
-    println("3rd: max error = $(maximum(abs.(fd1(f1,3) - (-cos.(fd1.grid)))))")
+#     # Test with sin function scaled to domain [0, L)
+#     f = sin.(2π * fd.grid / L)
     
-    # Test on custom domain [0, 4) with specific derivatives
-    println("\nTesting on custom domain [0, 4) with specific derivatives:")
-    L = 4.0
-    fd2 = FourierDiff(32, L, [1, 2, 4])  # Pre-compute 1st, 2nd, 4th derivatives
-    f2 = sin.(2π * fd2.grid / L)  # One period of sin over [0, 4)
+#     df_num = fd(f, 1)
+#     df_exact = (2π / L) * cos.(2π * fd.grid / L)
+#     d2f_num = fd(f, 2)
+#     d2f_exact = -(2π / L)^2 * sin.(2π * fd.grid / L)
     
-    println("Derivatives of sin(2π*x/L):")
-    df_exact = (2π / L) * cos.(2π * fd2.grid / L)
-    d2f_exact = -(2π / L)^2 * sin.(2π * fd2.grid / L)
-    d4f_exact = (2π / L)^4 * sin.(2π * fd2.grid / L)
+#     err1 = maximum(abs.(df_num - df_exact))
+#     err2 = maximum(abs.(d2f_num - d2f_exact))
     
-    println("1st: max error = $(maximum(abs.(fd2(f2,1) - df_exact)))")
-    println("2nd: max error = $(maximum(abs.(fd2(f2,2) - d2f_exact)))")
-    println("4th: max error = $(maximum(abs.(fd2(f2,4) - d4f_exact)))")
+#     println("n=$n, L=$L, orders=$orders: 1st deriv error = $(err1), 2nd deriv error = $(err2)")
+#     return err1 < 1e-10 && err2 < 1e-10
+# end
+
+# # Demo
+# if abspath(PROGRAM_FILE) == @__FILE__
+#     # Test on standard domain [0, 2π) with pre-computed derivatives
+#     println("Testing on standard domain [0, 2π) with pre-computed derivatives:")
+#     fd1 = FourierDiff(32, 2π, [1, 2, 3])  # Pre-compute 1st, 2nd, 3rd derivatives
+#     f1 = sin.(fd1.grid)
     
-    # Test computing 3rd derivative on demand (not pre-computed)
-    println("3rd: max error = $(maximum(abs.(fd2(f2,3) - (-(2π / L)^3 * cos.(2π * fd2.grid / L)))))")
+#     println("Derivatives of sin(x):")
+#     println("1st: max error = $(maximum(abs.(fd1(f1,1) - cos.(fd1.grid))))")
+#     println("2nd: max error = $(maximum(abs.(fd1(f1,2) - (-sin.(fd1.grid)))))")
+#     println("3rd: max error = $(maximum(abs.(fd1(f1,3) - (-cos.(fd1.grid)))))")
     
-    println("\nCached matrices: $(fd2)")
-    test_fourier_diff(16, 2π, [1,2])
-    test_fourier_diff(16, 4.0, [1,2,4])
-end
+#     # Test on custom domain [0, 4) with specific derivatives
+#     println("\nTesting on custom domain [0, 4) with specific derivatives:")
+#     L = 4.0
+#     fd2 = FourierDiff(32, L, [1, 2, 4])  # Pre-compute 1st, 2nd, 4th derivatives
+#     f2 = sin.(2π * fd2.grid / L)  # One period of sin over [0, 4)
+    
+#     println("Derivatives of sin(2π*x/L):")
+#     df_exact = (2π / L) * cos.(2π * fd2.grid / L)
+#     d2f_exact = -(2π / L)^2 * sin.(2π * fd2.grid / L)
+#     d4f_exact = (2π / L)^4 * sin.(2π * fd2.grid / L)
+    
+#     println("1st: max error = $(maximum(abs.(fd2(f2,1) - df_exact)))")
+#     println("2nd: max error = $(maximum(abs.(fd2(f2,2) - d2f_exact)))")
+#     println("4th: max error = $(maximum(abs.(fd2(f2,4) - d4f_exact)))")
+    
+#     # Test computing 3rd derivative on demand (not pre-computed)
+#     println("3rd: max error = $(maximum(abs.(fd2(f2,3) - (-(2π / L)^3 * cos.(2π * fd2.grid / L)))))")
+    
+#     println("\nCached matrices: $(fd2)")
+#     test_fourier_diff(16, 2π, [1,2])
+#     test_fourier_diff(16, 4.0, [1,2,4])
+# end

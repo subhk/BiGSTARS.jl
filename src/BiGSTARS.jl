@@ -38,9 +38,13 @@ module BiGSTARS
        cheb_coord_transform, 
        cheb_coord_transform_ho,   
 
+       #ChebyshevDiff,
+
        # Fourier differentiation matrix
        FourierDiff,
        FourierDiff_fdm, 
+
+       #FourierDiff,
 
        # Setting boundary conditions
        setBCs!,
@@ -101,6 +105,10 @@ module BiGSTARS
     export AbstractParams
 
     include("dmsuite.jl")
+
+    # include("Fourier.jl")
+    # include("Chebyshev.jl")
+    
     include("transforms.jl")
     include("shift_invert_arnoldi.jl")
     include("shift_invert_krylov.jl")
