@@ -195,8 +195,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number 
-    Ny::Int64           = 48            # no. of y-grid points
-    Nz::Int64           = 24            # no. of z-grid points
+    Ny::Int64           = 20            # no. of y-grid points
+    Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy

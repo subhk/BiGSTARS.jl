@@ -72,7 +72,7 @@ function chebdif(n::Int, m::Int)
     end
     
     # Reverse for descending order
-    reverse!(𝐃, dims=1)
+    reverse!(𝐃);
     
     return reverse(x̂), 𝐃
 end

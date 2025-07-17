@@ -186,7 +186,7 @@ function TwoDGrid(params::AbstractParams)
         Dʸ, D²ʸ, D³ʸ, D⁴ʸ,
         Dᶻ, D²ᶻ, D³ᶻ, D⁴ᶻ,
         Dᶻᴰ, D²ᶻᴰ, D³ᶻᴰ, D⁴ᶻᴰ,
-        Dᶻᴺ, D²ᶻᴺ D³ᶻᴺ, D⁴ᶻᴺ
+        Dᶻᴺ, D²ᶻᴺ, D³ᶻᴺ, D⁴ᶻᴺ
     )
 
     #### Apply BCs 

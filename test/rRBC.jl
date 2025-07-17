@@ -33,8 +33,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     H::T                = 1.0       # vertical   domain size
     E::T                = 1.0e-4    # inverse of Reynolds number 
     k::T                = 0.0       # x-wavenumber
-    Ny::Int64           = 150       # no. of y-grid points
-    Nz::Int64           = 30        # no. of Chebyshev points
+    Ny::Int64           = 160       # no. of y-grid points
+    Nz::Int64           = 20        # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "fixed"        # boundary condition for temperature
