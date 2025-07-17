@@ -184,16 +184,14 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
 using Parameters: @with_kw
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 ````
 
-### Parameters
+## Parameters
 
 ````julia
 @with_kw mutable struct Params{T} <: AbstractParams
@@ -203,8 +201,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number
-    Ny::Int64           = 48            # no. of y-grid points
-    Nz::Int64           = 24            # no. of z-grid points
+    Ny::Int64           = 20            # no. of y-grid points
+    Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
@@ -212,7 +210,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 ````
 
-### Basic state
+## Basic state
 
 ````julia
 function basic_state(grid, params)
@@ -242,7 +240,7 @@ function basic_state(grid, params)
 end
 ````
 
-### Constructing Generalized EVP
+## Constructing Generalized EVP
 
 ````julia
 function generalized_EigValProb(prob, grid, params)
@@ -250,11 +248,11 @@ function generalized_EigValProb(prob, grid, params)
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N))
+    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
     s₁ = size(I⁰, 1);
     s₂ = size(I⁰, 2);
 
-    # the horizontal Laplacian operator
+    # the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
@@ -270,8 +268,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
 
     # Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
+    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
     # ──────────────────────────────────────────────────────────────────────────────
     # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
@@ -330,7 +328,7 @@ function generalized_EigValProb(prob, grid, params)
 end
 ````
 
-### Eigenvalue solver
+## Eigenvalue solver
 
 ````julia
 function EigSolver(prob, grid, params, σ₀)
@@ -359,7 +357,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 ````
 
-### Solving the problem
+## Solving the problem
 
 ````julia
 function solve_Stone1971(k::Float64)
@@ -393,7 +391,7 @@ function solve_Stone1971(k::Float64)
 end
 ````
 
-### Result
+## Result
 
 ````julia
 solve_Stone1971(0.1) # growth rate is at k=0.1
@@ -401,12 +399,12 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 
 ````
 (attempt  1) trying σ = 0.024000
-Converged: first λ = 0.030168 + i 0.000000 (σ = 0.024000)
+Converged: first λ = 0.041563 + i -0.000000 (σ = 0.024000)
 (attempt  2) trying σ = 0.024800
-Converged: first λ = 0.030168 + i 0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 3.22e-11 < 1.00e-05
-||AΧ - λBΧ||₂: 0.000001 
-largest growth rate : 3.0168e-02+1.0753e-13im
+Converged: first λ = 0.041563 + i -0.000000 (σ = 0.024800)
+Successive eigenvalues converged: |Δλ| = 5.93e-14 < 1.00e-05
+||AΧ - λBΧ||₂: 0.000000 
+largest growth rate : 4.1563e-02-1.1068e-13im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````

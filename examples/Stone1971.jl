@@ -235,11 +235,11 @@ function generalized_EigValProb(prob, grid, params)
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N)) 
+    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
     s₁ = size(I⁰, 1); 
     s₂ = size(I⁰, 2);
 
-    ## the horizontal Laplacian operator
+    ## the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
@@ -255,8 +255,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
         
     ## Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
+    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
     ## ──────────────────────────────────────────────────────────────────────────────
     ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples

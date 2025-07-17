@@ -27,16 +27,16 @@ The background temperature profile $\overline{\theta}$ is given by
 ## Governing equations
 The non-dimensional form of the equations governing the perturbation is given by
 ```math
+\begin{align}
     \frac{E}{Pr} \frac{\partial \mathbf{u}}{\partial t}
     + \hat{z} \times \mathbf{u} =
     -\nabla p + Ra \theta \hat{z} + E \nabla^2 \mathbf{u},
-```
-```math
+\\
     \frac{\partial \theta}{\partial t}
     = \mathbf{u} \cdot \hat{z} + \nabla^2 \theta,
-```
-```math
+\\
     \nabla \cdot \mathbf{u} = 0,
+\end{align}
 ```
 where $E=\nu/(fH^2)$ is the Ekman number and $Ra = g\alpha \Delta T/(f \kappa)$,
 $\Delta T$ is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
@@ -49,7 +49,7 @@ we obtained the equations for vertical velocity $w$, vertical vorticity $\zeta$ 
 \\
     E \mathcal{D}^2 \zeta + \partial_z w &= 0,
 \\
-    \mathcal{D}^2 b + w &= 0.
+    \mathcal{D}^2 \theta + w &= 0.
 \end{align}
 ```
 
@@ -92,12 +92,12 @@ We choose periodic boundary conditions in the ``y``-direction and free-slip, rig
 ```math
 \begin{align}
     \tilde{w} = \partial_{zz} \tilde{w} =
-    \partial_z \tilde{\zeta} = \partial_z \tilde{b} = 0,
+    \partial_z \tilde{\zeta} = \tilde{\theta} = 0,
     \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 \end{align}
 ```
 
-## Generalized eigenvalue problem
+## Generalized eigenvalue problem (GEVP)
 The above sets of equations with the boundary conditions can be expressed as a
 standard generalized eigenvalue problem,
 ```math
@@ -105,14 +105,14 @@ standard generalized eigenvalue problem,
  AX= λBX,
 \end{align}
 ```
-where $\lambda=Ra$ is the eigenvalue, and $X$ is the eigenvector, The matrices
+where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector. The matrices
 $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
         E \mathcal{D}^4 & -\mathcal{D}_z & 0 \\
         \mathcal{D}_z & E \mathcal{D}^2 & 0 \\
-        I & 0 & \mathcal{D}^2
+        1 & 0 & \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
@@ -122,7 +122,30 @@ $A$ and $B$ are given by
     \end{bmatrix}.
 \end{align}
 ```
-where $I$ is the identity matrix.
+
+## Numerical Implementation
+To implement the above GEVP in a numerical code, we need to actually write
+following sets of equations:
+
+````julia
+# ```math
+````
+
+\begin{align}
+    A &= \begin{bmatrix}
+        E {D}^4 & -{D}_z^D & 0 \\
+        \mathcal{D}^{zD} & E {D}^{2N} & 0 \\
+        I & 0 & \mathcal{D}^{2D}
+    \end{bmatrix},
+\,\,\,\,\,\,\,
+    B &= \begin{bmatrix}
+        0 & 0 & -\mathcal{D}^{2D} \\
+        0 & 0 & 0 \\
+        0 & 0 & 0
+    \end{bmatrix}.
+\end{align}
+```
+
 
 ## Load required packages
 
@@ -138,16 +161,14 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
 using Parameters: @with_kw
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 ````
 
-### Parameters
+## Parameters
 
 ````julia
 @with_kw mutable struct Params{T} <: AbstractParams
@@ -164,7 +185,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 ````
 
-### Basic state
+## Basic state
 
 ````julia
 function basic_state(grid, params)
@@ -194,7 +215,7 @@ function basic_state(grid, params)
 end
 ````
 
-### Constructing Generalized EVP
+## Constructing Generalized EVP
 
 ````julia
 function generalized_EigValProb(prob, grid, params)
@@ -202,11 +223,11 @@ function generalized_EigValProb(prob, grid, params)
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N))
+    I⁰ = sparse(Matrix(1.0I, N, N)) # Identity matrix
     s₁ = size(I⁰, 1);
     s₂ = size(I⁰, 2);
 
-    # the horizontal Laplacian operator
+    # the horizontal Laplacian operator: ∇ₕ² = ∂ʸʸ - k²
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
@@ -222,8 +243,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0 * prob.D²ʸ²ᶻᴰ)
 
     # Construct the 2nd order derivative
-    D²  = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0  * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+    D²ᴰ = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)  # with Dirchilet BC
+    D²ᴺ = (1.0 * prob.D²ᶻᴺ  + 1.0 * ∇ₕ²)  # with Neumann BC
 
     # Construct the matrix `A`
     # ──────────────────────────────────────────────────────────────────────────────
@@ -238,13 +259,13 @@ function generalized_EigValProb(prob, grid, params)
         ),
         ζ = (  # ζ-equation: Dᶻ ED² zero
                 sparse(prob.Dᶻᴰ),
-                sparse(params.E * Dₙ²),
+                sparse(params.E * D²ᴺ),
                 spzeros(Float64, s₁, s₂)
         ),
-        b = (  # b-equation: I zero D²
+        θ = (  # b-equation: I zero D²
                 sparse(I⁰),
                 spzeros(Float64, s₁, s₂),
-                sparse(D²)
+                sparse(D²ᴰ)
         )
     )
 
@@ -260,7 +281,7 @@ function generalized_EigValProb(prob, grid, params)
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
-        b = (  # b-equation: zero, zero, zero
+        θ = (  # b-equation: zero, zero, zero
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
@@ -284,7 +305,7 @@ function generalized_EigValProb(prob, grid, params)
 end
 ````
 
-### Eigenvalue solver
+## Eigenvalue solver
 
 ````julia
 function EigSolver(prob, grid, params, σ₀)
@@ -332,7 +353,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 ````
 
-### Solving the problem
+## Solving the problem
 
 ````julia
 function solve_rRBC(k::Float64)
@@ -364,7 +385,7 @@ function solve_rRBC(k::Float64)
 end
 ````
 
-### Result
+## Result
 
 ````julia
 solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
@@ -372,21 +393,21 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 
 ````
 (attempt  1) trying σ = 0.000000
-Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
+Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
 Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 6.63e-08 < 1.00e-05
-||AΧ - λBΧ||₂: 0.606621 
+Successive eigenvalues converged: |Δλ| = 4.10e-07 < 1.00e-05
+||AΧ - λBΧ||₂: 0.218811 
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
   9 │  1.937286e+02          
-  8 │  1.933564e+02 -2.913100e-08im
-  7 │  1.933564e+02 +2.913100e-08im
+  8 │  1.933564e+02          
+  7 │  1.933564e+02          
   6 │  1.907175e+02          
   5 │  1.907175e+02          
-  4 │  1.906031e+02 -6.536923e-08im
-  3 │  1.906031e+02 +6.536923e-08im
+  4 │  1.906031e+02 -3.248466e-08im
+  3 │  1.906031e+02 +3.248466e-08im
   2 │  1.897041e+02          
   1 │  1.897041e+02          
 Analytical solution of critical Ra: 1.8970e+02 

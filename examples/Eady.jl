@@ -125,27 +125,25 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
-# ### Define the parameters
+# ## Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0         # horizontal domain size
     H::T                = 1.0         # vertical domain size
     Ri::T               = 1.0         # the Richardson number
     k::T                = 0.1         # x-wavenumber
-    E::T                = 1.0e-9     # Ekman number 
-    Ny::Int64           = 50          # no. of y-grid points
-    Nz::Int64           = 30          # no. of z-grid points
+    E::T                = 1.0e-8     # Ekman number 
+    Ny::Int64           = 20          # no. of y-grid points
+    Nz::Int64           = 20          # no. of z-grid points
     eig_solver::String  = "krylov"      # eigenvalue solver
 end
 nothing #hide
 
-# ### Define the basic state
+# ## Define the basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -173,7 +171,7 @@ function basic_state(grid, params)
 end
 
 
-# ### Constructing Generalized EVP
+# ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
     bs, deriv = basic_state(grid, params)
@@ -275,7 +273,7 @@ end
 nothing #hide
 
 
-# ### Define the eigenvalue solver
+# ## Define the eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
@@ -303,8 +301,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 nothing #hide
 
-
-# ### Solving the Stone problem
+# ## Solving the Eady problem
 function solve_Eady(k::Float64)
 
     params = Params{Float64}()
@@ -329,11 +326,10 @@ function solve_Eady(k::Float64)
     @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
-
 end
 nothing #hide
 
-# # ## Result
+# ## Result
 solve_Eady(0.1) # growth rate is at k=0.1  
 nothing #hide
 
