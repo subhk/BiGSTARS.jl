@@ -231,10 +231,10 @@ function (bc::BoundaryConditionHandler)(grid, bc_type::Symbol)
         apply_dirichlet!(bc, grid.D⁴ᶻᴰ, grid.D²ᶻ, Val(:D4))
         
     elseif bc_type == :neumann
-        apply_neumann!(bc, grid.Dᶻᴺ,           Val(:D1))
-        apply_neumann!(bc, grid.D²ᶻᴺ, grid.Dᶻ, Val(:D2))
-        apply_neumann!(bc, grid.D³ᶻᴺ, grid.Dᶻ, Val(:D3))
-        apply_neumann!(bc, grid.D⁴ᶻᴺ, grid.Dᶻ, Val(:D4))
+        apply_neumann!(bc, grid.Dᶻᴺ,              Val(:D1))
+        apply_neumann!(bc, grid.D²ᶻᴺ, grid.Dᶻ,    Val(:D2))
+        apply_neumann!(bc, grid.D³ᶻᴺ, grid.Dᶻ,    Val(:D3))
+        apply_neumann!(bc, grid.D⁴ᶻᴺ, grid.Dᶻ,    Val(:D4))
         
     else
         error("Unknown boundary condition type: $bc_type. Use :dirichlet or :neumann")
