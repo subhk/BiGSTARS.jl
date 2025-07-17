@@ -124,4 +124,17 @@ module BiGSTARS
     include("basic_state.jl")
     include("gradient.jl")
 
+
+    function Base.show(io::IO, params::AbstractParams)
+        T = typeof(params.L)  # infer float type from a field
+        print(io,
+            "Eigen Solver Configuration \n",
+            "  ├────────────────────── Float Type: $T \n",
+            "  ├─────────────── Domain Size (L, H): ", (params.L, params.H), "\n",
+            "  ├───────────── Resolution (Ny, Nz): ", (params.Ny, params.Nz), "\n",
+            "  ├──── Boundary Conditions (w, ζ, b): ", (params.w_bc, params.ζ_bc, params.b_bc), "\n",
+            "  └────────────── Eigenvalue Solver: ", params.eig_solver, "\n"
+        )
+    end
+
 end # module BiGSTARS

@@ -39,6 +39,7 @@ struct Problem{Tg<:AbstractFloat}
     # Chebyshev in z (Neumann BC)
     Dᶻᴺ    :: SparseMat{Tg}
     D²ᶻᴺ   :: SparseMat{Tg}
+    D⁴ᶻᴺ   :: SparseMat{Tg}
 
     # Chebyshev in z (Dirichlet BC)
     Dᶻᴰ    :: SparseMat{Tg}
@@ -66,6 +67,11 @@ end
 function Problem(grid::AbstractGrid{T, Ty, Tm}, 
                 cache::OperatorI{T}) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
+    # For Fourier differentiation matrix
+    Dʸ      = kron_s(Matrix(grid.Dʸ ), cache.Iᶻ)
+    D²ʸ     = kron_s(Matrix(grid.D²ʸ), cache.Iᶻ)
+    D⁴ʸ     = kron_s(Matrix(grid.D⁴ʸ), cache.Iᶻ)
+
     # Kronecker products: no BC
     Dᶻ      = kron_s(cache.Iʸ, Matrix(grid.Dᶻ) )
     D²ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D²ᶻ))
@@ -79,21 +85,17 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
     # Kronecker products: Neumann
     Dᶻᴺ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴺ) )
     D²ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
+    D⁴ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
 
     # Mixed derivatives
     Dʸᶻᴰ    = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.Dᶻᴰ ))
     Dʸ²ᶻᴰ   = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.D²ᶻᴰ))
     D²ʸ²ᶻᴰ  = kron_s(Matrix(grid.D²ʸ),  Matrix(grid.D²ᶻᴰ))
 
-    # For Fourier differentiation matrix
-    Dʸ      = kron_s(Matrix(grid.Dʸ ), cache.Iᶻ)
-    D²ʸ     = kron_s(Matrix(grid.D²ʸ), cache.Iᶻ)
-    D⁴ʸ     = kron_s(Matrix(grid.D⁴ʸ), cache.Iᶻ)
-
     #### Create the grid object
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
                     Dᶻ, D²ᶻ, D⁴ᶻ,
-                    Dᶻᴺ, D²ᶻᴺ,
+                    Dᶻᴺ, D²ᶻᴺ, D⁴ᶻᴺ,
                     Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
     )
@@ -160,7 +162,7 @@ function TwoDGrid(params::AbstractParams)
 
 
     # Chebyshev in the z-direction
-    cd  = ChebyshevDiffn(Nz, [0.0, L], 4)
+    cd  = ChebyshevDiffn(Nz, [0.0, H], 4)
     z   = cd.x
     Dᶻ  = cd.D₁
     D²ᶻ = cd.D₂
@@ -199,16 +201,6 @@ end
 
 
 
-function show(io::IO, params::AbstractParams)
-    T = typeof(params.L)  # infer float type from a field
-    print(io,
-        "Eigen Solver Configuration \n",
-        "  ├────────────────────── Float Type: $T \n",
-        "  ├─────────────── Domain Size (L, H): ", (params.L, params.H), "\n",
-        "  ├───────────── Resolution (Ny, Nz): ", (params.Ny, params.Nz), "\n",
-        "  ├──── Boundary Conditions (w, ζ, b): ", (params.w_bc, params.ζ_bc, params.b_bc), "\n",
-        "  └────────────── Eigenvalue Solver: ", params.eig_solver, "\n"
-    )
-end
+
 
 
