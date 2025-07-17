@@ -190,8 +190,9 @@ function TwoDGrid(params::AbstractParams)
     )
 
     #### Apply BCs 
-    setBCs!(grid, params, :dirichlet)
-    setBCs!(grid, params, :neumann)
+    bc_handler = BoundaryConditionHandler(params.Nz)
+    bc_handler(grid, :dirichlet)  
+    bc_handler(grid, :neumann)  
 
     return grid
 end

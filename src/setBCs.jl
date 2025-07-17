@@ -227,10 +227,11 @@ function (bc::BoundaryConditionHandler)(grid, bc_type::Symbol)
     if bc_type == :dirichlet
         apply_dirichlet!(bc, grid.Dᶻᴰ,            Val(:D1))
         apply_dirichlet!(bc, grid.D²ᶻᴰ,           Val(:D2))
+        apply_dirichlet!(bc, grid.D³ᶻᴰ,           Val(:D3))
         apply_dirichlet!(bc, grid.D⁴ᶻᴰ, grid.D²ᶻ, Val(:D4))
         
     elseif bc_type == :neumann
-        apply_neumann!(bc, grid.Dᶻᴺ, Val(:D1))
+        apply_neumann!(bc, grid.Dᶻᴺ,           Val(:D1))
         apply_neumann!(bc, grid.D²ᶻᴺ, grid.Dᶻ, Val(:D2))
         apply_neumann!(bc, grid.D³ᶻᴺ, grid.Dᶻ, Val(:D3))
         apply_neumann!(bc, grid.D⁴ᶻᴺ, grid.Dᶻ, Val(:D4))
