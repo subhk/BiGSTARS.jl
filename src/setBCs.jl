@@ -25,6 +25,13 @@ function apply_dirichlet_on_D2!(D²ᶻᴰ, params)
     return nothing
 end
 
+function apply_dirichlet_on_D3!(D³ᶻᴰ, params) 
+    n = params.Nz
+    D³ᶻᴰ[1,1] = 0.0
+    D³ᶻᴰ[n,n] = 0.0 
+    return nothing
+end
+
 function apply_dirichlet_on_D4!(D⁴ᶻᴰ, D²ᶻ, params) 
     n = params.Nz
     for iter ∈ 1:n-1
@@ -63,34 +70,37 @@ function apply_neumann_on_D2!(D²ᶻᴺ, Dᶻ, params)
     return nothing
 end
 
+function apply_neumann_on_D3!(D³ᶻᴺ, Dᶻ, params) 
+    n = params.Nz
+    for iter ∈ 1:n-1
+        D³ᶻᴺ[1,iter+1] = (D³ᶻᴺ[1,iter+1] + 
+                            -1.0 * D³ᶻᴺ[1,1] * Dᶻ[1,iter+1]/Dᶻ[1,1])
 
-# function ImplementBCs_Neumann_on_D4!(diffMatrix, params) 
-#     n = params.Nz
-#     for iter ∈ 1:n-1
-#         diffMatrix.𝒟⁴ᶻᴺ[1,iter+2] = (diffMatrix.𝒟⁴ᶻᴺ[1,iter+2] + 
-#                                 -1.0 * diffMatrix.𝒟⁴ᶻᴺ[1,2] * diffMatrix.𝒟²ᶻᴺ[1,iter+2]/diffMatrix.𝒟²ᶻᴺ[1,2])
+        D³ᶻᴺ[n,iter]   = (D³ᶻᴺ[n,iter] + 
+                            -1.0 * D³ᶻᴺ[n,n] * Dᶻ[n,iter]/Dᶻ[n,n])
+    end
 
-#         diffMatrix.𝒟⁴ᶻᴺ[n,iter]   = (diffMatrix.𝒟⁴ᶻᴺ[n+1,iter] + 
-#                                 -1.0 * diffMatrix.𝒟⁴ᶻᴺ[n,n] * diffMatrix.𝒟²ᶻᴺ[n,iter]/diffMatrix.𝒟²ᶻᴺ[n,iter])
-#     end
+    D³ᶻᴺ[1,1] = 0.0
+    D³ᶻᴺ[n,n] = 0.0
+    return nothing
+end
 
-#     diffMatrix.𝒟⁴ᶻᴺ[1,1] = 0.0
-#     diffMatrix.𝒟⁴ᶻᴺ[n,n] = 0.0
-# end
 
-## Set BCs Based on Type Symbol
-# function setBCs!(grid, params, ::Val{:dirichlet})
-#     n = params.Nz
-#     apply_dirichlet_D1!(grid.Dᶻᴰ,            params)
-#     apply_dirichlet_D2!(grid.D²ᶻᴰ,           params)
-#     apply_dirichlet_D4!(grid.D⁴ᶻᴰ, grid.D²ᶻ, params)
-# end
+function apply_neumann_on_D4!(D⁴ᶻᴺ, Dᶻ, params) 
+    n = params.Nz
+    for iter ∈ 1:n-1
+        D⁴ᶻᴺ[1,iter+1] = (D³ᶻᴺ[1,iter+1] + 
+                            -1.0 * D³ᶻᴺ[1,1] * Dᶻ[1,iter+1]/Dᶻ[1,1])
 
-# function setBCs!(grid, params, ::Val{:neumann})
-#     n = params.Nz
-#     apply_neumann_D1!(grid.Dᶻᴺ,           params)
-#     apply_neumann_D2!(grid.D²ᶻᴺ, grid.Dᶻ, params)
-# end
+        D⁴ᶻᴺ[n,iter]   = (D³ᶻᴺ[n,iter] + 
+                            -1.0 * D³ᶻᴺ[n,n] * Dᶻ[n,iter]/Dᶻ[n,n])
+    end
+
+    D⁴ᶻᴺ[1,2] = 0.0
+    D⁴ᶻᴺ[n,n] = 0.0
+    return nothing
+end
+
 
 function setBCs!(grid, params, bc::Symbol)
     if bc == :dirichlet
