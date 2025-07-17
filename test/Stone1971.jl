@@ -185,7 +185,6 @@ using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid 
 
-
 # ### Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0           # horizontal domain size
@@ -229,7 +228,6 @@ function basic_state(grid, params)
 
     return bs
 end
-
 
 # ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
@@ -319,7 +317,6 @@ function generalized_EigValProb(prob, grid, params)
     return gevp.A, gevp.B
 end
 nothing #hide
-
 
 # ### Define the eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)

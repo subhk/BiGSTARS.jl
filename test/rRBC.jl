@@ -70,7 +70,6 @@ function basic_state(grid, params)
 end
 nothing #hide
 
-
 # ### Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
@@ -205,7 +204,6 @@ function EigSolver(prob, grid, params, σ₀)
     return λ[1], Χ[:,1]
 end
 nothing #hide
-
 
 # ### Solving the rRBC problem
 function solve_rRBC(k::Float64)
