@@ -110,7 +110,9 @@ module BiGSTARS
 
     include("Fourier.jl")
     include("Chebyshev.jl")
-    include("transforms.jl")
+
+    #include("transforms.jl")
+    
     include("shift_invert_arnoldi.jl")
     include("shift_invert_krylov.jl")
     include("shift_invert_arpack.jl")
