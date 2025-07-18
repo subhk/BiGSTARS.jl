@@ -29,13 +29,13 @@ The non-dimensional form of the equations governing the perturbation is given by
 ```math
 \begin{align}
     \frac{E}{Pr} \frac{\partial \mathbf{u}}{\partial t}
-    + \hat{z} \times \mathbf{u} =
+    + \hat{z} \times \mathbf{u} &=
     -\nabla p + Ra \theta \hat{z} + E \nabla^2 \mathbf{u},
 \\
     \frac{\partial \theta}{\partial t}
-    = \mathbf{u} \cdot \hat{z} + \nabla^2 \theta,
+    &= \mathbf{u} \cdot \hat{z} + \nabla^2 \theta,
 \\
-    \nabla \cdot \mathbf{u} = 0,
+    \nabla \cdot \mathbf{u} &= 0,
 \end{align}
 ```
 where $E=\nu/(fH^2)$ is the Ekman number and $Ra = g\alpha \Delta T/(f \kappa)$,
@@ -142,7 +142,9 @@ following sets of equations:
     \end{bmatrix}.
 \end{align}
 ```
-where $I_n$ is the identity matrix of size $n$ and $0_n$ is the zero matrix of size $n$.
+where $I_n$ is the identity matrix of size $(n \times n)$, where $n=N_y N_z$, $N_y$ and $N_z$
+are the number of grid points in the $y$ and $z$ directions respectively.
+$0_n$ is the zero matrix of size $(n \times n)$.
 The differential operator matrices are given by
 
 ```math
@@ -160,6 +162,11 @@ where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are
 identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively,
 and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
+$\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^3$ are the first, second and third order
+Fourier differentiation matrix of size of $(N_y \times N_y)$.
+$\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
+Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
+
 
 ## Load required packages
 
@@ -404,10 +411,10 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 
 ````
 (attempt  1) trying σ = 0.000000
-Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
+Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
 Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 1.11e-07 < 1.00e-05
+Successive eigenvalues converged: |Δλ| = 7.58e-09 < 1.00e-05
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
