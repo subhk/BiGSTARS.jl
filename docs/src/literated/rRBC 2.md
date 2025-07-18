@@ -102,16 +102,16 @@ The above sets of equations with the boundary conditions can be expressed as a
 standard generalized eigenvalue problem,
 ```math
 \begin{align}
- AX = λBX,
+ AX= λBX,
 \end{align}
 ```
-where $\lambda=Ra$ is the eigenvalue, and $X=[\tilde{w} \, \tilde{\zeta} \, \tilde{\theta}]^T$ is the eigenvector.
+where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector.
 The matrices $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        E \mathcal{D}^4 & -\partial_z & 0 \\
-        \partial_z & E \mathcal{D}^2 & 0 \\
+        E \mathcal{D}^4 & -\mathcal{D}_z & 0 \\
+        \mathcal{D}_z & E \mathcal{D}^2 & 0 \\
         1 & 0 & \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
@@ -130,36 +130,19 @@ following sets of equations:
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        E {D}^{4D} & -{D}_z^D & 0_n \\
-        \mathcal{D}^{zD} & E {D}^{2N} & 0_n \\
-        I_n & 0_n & \mathcal{D}^{2D}
+        E {D}^4 & -{D}_z^D & 0 \\
+        \mathcal{D}^{zD} & E {D}^{2N} & 0 \\
+        I & 0 & \mathcal{D}^{2D}
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
-        0_n & 0_n & -{D}^{2D} \\
-        0_n & 0_n & 0_n \\
-        0_n & 0_n & 0_n
+        0 & 0 & -\mathcal{D}^{2D} \\
+        0 & 0 & 0 \\
+        0 & 0 & 0
     \end{bmatrix}.
 \end{align}
 ```
-where $I_n$ is the identity matrix of size $n$ and $0_n$ is the zero matrix of size $n$.
-The differential operator matrices are given by
 
-```math
-\begin{align}
-{D}^{2D} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2D} - k^2 {I}_n,
-\\
-{D}^{2N} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2N} - k^2 {I}_n,
-\\
- {D}^{4D} &= \mathcal{D}_y^4 \otimes {I}_z
-   + {I}_y \otimes \mathcal{D}_z^{4D} + k^4 {I}_n - 2 k^2 {D}_y^2 \otimes {I}_z
-   - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D}
-\end{align}
-```
-where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are
-identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively,
-and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
-denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
 
 ## Load required packages
 
@@ -177,7 +160,6 @@ using Test
 using BenchmarkTools
 using JLD2
 using Parameters: @with_kw
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
@@ -189,15 +171,14 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 2π            # horizontal domain size
     H::T                = 1.0           # vertical   domain size
-    E::T                = 1.0e-4        # the Ekman number
-    Pr::T               = 1.0           # the Prandtl number
+    E::T                = 1.0e-4        # inverse of Reynolds number
     k::T                = 0.0           # x-wavenumber
     Ny::Int64           = 120           # no. of y-grid points
     Nz::Int64           = 30            # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
-    b_bc::String        = "fixed"       # boundary condition for temperature
-    eig_solver::String  = "arnoldi"     # eigenvalue solver
+    b_bc::String        = "fixed"        # boundary condition for temperature
+    eig_solver::String  = "arnoldi"      # eigenvalue solver
 end
 ````
 
@@ -211,8 +192,8 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     # Define the basic state
-    B₀   = @. params.H - Z    # basic state temperature
-    U₀   = @. 0.0 * Z         # zero basic state velocity
+    B₀   = @. Z - params.H  # temperature
+    U₀   = @. 0.0 * Z       # velocity
 
     # Calculate all the necessary derivatives
     deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
@@ -231,24 +212,27 @@ function basic_state(grid, params)
 end
 ````
 
-## Constructing GEVP
+## Constructing Generalized EVP
 
 ````julia
 function generalized_EigValProb(prob, grid, params)
 
     bs = basic_state(grid, params)
 
-    n  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, n, n)) # Identity matrix
+    N  = params.Ny * params.Nz
+    I⁰ = sparse(Matrix(1.0I, N, N)) # Identity matrix
     s₁ = size(I⁰, 1);
     s₂ = size(I⁰, 2);
 
     # the horizontal Laplacian operator: ∇ₕ² = ∂ʸʸ - k²
-    ∇ₕ² = SparseMatrixCSC(Zeros(n, n))
+    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
+    # inverse of the horizontal Laplacian operator
+    H = inverse_Lap_hor(∇ₕ²)
+
     # Construct the 4th order derivative
-    D⁴ᴰ = (1.0 * prob.D⁴ʸ
+    D⁴  = (1.0 * prob.D⁴ʸ
         + 1.0 * prob.D⁴ᶻᴰ
         + 1.0 * params.k^4 * I⁰
         - 2.0 * params.k^2 * prob.D²ʸ
@@ -259,14 +243,14 @@ function generalized_EigValProb(prob, grid, params)
     D²ᴰ = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)  # with Dirchilet BC
     D²ᴺ = (1.0 * prob.D²ᶻᴺ  + 1.0 * ∇ₕ²)  # with Neumann BC
 
-    # See `Numerical Implementation' section for the theory
+    # Construct the matrix `A`
     # ──────────────────────────────────────────────────────────────────────────────
     # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
     # ──────────────────────────────────────────────────────────────────────────────
     # Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: ED⁴ -Dᶻ zero
-                sparse(params.E * D⁴ᴰ),
+                sparse(params.E * D⁴),
                 sparse(-prob.Dᶻᴺ),
                 spzeros(Float64, s₁, s₂)
         ),
@@ -310,8 +294,8 @@ function generalized_EigValProb(prob, grid, params)
     # ──────────────────────────────────────────────────────────────────────────────
     # 3) And now you have exactly:
     #    gevp.A, gevp.B                    → full sparse matrices
-    #    gevp.As.w, gevp.As.ζ, gevp.As.θ   → each block-row view
-    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.θ
+    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view
+    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
     # ──────────────────────────────────────────────────────────────────────────────
 
     return gevp.A, gevp.B
@@ -353,6 +337,8 @@ function EigSolver(prob, grid, params, σ₀)
     end
     # ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
+
+    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     # looking for min Ra
     λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")
@@ -404,18 +390,19 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 
 ````
 (attempt  1) trying σ = 0.000000
-Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
+Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
 Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 1.11e-07 < 1.00e-05
+Successive eigenvalues converged: |Δλ| = 1.83e-07 < 1.00e-05
+||AΧ - λBΧ||₂: 0.011119 
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
   9 │  1.937286e+02          
   8 │  1.933564e+02          
-  7 │  1.933564e+02          
+  7 │  1.933563e+02          
   6 │  1.907175e+02          
-  5 │  1.907175e+02          
+  5 │  1.907172e+02          
   4 │  1.906031e+02          
   3 │  1.906031e+02          
   2 │  1.897041e+02          

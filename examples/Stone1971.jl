@@ -117,13 +117,22 @@
 # ```
 # where 
 # ```math
-#  \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2, 
+# \begin{align}
+#  \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2,
+# \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+# \end{align} 
 # ```
-# and
+#
+# The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations 
 # ```math
-#  \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+# \begin{align}
+#     -\mathcal{D}_h^2 \tilde{u} &= i k \partial_{z} \tilde{w} + \partial_y \tilde{\zeta},
+# \\   
+#     -\mathcal{D}_h^2 \tilde{v} &= \partial_{yz} \tilde{w} -  i k \tilde{\zeta}.
+# \end{align}
 # ```
-# 
+#
+#
 # ## Boundary conditions
 # We choose periodic boundary conditions in the ``y``-direction and 
 # free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
@@ -134,7 +143,7 @@
 #   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 # \end{align}
 # ```
-# ## Generalized eigenvalue problem
+# ## Generalized eigenvalue problem (GEVP)
 # The above sets of equations with the boundary conditions can be expressed as a 
 # standard generalized eigenvalue problem (GEVP),
 # ```math
@@ -148,23 +157,61 @@
 # \begin{align}
 #     A &= \begin{bmatrix}
 #         \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)   
-#          & \mathcal{D}_z  & -\mathcal{D}_h^2 
+#          & \partial_z  & -\mathcal{D}_h^2 
 #   \\  
-#         -\partial_z U \mathcal{D}_y - \mathcal{D}_z  
+#         -\partial_z U \partial_y - \partial_z  
 #           & i k U - E \mathcal{D}^2 & 0 
 #  \\ 
-#       \partial_z B -  \partial_y B H \mathcal{D}_{yz}   
+#       \partial_z B -  \partial_y B H \partial_{yz}   
 #       &  k \partial_y B H  & ikU - E \mathcal{D}^2 
 #     \end{bmatrix}, 
 # \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}  
 #         \epsilon^2 \mathcal{D}^2 & 0 & 0 \\   
-#         0 & I & 0 \\
-#         0 & 0 & I
+#         0 & 1 & 0 \\
+#         0 & 0 & 1
 #     \end{bmatrix},
 # \end{align}
 # ```
-# where $I$ is the identity matrix and $H$ is the inverse of the horizontal Laplacian $(\mathcal{D}_h^2)^{-1}$.
+#
+# ## Numerical Implementation
+# To implement the above GEVP in a numerical code, we need to actually write 
+# following sets of equations: 
+#
+# ```math
+# \begin{align}
+#     A &= \begin{bmatrix}
+#         E {D}^{4D} & -{D}_z^D & 0_n \\
+#         \mathcal{D}^{zD} & E {D}^{2N} & 0_n \\ 
+#         I_n & 0_n & \mathcal{D}^{2D}
+#     \end{bmatrix},
+# \,\,\,\,\,\,\,
+#     B &= \begin{bmatrix}
+#         0_n & 0_n & -{D}^{2D} \\
+#         0_n & 0_n & 0_n \\    
+#         0_n & 0_n & 0_n 
+#     \end{bmatrix}.
+# \end{align}
+# ```
+# where $I_n$ is the identity matrix of size $n$ and $0_n$ is the zero matrix of size $n$.
+# The differential operator matrices are given by
+#
+# ```math
+# \begin{align}
+# {D}^{2D} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2D} - k^2 {I}_n,
+# \\
+# {D}^{2N} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2N} - k^2 {I}_n,
+# \\
+#  {D}^{4D} &= \mathcal{D}_y^4 \otimes {I}_z
+#    + {I}_y \otimes \mathcal{D}_z^{4D} + k^4 {I}_n - 2 k^2 {D}_y^2 \otimes {I}_z
+#    - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D}
+# \end{align}
+# ```
+# where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are 
+# identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively, 
+# and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
+# denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
+#
 #
 # ## Load required packages
 using LazyGrids
@@ -247,7 +294,7 @@ function generalized_EigValProb(prob, grid, params)
     H = inverse_Lap_hor(∇ₕ²)
 
     ## Construct the 4th order derivative
-    D⁴  = (1.0 * prob.D⁴ʸ 
+    D⁴ᴰ = (1.0 * prob.D⁴ʸ 
         + 1.0/params.ε^4 * prob.D⁴ᶻᴰ 
         + 1.0 * params.k^4 * I⁰ 
         - 2.0 * params.k^2 * prob.D²ʸ 
@@ -258,13 +305,14 @@ function generalized_EigValProb(prob, grid, params)
     D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
     Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
+    ## See `Numerical Implementation' section for the theory
     ## ──────────────────────────────────────────────────────────────────────────────
     ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
     ## ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
@@ -274,9 +322,9 @@ function generalized_EigValProb(prob, grid, params)
                 spzeros(ComplexF64, s₁, s₂)
         ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
+                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
+                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
         )
     )
 
@@ -333,8 +381,6 @@ function EigSolver(prob, grid, params, σ₀)
     end
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
-
-    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
