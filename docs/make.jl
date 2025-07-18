@@ -120,7 +120,7 @@ makedocs(
                 "Examples"                      => Any[
                     "Stone1971"                 => "literated/Stone1971.md", 
                     # "Eady"                      => "literated/Eady.md",
-                    "rRBC"                      => "literated/rRBC.md"
+                    "rotating RBC"              => "literated/rRBC.md"
                 ],
                 # "Modules"                   => Any[
                 #     "Stone1971 API"         => "modules/Stone1971.md",
