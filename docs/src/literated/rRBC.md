@@ -392,17 +392,17 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 (attempt  1) trying σ = 0.000000
 Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
-Converged: first λ = 193.728587 + i 0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 9.60e-07 < 1.00e-05
-||AΧ - λBΧ||₂: 7.853385 
+Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
+Successive eigenvalues converged: |Δλ| = 1.83e-07 < 1.00e-05
+||AΧ - λBΧ||₂: 0.011119 
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
   9 │  1.937286e+02          
   8 │  1.933564e+02          
-  7 │  1.933564e+02          
+  7 │  1.933563e+02          
   6 │  1.907175e+02          
-  5 │  1.907175e+02          
+  5 │  1.907172e+02          
   4 │  1.906031e+02          
   3 │  1.906031e+02          
   2 │  1.897041e+02          
