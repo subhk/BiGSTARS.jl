@@ -105,8 +105,8 @@ standard generalized eigenvalue problem,
  AX= λBX,
 \end{align}
 ```
-where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector. The matrices
-$A$ and $B$ are given by
+where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector.
+The matrices $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
@@ -127,10 +127,7 @@ $A$ and $B$ are given by
 To implement the above GEVP in a numerical code, we need to actually write
 following sets of equations:
 
-````julia
-# ```math
-````
-
+```math
 \begin{align}
     A &= \begin{bmatrix}
         E {D}^4 & -{D}_z^D & 0 \\
@@ -395,9 +392,9 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 (attempt  1) trying σ = 0.000000
 Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
-Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 4.10e-07 < 1.00e-05
-||AΧ - λBΧ||₂: 0.218811 
+Converged: first λ = 193.728587 + i 0.000000 (σ = 0.000000)
+Successive eigenvalues converged: |Δλ| = 9.60e-07 < 1.00e-05
+||AΧ - λBΧ||₂: 7.853385 
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
@@ -406,8 +403,8 @@ Idx │ Real Part     Imag Part
   7 │  1.933564e+02          
   6 │  1.907175e+02          
   5 │  1.907175e+02          
-  4 │  1.906031e+02 -3.248466e-08im
-  3 │  1.906031e+02 +3.248466e-08im
+  4 │  1.906031e+02          
+  3 │  1.906031e+02          
   2 │  1.897041e+02          
   1 │  1.897041e+02          
 Analytical solution of critical Ra: 1.8970e+02 

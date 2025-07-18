@@ -101,8 +101,8 @@
 #  AX= λBX, 
 # \end{align}
 # ```  
-# where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector. The matrices    
-# $A$ and $B$ are given by
+# where $\lambda=Ra$ is the eigenvalue, and $X=[w \zeta \theta]^T$ is the eigenvector. 
+# The matrices $A$ and $B$ are given by
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
@@ -123,7 +123,7 @@
 # To implement the above GEVP in a numerical code, we need to actually write 
 # following sets of equations: 
 #
-## ```math
+# ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
 #         E {D}^4 & -{D}_z^D & 0 \\
