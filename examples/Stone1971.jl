@@ -181,15 +181,21 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         \epsilon^2(i k diag(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D}) 
+#         \epsilon^2(i k \text{diagm}(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D}) 
 #        & -{D}_z^D & 0_n 
 # \\
-#         -diag(\partial_z U) \mathcal{D}^y & i k diag(U) - E \mathcal{D}^{2N} & 0_n 
+#         -\text{diagm}(\partial_z U) \mathcal{D}^y & i k \text{diagm}(U) - E \mathcal{D}^{2N} & 0_n 
 # \\ 
-#         diag(\partial_z B) -  diag(\partial_y B) H \mathcal{D}^{yzD} 
-#         & k diag(\partial_y B) H & ik diag(U) - E \mathcal{D}^{2N} 
+#         \text{diagm}(\partial_z B) - \text{diagm}(\partial_y B) H \mathcal{D}^{yzD} 
+#         & k \text{diagm}(\partial_y B) H & ik \text{diagm}(U) - E \mathcal{D}^{2N} 
 #     \end{bmatrix},
-# \,\,\,\,\,\,\,
+# \end{align}
+# ```
+# where $H$ is the inverse of the horizontal Laplacian operator $(\mathcal{D}_h^2)^{-1}$,
+# and $\text{diagm}(\phi)$ is a diagonal matrix with the elements of any vector $\phi$ on its diagonal.
+#
+# ```math
+# \begin{align}
 #     B &= \begin{bmatrix}
 #         \epsilon^2 \mathcal{D}^{2D} & 0_n & 0_n \\
 #         0_n & I_n & 0_n \\    
@@ -210,7 +216,9 @@
 # \\
 #  {D}^{4D} &= \mathcal{D}_y^4 \otimes {I}_z
 #    + {I}_y \otimes \mathcal{D}_z^{4D} + k^4 {I}_n - 2 k^2 {D}_y^2 \otimes {I}_z
-#    - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D}
+#    - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D}, 
+# \\
+# {H} &= (\mathcal{D}_y^2 \otimes {I}_z - k^2 {I}_n)^{-1}, 
 # \end{align}
 # ```
 # where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are 

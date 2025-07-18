@@ -185,15 +185,25 @@ following sets of equations:
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        E {D}^{4D} & -{D}_z^D & 0_n \\
-        \mathcal{D}^{zD} & E {D}^{2N} & 0_n \\
-        I_n & 0_n & \mathcal{D}^{2D}
+        \epsilon^2(i k \text{diagm}(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D})
+       & -{D}_z^D & 0_n
+\\
+        -\text{diagm}(\partial_z U) \mathcal{D}^y & i k \text{diagm}(U) - E \mathcal{D}^{2N} & 0_n
+\\
+        \text{diagm}(\partial_z B) - \text{diagm}(\partial_y B) H \mathcal{D}^{yzD}
+        & k \text{diagm}(\partial_y B) H & ik \text{diagm}(U) - E \mathcal{D}^{2N}
     \end{bmatrix},
-\,\,\,\,\,\,\,
+\end{align}
+```
+where $H$ is the inverse of the horizontal Laplacian operator $(\mathcal{D}_h^2)^{-1}$,
+and $\text{diagm}(\phi)$ is a diagonal matrix with the elements of any vector $\phi$ on its diagonal.
+
+```math
+\begin{align}
     B &= \begin{bmatrix}
-        0_n & 0_n & -{D}^{2D} \\
-        0_n & 0_n & 0_n \\
-        0_n & 0_n & 0_n
+        \epsilon^2 \mathcal{D}^{2D} & 0_n & 0_n \\
+        0_n & I_n & 0_n \\
+        0_n & 0_n & I_n
     \end{bmatrix}.
 \end{align}
 ```
@@ -210,7 +220,9 @@ The differential operator matrices are given by
 \\
  {D}^{4D} &= \mathcal{D}_y^4 \otimes {I}_z
    + {I}_y \otimes \mathcal{D}_z^{4D} + k^4 {I}_n - 2 k^2 {D}_y^2 \otimes {I}_z
-   - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D}
+   - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D},
+\\
+{H} &= (\mathcal{D}_y^2 \otimes {I}_z - k^2 {I}_n)^{-1},
 \end{align}
 ```
 where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are
@@ -321,8 +333,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
 
     # Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
+    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
+    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
     # See `Numerical Implementation' section for the theory
     # ──────────────────────────────────────────────────────────────────────────────
@@ -331,26 +343,26 @@ function generalized_EigValProb(prob, grid, params)
     # Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
         ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
                 sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
                 sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
                 sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * bs.fields.U₀ * I⁰)
         )
     )
 
     # Construct the matrix `A`
     Bblocks = (
         w = (  # w-equation mass: [–ε²∂²], zero, zero
-                sparse(-params.ε^2 * D²),
+                sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
@@ -453,9 +465,9 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 (attempt  1) trying σ = 0.024000
 Converged: first λ = 0.079925 + i 0.000000 (σ = 0.024000)
 (attempt  2) trying σ = 0.024800
-Converged: first λ = 0.079925 + i 0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 1.08e-09 < 1.00e-05
-largest growth rate : 7.9925e-02+1.8753e-10im
+Converged: first λ = 0.079925 + i -0.000000 (σ = 0.024800)
+Successive eigenvalues converged: |Δλ| = 2.05e-09 < 1.00e-05
+largest growth rate : 7.9925e-02-8.0277e-10im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````

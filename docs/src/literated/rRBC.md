@@ -124,7 +124,7 @@ The matrices $A$ and $B$ are given by
 ```
 
 ## Numerical Implementation
-To implement the above GEVP in a numerical code, we need to actually write
+To implement the above GEVP in a numerical code, we need to actually code
 following sets of equations:
 
 ```math
@@ -411,10 +411,12 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 
 ````
 (attempt  1) trying σ = 0.000000
-Converged: first λ = 193.728583 + i 0.000000 (σ = 0.000000)
+Converged: first λ = 193.728569 + i 0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
+Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
+(attempt  3) trying σ = 0.000000
 Converged: first λ = 193.728585 + i 0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 2.24e-06 < 1.00e-05
+Successive eigenvalues converged: |Δλ| = 5.03e-07 < 1.00e-05
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
