@@ -221,7 +221,7 @@ end
 """
     FourierDiffn(n::Integer; L::Real = 2π)
 
-Construct a beautiful Fourier differentiation object on n points over [0, L).
+Construct a Fourier differentiation object on n points over [0, L).
 
 # Arguments
 - `n::Integer`: Number of grid points
