@@ -188,7 +188,7 @@ function generalized_EigValProb(prob, grid, params)
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
-    # some quanntities required later
+    ## some quantities required later
     bs_∂ᶻB₀⁻¹  = @. 1.0/deriv.∂ᶻB₀
     bs_∂ᶻB₀⁻²  = @. 1.0/(deriv.∂ᶻB₀ * deriv.∂ᶻB₀) 
     
