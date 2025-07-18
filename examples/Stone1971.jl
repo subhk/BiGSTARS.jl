@@ -181,15 +181,19 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         E {D}^{4D} & -{D}_z^D & 0_n \\
-#         \mathcal{D}^{zD} & E {D}^{2N} & 0_n \\ 
-#         I_n & 0_n & \mathcal{D}^{2D}
+#         \epsilon^2(i k diag(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D}) 
+#        & -{D}_z^D & 0_n 
+# \\
+#         -diag(\partial_z U) \mathcal{D}^y & i k diag(U) - E \mathcal{D}^{2N} & 0_n 
+# \\ 
+#         diag(\partial_z B) -  diag(\partial_y B) H \mathcal{D}^{yzD} 
+#         & k diag(\partial_y B) H & ik diag(U) - E \mathcal{D}^{2N} 
 #     \end{bmatrix},
 # \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}
-#         0_n & 0_n & -{D}^{2D} \\
-#         0_n & 0_n & 0_n \\    
-#         0_n & 0_n & 0_n 
+#         \epsilon^2 \mathcal{D}^{2D} & 0_n & 0_n \\
+#         0_n & I_n & 0_n \\    
+#         0_n & 0_n & I_n 
 #     \end{bmatrix}.
 # \end{align}
 # ```
@@ -308,8 +312,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
         
     ## Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
+    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
+    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
     ## See `Numerical Implementation' section for the theory
     ## ──────────────────────────────────────────────────────────────────────────────
@@ -318,26 +322,26 @@ function generalized_EigValProb(prob, grid, params)
     ## Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
         ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
                 sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
                 sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
                 sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * bs.fields.U₀ * I⁰)
         )
     )
 
     ## Construct the matrix `A`
     Bblocks = (
         w = (  # w-equation mass: [–ε²∂²], zero, zero
-                sparse(-params.ε^2 * D²),
+                sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
