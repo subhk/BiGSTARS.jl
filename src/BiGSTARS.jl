@@ -123,6 +123,7 @@ module BiGSTARS
     include("compute_derivative.jl")
     include("basic_state.jl")
     include("gradient.jl")
+    include("construct_linear_map.jl")
 
 
     function Base.show(io::IO, params::AbstractParams)
