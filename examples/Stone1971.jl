@@ -162,8 +162,8 @@
 #         -\partial_z U \partial_y - \partial_z  
 #           & i k U - E \mathcal{D}^2 & 0 
 #  \\ 
-#       \partial_z B -  \partial_y B H \partial_{yz}   
-#       &  k \partial_y B H  & ikU - E \mathcal{D}^2 
+#       \partial_z B -  \partial_y B (\mathcal{D}_h^1)^{-1} \partial_{yz}   
+#       &  k \partial_y B (\mathcal{D}_h^1)^{-1}  & ikU - E \mathcal{D}^2 
 #     \end{bmatrix}, 
 # \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}  
@@ -193,7 +193,9 @@
 #     \end{bmatrix}.
 # \end{align}
 # ```
-# where $I_n$ is the identity matrix of size $n$ and $0_n$ is the zero matrix of size $n$.
+# where $I_n$ is the identity matrix of size $(n \times n)$, where $n=N_y N_z$, $N_y$ and $N_z$
+# are the number of grid points in the $y$ and $z$ directions respectively.
+# $0_n$ is the zero matrix of size $(n \times n)$.
 # The differential operator matrices are given by
 #
 # ```math
@@ -211,6 +213,10 @@
 # identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively, 
 # and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 # denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
+# $\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^3$ are the first, second and third order
+# Fourier differentiation matrix of size of $(N_y \times N_y)$. 
+# $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
+# Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
 #
 #
 # ## Load required packages
