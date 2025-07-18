@@ -451,11 +451,11 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 
 ````
 (attempt  1) trying σ = 0.024000
-Converged: first λ = 0.079925 + i -0.000000 (σ = 0.024000)
+Converged: first λ = 0.079925 + i 0.000000 (σ = 0.024000)
 (attempt  2) trying σ = 0.024800
 Converged: first λ = 0.079925 + i 0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 1.04e-09 < 1.00e-05
-largest growth rate : 7.9925e-02+1.4983e-10im
+Successive eigenvalues converged: |Δλ| = 1.08e-09 < 1.00e-05
+largest growth rate : 7.9925e-02+1.8753e-10im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````

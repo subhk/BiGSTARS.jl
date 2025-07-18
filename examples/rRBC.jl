@@ -120,7 +120,7 @@
 # ```
 #
 # ## Numerical Implementation
-# To implement the above GEVP in a numerical code, we need to actually write 
+# To implement the above GEVP in a numerical code, we need to actually code 
 # following sets of equations: 
 #
 # ```math
