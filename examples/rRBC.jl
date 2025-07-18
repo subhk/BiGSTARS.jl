@@ -207,8 +207,8 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. params.Ri * Z - Y          # basic state buoyancy
-    U₀   = @. 1.0 * Z - 0.5 * params.H   # basic state along-front velocity
+    B₀   = @. 1.0 - Z          # basic state temperature
+    U₀   = @. 0.0 * Z          # basic state along-front velocity
 
     ## Calculate all the necessary derivatives
     deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)

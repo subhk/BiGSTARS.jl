@@ -218,8 +218,8 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     # Define the basic state
-    B₀   = @. params.H - Z    # basic state temperature
-    U₀   = @. 0.0 * Z         # zero basic state velocity
+    B₀   = @. 1.0 - Z          # basic state temperature
+    U₀   = @. 0.0 * Z          # basic state along-front velocity
 
     # Calculate all the necessary derivatives
     deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
@@ -309,7 +309,7 @@ function generalized_EigValProb(prob, grid, params)
     )
 
     # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in beautiful line
+    # 2) Assemble the block-row matrices into a GEVPMatrices object
     # ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
@@ -411,10 +411,10 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
 
 ````
 (attempt  1) trying σ = 0.000000
-Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
+Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
 (attempt  2) trying σ = 0.000000
-Converged: first λ = 193.728586 + i 0.000000 (σ = 0.000000)
-Successive eigenvalues converged: |Δλ| = 6.78e-07 < 1.00e-05
+Converged: first λ = 193.728586 + i -0.000000 (σ = 0.000000)
+Successive eigenvalues converged: |Δλ| = 1.42e-07 < 1.00e-05
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────
@@ -423,8 +423,8 @@ Idx │ Real Part     Imag Part
   7 │  1.933564e+02          
   6 │  1.907175e+02          
   5 │  1.907175e+02          
-  4 │  1.906031e+02          
-  3 │  1.906031e+02          
+  4 │  1.906031e+02 -1.419370e-08im
+  3 │  1.906031e+02 +1.419370e-08im
   2 │  1.897041e+02          
   1 │  1.897041e+02          
 Analytical solution of critical Ra: 1.8970e+02 

@@ -251,6 +251,7 @@ using Test
 using BenchmarkTools
 using JLD2
 using Parameters: @with_kw
+
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
@@ -266,7 +267,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number
-    Ny::Int64           = 20            # no. of y-grid points
+    Ny::Int64           = 24            # no. of y-grid points
     Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
@@ -285,7 +286,7 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     # Define the basic state
-    B₀   = @. params.Ri * Z - Y          # buoyancy
+    B₀   = @. 1.0 * params.Ri * Z - Y    # buoyancy
     U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
     # Calculate all the necessary derivatives
@@ -379,7 +380,7 @@ function generalized_EigValProb(prob, grid, params)
     )
 
     # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in beautiful line
+    # 2) Assemble the block-row matrices into a GEVPMatrices object
     # ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
@@ -406,11 +407,11 @@ function EigSolver(prob, grid, params, σ₀)
 
     elseif params.eig_solver == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.eig_solver == "arnoldi"
 
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
     end
     # ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
@@ -463,11 +464,11 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 
 ````
 (attempt  1) trying σ = 0.024000
-Converged: first λ = 0.079925 + i -0.000000 (σ = 0.024000)
+Converged: first λ = 0.024868 + i 0.000000 (σ = 0.024000)
 (attempt  2) trying σ = 0.024800
-Converged: first λ = 0.079925 + i -0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 5.64e-10 < 1.00e-05
-largest growth rate : 7.9925e-02-3.1331e-10im
+Converged: first λ = 0.024868 + i -0.000000 (σ = 0.024800)
+Successive eigenvalues converged: |Δλ| = 1.94e-12 < 1.00e-05
+largest growth rate : 2.4868e-02-7.9378e-14im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````
