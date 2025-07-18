@@ -25,7 +25,7 @@ const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
 
 examples = [
     "Stone1971.jl",
-    # "Eady.jl",
+    "Eady.jl",
     "rRBC.jl"
 ]
 
@@ -119,7 +119,7 @@ makedocs(
                 "Methodology"                   => "method.md",
                 "Examples"                      => Any[
                     "Stone1971"                 => "literated/Stone1971.md", 
-                    # "Eady"                      => "literated/Eady.md",
+                    "Eady"                      => "literated/Eady.md",
                     "rotating RBC"              => "literated/rRBC.md"
                 ],
                 # "Modules"                   => Any[
