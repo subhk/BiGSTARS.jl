@@ -68,29 +68,29 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
                 cache::OperatorI{T}) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
     # For Fourier differentiation matrix
-    Dʸ      = kron_s(Matrix(grid.Dʸ ), cache.Iᶻ)
-    D²ʸ     = kron_s(Matrix(grid.D²ʸ), cache.Iᶻ)
-    D⁴ʸ     = kron_s(Matrix(grid.D⁴ʸ), cache.Iᶻ)
+    Dʸ      = kron_s(grid.Dʸ,  cache.Iᶻ)
+    D²ʸ     = kron_s(grid.D²ʸ, cache.Iᶻ)
+    D⁴ʸ     = kron_s(grid.D⁴ʸ, cache.Iᶻ)
 
     # Kronecker products: no BC
-    Dᶻ      = kron_s(cache.Iʸ, Matrix(grid.Dᶻ) )
-    D²ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D²ᶻ))
-    D⁴ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻ))
+    Dᶻ      = kron_s(cache.Iʸ, grid.Dᶻ )
+    D²ᶻ     = kron_s(cache.Iʸ, grid.D²ᶻ)
+    D⁴ᶻ     = kron_s(cache.Iʸ, grid.D⁴ᶻ)
 
     # Kronecker products: Dirichlet
-    Dᶻᴰ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴰ) )
-    D²ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴰ))
-    D⁴ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻᴰ))
+    Dᶻᴰ     = kron_s(cache.Iʸ, grid.Dᶻᴰ )
+    D²ᶻᴰ    = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
+    D⁴ᶻᴰ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
 
     # Kronecker products: Neumann
-    Dᶻᴺ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴺ) )
-    D²ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
-    D⁴ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
+    Dᶻᴺ     = kron_s(cache.Iʸ, grid.Dᶻᴺ)
+    D²ᶻᴺ    = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
+    D⁴ᶻᴺ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴺ)
 
     # Mixed derivatives
-    Dʸᶻᴰ    = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.Dᶻᴰ ))
-    Dʸ²ᶻᴰ   = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.D²ᶻᴰ))
-    D²ʸ²ᶻᴰ  = kron_s(Matrix(grid.D²ʸ),  Matrix(grid.D²ᶻᴰ))
+    Dʸᶻᴰ    = kron_s(grid.Dʸ,  grid.Dᶻᴰ)
+    Dʸ²ᶻᴰ   = kron_s(grid.Dʸ,  grid.D²ᶻᴰ)
+    D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ,  grid.D²ᶻᴰ)
 
     #### Create the grid object
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,

@@ -207,8 +207,8 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. params.H - Z    # basic state temperature
-    U₀   = @. 0.0 * Z         # zero basic state velocity
+    B₀   = @. params.Ri * Z - Y          # basic state buoyancy
+    U₀   = @. 1.0 * Z - 0.5 * params.H   # basic state along-front velocity
 
     ## Calculate all the necessary derivatives
     deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
@@ -296,7 +296,7 @@ function generalized_EigValProb(prob, grid, params)
     )
 
     ## ──────────────────────────────────────────────────────────────────────────────
-    ## 2) Assemble in beautiful line
+    ## 2) Assemble the block-row matrices into a GEVPMatrices object
     ## ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 

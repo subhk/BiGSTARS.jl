@@ -41,7 +41,7 @@ function Eigs_Krylov(
                     𝓛, ℳ;
                     σ::Float64,
                     which::Symbol = :LR,
-                    maxiter::Int = 200,
+                    maxiter::Int = 300,
                     krylovdim::Int = 100,
                     sortby::Symbol = :M)
 
@@ -78,7 +78,7 @@ function solve_shift_invert_krylov(
                     σ₀::Float64,
                     which::Symbol = :LR,
                     sortby::Symbol = :M,
-                    maxiter::Int = 200,
+                    maxiter::Int = 300,
                     krylovdim::Int = 100,
                     n_tries::Int = 8,
                     Δσ₀::Float64 = 0.2,

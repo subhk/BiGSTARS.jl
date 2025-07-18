@@ -57,6 +57,7 @@ struct BasicState
     fields::BaseStateFields
 end
 
+
 """
     initialize_basic_state_from_fields(B₀, U₀)
 
