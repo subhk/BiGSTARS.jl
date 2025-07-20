@@ -447,7 +447,7 @@ function print_summary(solver::EigenSolver)
     end
     
     r = solver.results
-    println("📊 EigenSolver Results Summary")
+    println("EigenSolver Results Summary")
     println("   " * "="^40)
     println("   Method: $(r.method_used)")
     println("   Converged: $(r.converged ? "✅ Yes" : "❌ No")")
@@ -503,7 +503,7 @@ Get detailed information about a specific solver method.
 function get_method_info(method::Symbol)
     info = Dict(
         :Arnoldi => """
-        🔹 Arnoldi Method (ArnoldiMethod.jl)
+        Arnoldi Method (ArnoldiMethod.jl)
         
         Best for: General sparse matrices, moderate problem sizes
         Strengths: Reliable, good theoretical foundation
@@ -514,7 +514,7 @@ function get_method_info(method::Symbol)
         """,
         
         :Arpack => """
-        🔹 ARPACK Method (Arpack.jl)  
+        ARPACK Method (Arpack.jl)  
         
         Best for: Large sparse matrices, production use
         Strengths: Battle-tested, widely used, efficient for large problems
@@ -525,7 +525,7 @@ function get_method_info(method::Symbol)
         """,
         
         :Krylov => """
-        🔹 Krylov Method (KrylovKit.jl)
+        Krylov Method (KrylovKit.jl)
         
         Best for: Modern problems, flexible interface
         Strengths: Clean interface, good for research
@@ -546,7 +546,7 @@ Display comprehensive usage examples.
 """
 function show_example_usage()
     println("""
-    🚀 EigenvalueSolver.jl Usage Examples
+    EigenvalueSolver.jl Usage Examples
     =====================================
     
     # Basic usage with the new interface:
