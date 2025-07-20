@@ -121,12 +121,21 @@ Finally following systems of differential equations are obtained,
 ```
 where
 ```math
+\begin{align}
  \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2,
+\,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+\end{align}
 ```
-and
+
+The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations
 ```math
- \mathcal{D}_h^2 = (\partial_y^2 - k^2).
+\begin{align}
+    -\mathcal{D}_h^2 \tilde{u} &= i k \partial_{z} \tilde{w} + \partial_y \tilde{\zeta},
+\\
+    -\mathcal{D}_h^2 \tilde{v} &= \partial_{yz} \tilde{w} -  i k \tilde{\zeta}.
+\end{align}
 ```
+
 
 ## Boundary conditions
 We choose periodic boundary conditions in the ``y``-direction and
@@ -138,7 +147,7 @@ free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e.,
   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 \end{align}
 ```
-## Generalized eigenvalue problem
+## Generalized eigenvalue problem (GEVP)
 The above sets of equations with the boundary conditions can be expressed as a
 standard generalized eigenvalue problem (GEVP),
 ```math
@@ -152,23 +161,79 @@ $A$ and $B$ are given by
 \begin{align}
     A &= \begin{bmatrix}
         \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)
-         & \mathcal{D}_z  & -\mathcal{D}_h^2
+         & \partial_z  & -\mathcal{D}_h^2
   \\
-        -\partial_z U \mathcal{D}_y - \mathcal{D}_z
+        -\partial_z U \partial_y - \partial_z
           & i k U - E \mathcal{D}^2 & 0
  \\
-      \partial_z B -  \partial_y B H \mathcal{D}_{yz}
-      &  k \partial_y B H  & ikU - E \mathcal{D}^2
+      \partial_z B -  \partial_y B (\mathcal{D}_h^1)^{-1} \partial_{yz}
+      &  k \partial_y B (\mathcal{D}_h^1)^{-1}  & ikU - E \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
         \epsilon^2 \mathcal{D}^2 & 0 & 0 \\
-        0 & I & 0 \\
-        0 & 0 & I
+        0 & 1 & 0 \\
+        0 & 0 & 1
     \end{bmatrix},
 \end{align}
 ```
-where $I$ is the identity matrix and $H$ is the inverse of the horizontal Laplacian $(\mathcal{D}_h^2)^{-1}$.
+
+## Numerical Implementation
+To implement the above GEVP in a numerical code, we need to actually write
+following sets of equations:
+
+```math
+\begin{align}
+    A &= \begin{bmatrix}
+        \epsilon^2(i k \text{diagm}(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D})
+       & -{D}_z^D & 0_n
+\\
+        -\text{diagm}(\partial_z U) \mathcal{D}^y & i k \text{diagm}(U) - E \mathcal{D}^{2N} & 0_n
+\\
+        \text{diagm}(\partial_z B) - \text{diagm}(\partial_y B) H \mathcal{D}^{yzD}
+        & k \text{diagm}(\partial_y B) H & ik \text{diagm}(U) - E \mathcal{D}^{2N}
+    \end{bmatrix},
+\end{align}
+```
+where $H$ is the inverse of the horizontal Laplacian operator $(\mathcal{D}_h^2)^{-1}$,
+and $\text{diagm}(\phi)$ is a diagonal matrix with the elements of any vector $\phi$ on its diagonal.
+
+```math
+\begin{align}
+    B &= \begin{bmatrix}
+        \epsilon^2 \mathcal{D}^{2D} & 0_n & 0_n \\
+        0_n & I_n & 0_n \\
+        0_n & 0_n & I_n
+    \end{bmatrix}.
+\end{align}
+```
+where $I_n$ is the identity matrix of size $(n \times n)$, where $n=N_y N_z$, $N_y$ and $N_z$
+are the number of grid points in the $y$ and $z$ directions respectively.
+$0_n$ is the zero matrix of size $(n \times n)$.
+The differential operator matrices are given by
+
+```math
+\begin{align}
+{D}^{2D} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2D} - k^2 {I}_n,
+\\
+{D}^{2N} &= \mathcal{D}_y^2 \otimes {I}_z + {I}_y \otimes \mathcal{D}_z^{2N} - k^2 {I}_n,
+\\
+ {D}^{4D} &= \mathcal{D}_y^4 \otimes {I}_z
+   + {I}_y \otimes \mathcal{D}_z^{4D} + k^4 {I}_n - 2 k^2 {D}_y^2 \otimes {I}_z
+   - 2 k^2 {I}_y \otimes {D}_z^{2D} + 2 {D}_y^2 \otimes {D}_z^{2D},
+\\
+{H} &= (\mathcal{D}_y^2 \otimes {I}_z - k^2 {I}_n)^{-1},
+\end{align}
+```
+where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are
+identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively,
+and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
+denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
+$\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^3$ are the first, second and third order
+Fourier differentiation matrix of size of $(N_y \times N_y)$.
+$\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
+Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
+
 
 ## Load required packages
 
@@ -184,7 +249,6 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
 using Parameters: @with_kw
 
@@ -193,7 +257,7 @@ using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 ````
 
-### Parameters
+## Parameters
 
 ````julia
 @with_kw mutable struct Params{T} <: AbstractParams
@@ -203,8 +267,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     ε::T                = 0.1           # aspect ratio ε ≡ H/L
     k::T                = 0.1           # along-front wavenumber
     E::T                = 1.0e-8        # the Ekman number
-    Ny::Int64           = 48            # no. of y-grid points
-    Nz::Int64           = 24            # no. of z-grid points
+    Ny::Int64           = 24            # no. of y-grid points
+    Nz::Int64           = 20            # no. of z-grid points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "zero_flux"   # boundary condition for buoyancy
@@ -212,7 +276,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 ````
 
-### Basic state
+## Basic state
 
 ````julia
 function basic_state(grid, params)
@@ -222,7 +286,7 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     # Define the basic state
-    B₀   = @. params.Ri * Z - Y          # buoyancy
+    B₀   = @. 1.0 * params.Ri * Z - Y    # buoyancy
     U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
     # Calculate all the necessary derivatives
@@ -242,7 +306,7 @@ function basic_state(grid, params)
 end
 ````
 
-### Constructing Generalized EVP
+## Constructing Generalized EVP
 
 ````julia
 function generalized_EigValProb(prob, grid, params)
@@ -250,11 +314,11 @@ function generalized_EigValProb(prob, grid, params)
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N))
+    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
     s₁ = size(I⁰, 1);
     s₂ = size(I⁰, 2);
 
-    # the horizontal Laplacian operator
+    # the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
@@ -262,7 +326,7 @@ function generalized_EigValProb(prob, grid, params)
     H = inverse_Lap_hor(∇ₕ²)
 
     # Construct the 4th order derivative
-    D⁴  = (1.0 * prob.D⁴ʸ
+    D⁴ᴰ = (1.0 * prob.D⁴ʸ
         + 1.0/params.ε^4 * prob.D⁴ᶻᴰ
         + 1.0 * params.k^4 * I⁰
         - 2.0 * params.k^2 * prob.D²ʸ
@@ -270,35 +334,36 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
 
     # Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
+    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
 
+    # See `Numerical Implementation' section for the theory
     # ──────────────────────────────────────────────────────────────────────────────
     # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
     # ──────────────────────────────────────────────────────────────────────────────
     # Construct the matrix `A`
     Ablocks = (
         w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2),
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
         ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
                 sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
         b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * params.H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * params.H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ *I⁰)
+                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * bs.fields.U₀ * I⁰)
         )
     )
 
     # Construct the matrix `A`
     Bblocks = (
         w = (  # w-equation mass: [–ε²∂²], zero, zero
-                sparse(-params.ε^2 * D²),
+                sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
@@ -315,7 +380,7 @@ function generalized_EigValProb(prob, grid, params)
     )
 
     # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble in beautiful line
+    # 2) Assemble the block-row matrices into a GEVPMatrices object
     # ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
@@ -330,7 +395,7 @@ function generalized_EigValProb(prob, grid, params)
 end
 ````
 
-### Eigenvalue solver
+## Eigenvalue solver
 
 ````julia
 function EigSolver(prob, grid, params, σ₀)
@@ -342,16 +407,14 @@ function EigSolver(prob, grid, params, σ₀)
 
     elseif params.eig_solver == "krylov"
 
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.eig_solver == "arnoldi"
 
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
     end
     # ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
-
-    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
 
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
@@ -359,7 +422,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 ````
 
-### Solving the problem
+## Solving the problem
 
 ````julia
 function solve_Stone1971(k::Float64)
@@ -393,7 +456,7 @@ function solve_Stone1971(k::Float64)
 end
 ````
 
-### Result
+## Result
 
 ````julia
 solve_Stone1971(0.1) # growth rate is at k=0.1
@@ -401,12 +464,11 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 
 ````
 (attempt  1) trying σ = 0.024000
-Converged: first λ = 0.030168 + i 0.000000 (σ = 0.024000)
+Converged: first λ = 0.024868 + i 0.000000 (σ = 0.024000)
 (attempt  2) trying σ = 0.024800
-Converged: first λ = 0.030168 + i 0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 3.22e-11 < 1.00e-05
-||AΧ - λBΧ||₂: 0.000001 
-largest growth rate : 3.0168e-02+1.0753e-13im
+Converged: first λ = 0.024868 + i -0.000000 (σ = 0.024800)
+Successive eigenvalues converged: |Δλ| = 1.94e-12 < 1.00e-05
+largest growth rate : 2.4868e-02-7.9378e-14im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````

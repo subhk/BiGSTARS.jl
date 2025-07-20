@@ -1,7 +1,7 @@
 """
     FourierDifferentiation
 
-A beautiful and efficient implementation of Fourier spectral differentiation matrices.
+Implementation of Fourier spectral differentiation matrices.
 
 This module provides spectrally accurate differentiation operators for periodic functions,
 with elegant handling of arbitrary domains and efficient caching mechanisms.
@@ -19,9 +19,9 @@ with elegant handling of arbitrary domains and efficient caching mechanisms.
 𝒟 = FourierDiffn(64; L = 4π)
 
 # Differentiate a function - multiple beautiful syntaxes available!
-u = sin.(𝒟.x)
-∂u = 𝒟[1] * u     # indexing syntax
-∂u = 𝒟.D₁ * u     # property syntax with subscript
+u   = sin.(𝒟.x)
+∂u  = 𝒟[1] * u     # indexing syntax
+∂u  = 𝒟.D₁ * u     # property syntax with subscript
 ∂²u = 𝒟.D₂ * u    # second derivative
 ```
 """
@@ -221,7 +221,7 @@ end
 """
     FourierDiffn(n::Integer; L::Real = 2π)
 
-Construct a beautiful Fourier differentiation object on n points over [0, L).
+Construct a Fourier differentiation object on n points over [0, L).
 
 # Arguments
 - `n::Integer`: Number of grid points

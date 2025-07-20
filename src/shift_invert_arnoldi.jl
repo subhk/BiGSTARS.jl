@@ -2,29 +2,12 @@
 
 #using ArnoldiMethod: partialschur, partialeigen, LM, LR, LI, SR, SI
 
-# # --- Shift-and-invert operator ---
-# struct ShiftAndInvert{TA,TB,TT}
-#     A_lu::TA
-#     B::TB
-#     temp::TT
-# end
-
-# function (M::ShiftAndInvert)(y, x)
-#     mul!(M.temp, M.B, x)
-#     ldiv!(y, M.A_lu, M.temp)
-# end
-
-# function construct_linear_map(A, B)
-#     ShiftAndInvert(factorize(A), B, Vector{eltype(A)}(undef, size(A,1))) |>
-#     M -> LinearMap{eltype(A)}(M, size(A,1), ismutating=true)
-# end
-
 # --- Generalized Arnoldi eigensolver ---
 function Eigs_Arnoldi(𝓛, ℳ;
                       σ::Float64,
                       which = :LR,
                       nev::Int=1,
-                      maxiter::Int=100,
+                      maxiter::Int=300,
                       tol::Float64=1e-12, 
                       sortby::Symbol = :M)
     
@@ -56,7 +39,7 @@ function solve_shift_invert_arnoldi(𝓛, ℳ;
                                         which = :LM,
                                         sortby::Symbol = :M,
                                         nev::Int=1,
-                                        maxiter::Int=100,
+                                        maxiter::Int=300,
                                         n_tries::Int=8,
                                         Δσ₀::Float64=0.2,
                                         incre::Float64=1.2,

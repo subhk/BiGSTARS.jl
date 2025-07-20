@@ -25,21 +25,6 @@ stack(f, itr) = mapreduce(f, hcat, itr)
 stack(itr)    = reduce(hcat, itr)
 #end
 
-struct ShiftAndInvert{TA,TB,TT}
-    A_lu::TA
-    B::TB
-    temp::TT
-end
-
-function (M::ShiftAndInvert)(y, x)
-    mul!(M.temp, M.B, x)
-    ldiv!(y, M.A_lu, M.temp)
-end
-
-function construct_linear_map(A, B)
-    a = ShiftAndInvert( factorize(A), B, Vector{eltype(A)}(undef, size(A,1)) )
-    LinearMap{eltype(A)}(a, size(A,1), ismutating=true)
-end
 
 function nearestval_idx(a, x)
     idx::Int = 0
@@ -56,7 +41,7 @@ function Eigs_Krylov(
                     𝓛, ℳ;
                     σ::Float64,
                     which::Symbol = :LR,
-                    maxiter::Int = 200,
+                    maxiter::Int = 300,
                     krylovdim::Int = 100,
                     sortby::Symbol = :M)
 
@@ -93,7 +78,7 @@ function solve_shift_invert_krylov(
                     σ₀::Float64,
                     which::Symbol = :LR,
                     sortby::Symbol = :M,
-                    maxiter::Int = 200,
+                    maxiter::Int = 300,
                     krylovdim::Int = 100,
                     n_tries::Int = 8,
                     Δσ₀::Float64 = 0.2,

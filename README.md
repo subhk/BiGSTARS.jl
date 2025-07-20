@@ -23,8 +23,8 @@
 
 ## Installation
 
-Open the Julia REPL, press ] to enter **package-manager** mode, and then run the commands below.
-This will add the package and automatically build (instantiate) all of its dependencies:
+Open the Julia REPL, press ] to enter **package-manager** mode, and run the following commands. 
+These will add **BiGSTARS** and automatically instantiate all of its dependencies:
 
 ```julia
 julia> ]
@@ -32,8 +32,7 @@ julia> ]
 (@v1.11) pkg> instantiate
 ```
 
-BiGSTARS.jl requires Julia v1.6 or later. However, the package has continuous integration testing on
-Julia v1.10 (the current long-term release) and v1.11. 
+BiGSTARS.jl requires **Julia 1.6** or newer. Continuous-integration tests currently run on **Julia 1.10** (the current long-term support) and **Julia 1.11**.
 
 
 ## Examples

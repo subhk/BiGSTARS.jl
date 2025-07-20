@@ -18,23 +18,20 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
 using Parameters: @with_kw
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
-
-# ### Define the parameters
+# ## Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 2π      # horizontal domain size
     H::T                = 1.0       # vertical   domain size
     E::T                = 1.0e-4    # inverse of Reynolds number 
     k::T                = 0.0       # x-wavenumber
-    Ny::Int64           = 150       # no. of y-grid points
-    Nz::Int64           = 30        # no. of Chebyshev points
+    Ny::Int64           = 160       # no. of y-grid points
+    Nz::Int64           = 20        # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "fixed"        # boundary condition for temperature
@@ -42,7 +39,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 nothing #hide
 
-# ### Define the basic state
+# ## Define the basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -70,8 +67,7 @@ function basic_state(grid, params)
 end
 nothing #hide
 
-
-# ### Constructing Generalized EVP
+# ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
     bs = basic_state(grid, params)
@@ -160,7 +156,7 @@ function generalized_EigValProb(prob, grid, params)
 end
 nothing #hide
 
-# ### Define the eigenvalue solver
+# ## Define the eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
@@ -206,8 +202,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 nothing #hide
 
-
-# ### Solving the rRBC problem
+# ## Solving the rRBC problem
 function solve_rRBC(k::Float64)
 
     params = Params{Float64}()
@@ -235,7 +230,7 @@ function solve_rRBC(k::Float64)
 end
 nothing #hide
 
-# # ## Result
+# ## Result
 solve_rRBC(0.0) # growth rate is at k=0.1  
 nothing #hide
 

@@ -178,15 +178,12 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
-
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid 
 
-
-# ### Define the parameters
+# ## Define the parameters
 @with_kw mutable struct Params{T} <: AbstractParams
     L::T                = 1.0           # horizontal domain size
     H::T                = 1.0           # vertical domain size
@@ -203,7 +200,7 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
 end
 nothing #hide
 
-# ### Define the basic state
+# ## Define the basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -230,8 +227,7 @@ function basic_state(grid, params)
     return bs
 end
 
-
-# ### Constructing Generalized EVP
+# ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
     bs = basic_state(grid, params)
@@ -320,8 +316,7 @@ function generalized_EigValProb(prob, grid, params)
 end
 nothing #hide
 
-
-# ### Define the eigenvalue solver
+# ## Define the eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
@@ -349,7 +344,7 @@ function EigSolver(prob, grid, params, σ₀)
 end
 nothing #hide
 
-# ### Solving the Stone problem
+# ## Solving the Stone problem
 function solve_Stone1971(k::Float64)
 
     params = Params{Float64}()
@@ -379,6 +374,6 @@ function solve_Stone1971(k::Float64)
 end
 nothing #hide
 
-# # ## Result
+# ## Result
 solve_Stone1971(0.1) # growth rate is at k=0.1  
 nothing #hide

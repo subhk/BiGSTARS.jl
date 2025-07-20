@@ -125,27 +125,27 @@ using SpecialFunctions
 using Parameters
 using Test
 using BenchmarkTools
-
 using JLD2
+using Parameters: @with_kw
 
 using BiGSTARS
 using BiGSTARS: AbstractParams
 using BiGSTARS: Problem, OperatorI, TwoDGrid
 
-# ### Define the parameters
+# ## Parameters
 @with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 1.0         # horizontal domain size
-    H::T                = 1.0         # vertical domain size
-    Ri::T               = 1.0         # the Richardson number
-    k::T                = 0.1         # x-wavenumber
-    E::T                = 1.0e-9     # Ekman number 
-    Ny::Int64           = 50          # no. of y-grid points
-    Nz::Int64           = 30          # no. of z-grid points
-    eig_solver::String  = "krylov"      # eigenvalue solver
+    L::T                = 1.0           # horizontal domain size
+    H::T                = 1.0           # vertical domain size
+    Ri::T               = 1.0           # the Richardson number 
+    k::T                = 0.1           # along-front wavenumber
+    E::T                = 1.0e-12        # the Ekman number 
+    Ny::Int64           = 60            # no. of y-grid points 
+    Nz::Int64           = 30            # no. of z-grid points (should be different from Ny)
+    eig_solver::String  = "arpack"      # eigenvalue solver
 end
 nothing #hide
 
-# ### Define the basic state
+# ## Basic state
 function basic_state(grid, params)
     
     Y, Z = ndgrid(grid.y, grid.z)
@@ -153,7 +153,7 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. params.Ri * Z - Y          # buoyancy
+    B₀   = @. 1.0 * params.Ri * Z - Y    # buoyancy
     U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
     ## Calculate all the necessary derivatives
@@ -171,24 +171,24 @@ function basic_state(grid, params)
 
     return bs, deriv
 end
+nothing #hide
 
 
-# ### Constructing Generalized EVP
+# ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
     bs, deriv = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N)) 
-    Iʸ = sparse(Matrix(1.0I, params.Ny, params.Ny)) 
+    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
     s₁ = size(I⁰, 1); 
     s₂ = size(I⁰, 2);
 
-    ## the horizontal Laplacian operator
+    ## the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
-    # some quanntities required later
+    ## some quantities required later
     bs_∂ᶻB₀⁻¹  = @. 1.0/deriv.∂ᶻB₀
     bs_∂ᶻB₀⁻²  = @. 1.0/(deriv.∂ᶻB₀ * deriv.∂ᶻB₀) 
     
@@ -207,13 +207,13 @@ function generalized_EigValProb(prob, grid, params)
 
     ## Construct the matrix `A`
     ## ──────────────────────────────────────────────────────────────────────────────
-    ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
+    ## 1) Now define your 1×1 block-rows in a NamedTuple of 1-tuples
     ## ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
         ψ = (  # ψ-equation
                 sparse(1.0im * params.k * bs.fields.U₀ * D₂³ᵈ
-                    + 1.0im * params.k * ∂ʸQ₀ * I⁰
+                    + 1.0im * params.k * ∂ʸQ₀ 
                     - 1.0 * params.E * ∇ₕ² * D₂³ᵈ
                 ) 
         ),
@@ -227,7 +227,7 @@ function generalized_EigValProb(prob, grid, params)
     )
 
     ## ──────────────────────────────────────────────────────────────────────────────
-    ## 2) Assemble in beautiful line
+    ## 2) Assemble the block-row matrices into a GEVPMatrices object
     ## ──────────────────────────────────────────────────────────────────────────────
     gevp = GEVPMatrices(Ablocks, Bblocks)
 
@@ -248,41 +248,38 @@ function generalized_EigValProb(prob, grid, params)
     _, zi = ndgrid(1:1:params.Ny, 1:1:params.Nz)
     zi    = transpose(zi);
     zi    = zi[:];
-    bcᶻᵇ  = findall( x -> (x==1),         zi )
-    bcᶻᵗ  = findall( x -> (x==params.Nz), zi )
+    bcᶻ⁻  = findall( x -> (x==1),         zi )      ## @ z=0  
+    bcᶻ⁺  = findall( x -> (x==params.Nz), zi )      ## @ z=1
 
     ## Implementing boundary condition for 𝓛 matrix in the z-direction: 
-    B[:,1:1s₂] = 1.0im * params.k * bs.fields.U₀ * prob.Dᶻ 
-                - 1.0im * params.k * bs.fields.∂ᶻU₀ * I⁰
+    B[:,1:1s₂] = 1.0im * params.k * bs.fields.U₀ * prob.Dᶻ - 1.0im * params.k * bs.fields.∂ᶻU₀ 
     
     ## Bottom boundary condition @ z=0  
-    @. gevp.A[bcᶻᵇ, :] = B[bcᶻᵇ, :]
+    @. gevp.A[bcᶻ⁻, :] = B[bcᶻ⁻, :]
     
     ## Top boundary condition @ z = 1
-    @. gevp.A[bcᶻᵗ, :] = B[bcᶻᵗ, :]
+    @. gevp.A[bcᶻ⁺, :] = B[bcᶻ⁺, :]
 
     ## Implementing boundary condition for ℳ matrix in the z-direction: 
     C[:,1:1s₂] = -1.0 * prob.Dᶻ
 
     ## Bottom boundary condition @ z=0  
-    @. gevp.B[bcᶻᵇ, :] = C[bcᶻᵇ, :]
+    @. gevp.B[bcᶻ⁻, :] = C[bcᶻ⁻, :]
 
     ## Top boundary condition @ z = 1
-    @. gevp.B[bcᶻᵗ, :] = C[bcᶻᵗ, :]
+    @. gevp.B[bcᶻ⁺, :] = C[bcᶻ⁺, :]
 
     return gevp.A, gevp.B
 end
 nothing #hide
 
-
-# ### Define the eigenvalue solver
+# ## Eigenvalue solver
 function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
     if params.eig_solver == "arpack"
-
-        λ, Χ = solve_shift_invert_arpack(A, B; σ₀=σ₀, which=:LR, sortby=:R)
+        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
 
     elseif params.eig_solver == "krylov"
 
@@ -295,30 +292,30 @@ function EigSolver(prob, grid, params, σ₀)
     ## ======================================================================
     @assert length(λ) > 0 "No eigenvalue(s) found!"
 
-    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
-
-    print_evals(λ)
+    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
     return λ[1], Χ[:,1]
 end
 nothing #hide
 
-
-# ### Solving the Stone problem
+# ## Solving the Eady problem
 function solve_Eady(k::Float64)
 
+    ## Calling problem parameters
     params = Params{Float64}()
 
-    # ### Construct grid and derivative operators
+    ## Construct grid and derivative operators
     grid  = TwoDGrid(params)
 
-    # ### Construct the necesary operator
+    ## Construct the necesary operator
     ops  = OperatorI(params)
     prob = Problem(grid, ops)
 
+    ## update the wavenumber
     params.k = k
 
-    σ₀   = 0.02 # initial guess for the growth rate
+    ## initial guess for the growth rate
+    σ₀   = 0.02 
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
@@ -329,11 +326,10 @@ function solve_Eady(k::Float64)
     @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
-
 end
 nothing #hide
 
-# # ## Result
+# ## Result
 solve_Eady(0.1) # growth rate is at k=0.1  
 nothing #hide
 

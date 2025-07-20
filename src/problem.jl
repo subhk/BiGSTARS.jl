@@ -39,6 +39,7 @@ struct Problem{Tg<:AbstractFloat}
     # Chebyshev in z (Neumann BC)
     Dᶻᴺ    :: SparseMat{Tg}
     D²ᶻᴺ   :: SparseMat{Tg}
+    D⁴ᶻᴺ   :: SparseMat{Tg}
 
     # Chebyshev in z (Dirichlet BC)
     Dᶻᴰ    :: SparseMat{Tg}
@@ -66,34 +67,35 @@ end
 function Problem(grid::AbstractGrid{T, Ty, Tm}, 
                 cache::OperatorI{T}) where {T<:Real, Ty<:AbstractVector, Tm<:AbstractMatrix}
 
+    # For Fourier differentiation matrix
+    Dʸ      = kron_s(grid.Dʸ,  cache.Iᶻ)
+    D²ʸ     = kron_s(grid.D²ʸ, cache.Iᶻ)
+    D⁴ʸ     = kron_s(grid.D⁴ʸ, cache.Iᶻ)
+
     # Kronecker products: no BC
-    Dᶻ      = kron_s(cache.Iʸ, Matrix(grid.Dᶻ) )
-    D²ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D²ᶻ))
-    D⁴ᶻ     = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻ))
+    Dᶻ      = kron_s(cache.Iʸ, grid.Dᶻ )
+    D²ᶻ     = kron_s(cache.Iʸ, grid.D²ᶻ)
+    D⁴ᶻ     = kron_s(cache.Iʸ, grid.D⁴ᶻ)
 
     # Kronecker products: Dirichlet
-    Dᶻᴰ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴰ) )
-    D²ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴰ))
-    D⁴ᶻᴰ    = kron_s(cache.Iʸ, Matrix(grid.D⁴ᶻᴰ))
+    Dᶻᴰ     = kron_s(cache.Iʸ, grid.Dᶻᴰ )
+    D²ᶻᴰ    = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
+    D⁴ᶻᴰ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
 
     # Kronecker products: Neumann
-    Dᶻᴺ     = kron_s(cache.Iʸ, Matrix(grid.Dᶻᴺ) )
-    D²ᶻᴺ    = kron_s(cache.Iʸ, Matrix(grid.D²ᶻᴺ))
+    Dᶻᴺ     = kron_s(cache.Iʸ, grid.Dᶻᴺ)
+    D²ᶻᴺ    = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
+    D⁴ᶻᴺ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴺ)
 
     # Mixed derivatives
-    Dʸᶻᴰ    = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.Dᶻᴰ ))
-    Dʸ²ᶻᴰ   = kron_s(Matrix(grid.Dʸ ),  Matrix(grid.D²ᶻᴰ))
-    D²ʸ²ᶻᴰ  = kron_s(Matrix(grid.D²ʸ),  Matrix(grid.D²ᶻᴰ))
-
-    # For Fourier differentiation matrix
-    Dʸ      = kron_s(Matrix(grid.Dʸ ), cache.Iᶻ)
-    D²ʸ     = kron_s(Matrix(grid.D²ʸ), cache.Iᶻ)
-    D⁴ʸ     = kron_s(Matrix(grid.D⁴ʸ), cache.Iᶻ)
+    Dʸᶻᴰ    = kron_s(grid.Dʸ,  grid.Dᶻᴰ)
+    Dʸ²ᶻᴰ   = kron_s(grid.Dʸ,  grid.D²ᶻᴰ)
+    D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ,  grid.D²ᶻᴰ)
 
     #### Create the grid object
     prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
                     Dᶻ, D²ᶻ, D⁴ᶻ,
-                    Dᶻᴺ, D²ᶻᴺ,
+                    Dᶻᴺ, D²ᶻᴺ, D⁴ᶻᴺ,
                     Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
                     Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
     )
@@ -122,19 +124,24 @@ struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
     # Fourier differentiation matrices (sparse)
     Dʸ  :: SparseMatrixCSC{T, Int}
     D²ʸ :: SparseMatrixCSC{T, Int}
+    D³ʸ :: SparseMatrixCSC{T, Int}
     D⁴ʸ :: SparseMatrixCSC{T, Int}
 
     # Chebyshev matrices (sparse)
     Dᶻ  :: SparseMatrixCSC{T, Int}
     D²ᶻ :: SparseMatrixCSC{T, Int}
+    D³ᶻ :: SparseMatrixCSC{T, Int}
     D⁴ᶻ :: SparseMatrixCSC{T, Int}
 
     Dᶻᴰ  :: SparseMatrixCSC{T, Int}
     D²ᶻᴰ :: SparseMatrixCSC{T, Int}
+    D³ᶻᴰ :: SparseMatrixCSC{T, Int}
     D⁴ᶻᴰ :: SparseMatrixCSC{T, Int}
 
     Dᶻᴺ  :: SparseMatrixCSC{T, Int}
     D²ᶻᴺ :: SparseMatrixCSC{T, Int}
+    D³ᶻᴺ :: SparseMatrixCSC{T, Int}
+    D⁴ᶻᴺ :: SparseMatrixCSC{T, Int}
 end
 
 
@@ -146,47 +153,20 @@ function TwoDGrid(params::AbstractParams)
     H  = params.H
 
     # setup Fourier differentiation matrices  
-    # Fourier in y-direction: y ∈ [0, L)
-    # y1, Dʸ  = FourierDiff(Ny, 1)
-    # _,  D²ʸ = FourierDiff(Ny, 2)
-    # _,  D⁴ʸ = FourierDiff(Ny, 4)
-
-    # # Transform the domain and derivative operators from [0, 2π) → [0, L)
-    # y   = L/2π * y1
-    # Dʸ  = (2π/L)^1 * Dʸ
-    # D²ʸ = (2π/L)^2 * D²ʸ
-    # D⁴ʸ = (2π/L)^4 * D⁴ʸ
-
     fd  = FourierDiffn(Ny; L = L) 
     y   = fd.x
     Dʸ  = fd.D₁
     D²ʸ = fd.D₂
+    D³ʸ = fd.D₃
     D⁴ʸ = fd.D₄     
 
-    
+
     # Chebyshev in the z-direction
-    # z1, D1z = chebdif(Nz, 1)
-    # _,  D2z = chebdif(Nz, 2)
-    # _,  D3z = chebdif(Nz, 3)
-    # _,  D4z = chebdif(Nz, 4)
-
-    # # Transform the domain and derivative operators from [-1, 1] → [0, H]
-    # z, Dᶻ, D²ᶻ  = chebder_transform(z1, D1z, 
-    #                                     D2z, 
-    #                                     zerotoL_transform, 
-    #                                     H)
-
-    # _, _, D⁴ᶻ  = chebder_transform_ho(z1, D1z, 
-    #                                     D2z, 
-    #                                     D3z, 
-    #                                     D4z, 
-    #                                     zerotoL_transform_ho, 
-    #                                     H)
-
-    cd  = ChebyshevDiffn(Nz, [0.0, L], 4)
+    cd  = ChebyshevDiffn(Nz, [0.0, H], 4)
     z   = cd.x
     Dᶻ  = cd.D₁
     D²ᶻ = cd.D₂
+    D³ᶻ = cd.D₃
     D⁴ᶻ = cd.D₄
 
     T = eltype(Dʸ)
@@ -194,51 +174,33 @@ function TwoDGrid(params::AbstractParams)
    # Convert to mutable matrices to allow BCs
     Dᶻᴰ  = Matrix(deepcopy(Dᶻ) )
     D²ᶻᴰ = Matrix(deepcopy(D²ᶻ))
+    D³ᶻᴰ = Matrix(deepcopy(D⁴ᶻ))
     D⁴ᶻᴰ = Matrix(deepcopy(D⁴ᶻ))
 
     Dᶻᴺ  = Matrix(deepcopy(Dᶻ) )
     D²ᶻᴺ = Matrix(deepcopy(D²ᶻ))
+    D³ᶻᴺ = Matrix(deepcopy(D⁴ᶻ))
+    D⁴ᶻᴺ = Matrix(deepcopy(D⁴ᶻ))
 
     #### Create the grid object
     grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
         Ny, Nz, L, H, y, z,
-        Dʸ, D²ʸ, D⁴ʸ,
-        Dᶻ, D²ᶻ, D⁴ᶻ,
-        Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
-        Dᶻᴺ, D²ᶻᴺ
+        Dʸ, D²ʸ, D³ʸ, D⁴ʸ,
+        Dᶻ, D²ᶻ, D³ᶻ, D⁴ᶻ,
+        Dᶻᴰ, D²ᶻᴰ, D³ᶻᴰ, D⁴ᶻᴰ,
+        Dᶻᴺ, D²ᶻᴺ, D³ᶻᴺ, D⁴ᶻᴺ
     )
 
     #### Apply BCs 
-    setBCs!(grid, params, :dirichlet)
-    setBCs!(grid, params, :neumann)
+    bc_handler = BoundaryConditionHandler(params.Nz)
+    bc_handler(grid, :dirichlet)  
+    bc_handler(grid, :neumann)  
 
     return grid
 end
 
 
 
-function show(io::IO, params::AbstractParams)
-    T = typeof(params.L)  # infer float type from a field
-    print(io,
-        "Eigen Solver Configuration \n",
-        "  ├────────────────────── Float Type: $T \n",
-        "  ├─────────────── Domain Size (L, H): ", (params.L, params.H), "\n",
-        "  ├───────────── Resolution (Ny, Nz): ", (params.Ny, params.Nz), "\n",
-        "  ├──── Boundary Conditions (w, ζ, b): ", (params.w_bc, params.ζ_bc, params.b_bc), "\n",
-        "  └────────────── Eigenvalue Solver: ", params.eig_solver, "\n"
-    )
-end
 
-# function show(io::IO, p::Params{T}) where T
-#     print(io, """
-# Eigen Solver Configuration
-#   ┌────────────────────────────────────────────
-#   │ Float Type                 : $T
-#   │ Domain Size (L × H)        : ($(p.L), $(p.H))
-#   │ Resolution (Ny × Nz)       : ($(p.Ny), $(p.Nz))
-#   │ Boundary Conditions (w, ζ, b): ($(p.w_bc), $(p.ζ_bc), $(p.b_bc))
-#   │ Eigenvalue Solver          : $(p.eig_solver)
-#   └────────────────────────────────────────────
-# """)
-# end
+
 
