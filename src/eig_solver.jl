@@ -1,20 +1,8 @@
 # ==============================================================================
-# EigenvalueSolver.jl - A Unified Interface for Generalized Eigenvalue Problems
+# eig_solver.jl - A Unified Interface for Generalized Eigenvalue Problems
 # ==============================================================================
 
-#module EigenvalueSolver
-
-using LinearAlgebra
-using Printf
-using ArnoldiMethod: partialschur, partialeigen, LM, LR, LI, SR, SI
-using Arpack
-using LinearMaps
-using KrylovKit
-
 using VectorInterface: MinimalSVec, MinimalMVec, MinimalVec
-
-export EigenSolver, solve!, get_results, compare_methods!, plot_convergence
-export SolverConfig, SolverResults, ConvergenceHistory
 
 # ==============================================================================
 # Data Structures
@@ -560,7 +548,7 @@ Display comprehensive usage examples.
 """
 function show_example_usage()
     println("""
-    EigenvalueSolver.jl Usage Examples
+    eig_solver.jl Usage Examples
     =====================================
     
     # Basic usage with the new interface:
