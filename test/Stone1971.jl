@@ -79,7 +79,7 @@ function generalized_EigValProb(prob, grid, params)
     #@assert norm(∇ₕ² * H - I⁰) ≤ 1.0e-2 "difference in L2-norm should be small"
 
     ## Construct the 4th order derivative
-    D⁴  = (1.0 * prob.D⁴ʸ 
+    D⁴ᴰ = (1.0 * prob.D⁴ʸ 
         + 1.0/params.ε^4 * prob.D⁴ᶻᴰ 
         + 1.0 * params.k^4 * I⁰ 
         - 2.0 * params.k^2 * prob.D²ʸ 
