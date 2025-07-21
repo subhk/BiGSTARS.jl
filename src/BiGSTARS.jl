@@ -44,55 +44,69 @@ module BiGSTARS
     #    FourierDiff,
     #    FourierDiff_fdm, 
 
-       FourierDiffn,
+        FourierDiffn,
 
        # Setting boundary conditions
-       setBCs!,
+        setBCs!,
     
        # inverse of the horizontal Laplacian
-       inverse_Lap_hor,
+        inverse_Lap_hor,
 
        # eigenvalue solvers
-       Eigs_Arnoldi, 
-       Eigs_Krylov,
-       Eigs_Arpack,
-       solve_shift_invert_arnoldi,
-       solve_shift_invert_krylov,
-       solve_shift_invert_arpack,
+    #    Eigs_Arnoldi, 
+    #    Eigs_Krylov,
+    #    Eigs_Arpack,
+    #    solve_shift_invert_arnoldi,
+    #    solve_shift_invert_krylov,
+    #    solve_shift_invert_arpack,
+
+        EigenSolver, 
+        solve!, 
+        get_results, 
+        compare_methods!, 
+        plot_convergence,
+        SolverConfig, 
+        SolverResults, 
+        ConvergenceHistory,
+        print_summary,
 
        # some utility functions
-       print_evals,
-       sort_evals,
-       sort_evals_,
-       remove_evals,
-       remove_spurious,
+        print_evals,
+        sort_evals,
+        sort_evals_,
+        remove_evals,
+        remove_spurious,
+        DiagM,
 
        # calculate gradient 
-       gradient,
-       derivative,
+        gradient,
+        derivative,
 
-       # wrappers for vectors
-       wrapvec,
-       unwrapvec,
-       stack,
-       MinimalVec,
+        # wrappers for vectors
+        wrapvec,
+        unwrapvec,
+        stack,
+        MinimalVec,
 
-       # pardiso_solver to construct linear map
-       #construct_linear_map_pardiso,
-       construct_linear_map, 
+        # pardiso_solver to construct linear map
+        #construct_linear_map_pardiso,
+        construct_linear_map, 
 
-       # Construct 2D grids
-       TwoDGrid, 
+        # Construct 2D grids
+        TwoDGrid, 
 
-       # Place holder of A, B matrices for generalized eigval problem
-       GEVPMatrices, 
+        # Place holder of A, B matrices for generalized eigval problem
+        GEVPMatrices, 
 
-       # compute necessary derivatives
-       compute_derivatives, 
+        # compute necessary derivatives
+        compute_derivatives,
+        compute_derivatives_legacy,  
+        Derivatives,
+        precompute!
 
-       # initialize the basic state
-       initialize_basic_state_from_fields,
-       initialize_basic_state!
+        # # initialize the basic state
+        # initialize_basic_state_from_fields,
+        # initialize_basic_state!
 
 
     import Base: show, summary
@@ -113,15 +127,16 @@ module BiGSTARS
 
     #include("transforms.jl")
     
-    include("shift_invert_arnoldi.jl")
-    include("shift_invert_krylov.jl")
-    include("shift_invert_arpack.jl")
+    # include("shift_invert_arnoldi.jl")
+    # include("shift_invert_krylov.jl")
+    # include("shift_invert_arpack.jl")
+
+    include("eig_solver.jl")
     include("setBCs.jl")
     include("utils.jl")
     include("problem.jl")
     include("eig_matrices.jl")
     include("compute_derivative.jl")
-    include("basic_state.jl")
     include("gradient.jl")
     include("construct_linear_map.jl")
 

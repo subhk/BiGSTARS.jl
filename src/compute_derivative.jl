@@ -1,238 +1,179 @@
-### File: `ComputeDerivatives.jl`
+# ────────────────────────────────────────────────────────────────────────────────
+# Legacy alias map (ASCII → Unicode / new names)
+# ────────────────────────────────────────────────────────────────────────────────
 
-# module ComputeDerivatives
+const _ALIASES = Dict{Symbol,Symbol}(
+    :∂ʸU₀   => :∂ʸU,     :∂ʸB₀   => :∂ʸB,
+    :∂ʸʸU₀  => :∂ʸʸU,    :∂ʸʸB₀  => :∂ʸʸB,
+    :∂ᶻU₀   => :∂ᶻU,     :∂ᶻB₀   => :∂ᶻB,
+    :∂ᶻᶻU₀ => :∂ᶻᶻU,   :∂ᶻᶻB₀ => :∂ᶻᶻB,
+    :∂ʸᶻU₀ => :∂ʸᶻU,    :∂ʸᶻB₀ => :∂ʸᶻB,
+)
 
-# export compute_derivatives, compute_first_derivatives_fourier, compute_second_derivatives_fourier,
-#        compute_first_derivatives_chebyshev, compute_second_derivatives_chebyshev
+# ────────────────────────────────────────────────────────────────────────────────
+# Lazy container (stores original fields + derivative cache)
+# ────────────────────────────────────────────────────────────────────────────────
 
 """
-    compute_first_derivatives_fourier(B₀, U₀, y)
+    Derivatives{T}(U, B, y; Dᶻ, D²ᶻ, gridtype = :Mixed)
 
-Compute first derivatives of `B₀` and `U₀` using Fourier differentiation matrices.
-Returns: ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀
+A **lazy** wrapper that owns the background fields `U` and `B` and computes
+first‑/second‑order derivatives on first access.  The results are cached in a
+`Dict` so repeated property access is free.
+
+Supported `gridtype` values
+- `:Fourier`   – only y‑direction (Fourier) derivatives are exposed
+- `:Chebyshev` – only z‑direction (Chebyshev) derivatives are exposed
+- `:Mixed`     – Fourier × Chebyshev grid (default)
+- `:All`       – expose every derivative regardless of cost (still lazy)
 """
-function compute_first_derivatives_fourier(U₀::Matrix{T}, 
-                                            B₀::Matrix{T}, 
-                                            y::AbstractVector{T}) where T
+mutable struct Derivatives{T}
+    U        :: AbstractMatrix{T}
+    B        :: AbstractMatrix{T}
+    y        :: AbstractVector{T}
+    Dᶻ       :: Union{AbstractMatrix{T}, Nothing}
+    D²ᶻ      :: Union{AbstractMatrix{T}, Nothing}
+    gridtype :: Symbol
+    cache    :: Dict{Symbol,Any}
+end
 
-    if size(U₀)[1] == length(y)
-        ∂ʸU₀ = gradient(U₀, y, dims=1, order=1)
-        ∂ʸB₀ = gradient(B₀, y, dims=1, order=1)
-    else
-        ∂ʸU₀ = gradient(U₀, y, dims=2, order=1)
-        ∂ʸB₀ = gradient(B₀, y, dims=2, order=1)
+function Derivatives(U::AbstractMatrix{T}, B::AbstractMatrix{T}, y::AbstractVector{T};
+                     Dᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                     D²ᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                     gridtype::Symbol=:Mixed) where {T}
+
+    if gridtype in (:Chebyshev, :Mixed, :All)
+        @assert Dᶻ  !== nothing "Chebyshev derivatives requested but `Dᶻ` is missing"
+        @assert D²ᶻ !== nothing "Chebyshev derivatives requested but `D²ᶻ` is missing"
     end
 
-    return ∂ʸU₀, ∂ʸB₀
+    Derivatives{T}(U, B, y, Dᶻ, D²ᶻ, gridtype, Dict{Symbol,Any}())
 end
 
-"""
-    compute_second_derivatives_fourier(U₀, B₀, y)
+# ────────────────────────────────────────────────────────────────────────────────
+# User‑facing constructors
+# ────────────────────────────────────────────────────────────────────────────────
 
-Compute second derivatives of `U₀` using Fourier differentiation matrices.
-Returns: ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀
-"""
-function compute_second_derivatives_fourier(U₀::Matrix{T}, 
-                                            B₀::Matrix{T}, 
-                                            y::AbstractVector{T}) where T
+compute_derivatives(U::AbstractMatrix{T}, 
+                    B::AbstractMatrix{T}, 
+                    y::AbstractVector{T};
+                    Dᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                    D²ᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                    gridtype::Symbol=:Mixed) where {T} =
+    Derivatives(U, B, y; Dᶻ=Dᶻ, D²ᶻ=D²ᶻ, gridtype=gridtype)
 
-    if size(U₀)[1] == length(y)
-        ∂ʸU₀ = gradient(U₀, y, dims=1, order=2)
-        ∂ʸB₀ = gradient(B₀, y, dims=1, order=2)
+# Legacy tuple‑return API for older BiGSTARS code
+function compute_derivatives_legacy(U::AbstractMatrix{T}, 
+                                    B::AbstractMatrix{T}, 
+                                    y::AbstractVector{T};
+                                    Dᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                                    D²ᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
+                                    gridtype::Symbol=:All) where {T}
+    D = compute_derivatives(U, B, y; Dᶻ=Dᶻ, D²ᶻ=D²ᶻ, gridtype=gridtype)
+    return D.∂ʸU, D.∂ʸB, D.∂ᶻU, D.∂ᶻB, D.∂ʸʸU, D.∂ᶻᶻU, D.∂ʸᶻU
+end
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Helper kernels (BLAS‑friendly eager computations)
+# ────────────────────────────────────────────────────────────────────────────────
+
+_fourier(U, B, y, order) = begin
+    dim = (size(U,1) == length(y)) ? 1 : 2
+    (gradient(U, y; dims=dim, order=order),
+     gradient(B, y; dims=dim, order=order))
+end
+
+_first_fourier  = (U,B,y) -> _fourier(U,B,y,1)
+_second_fourier = (U,B,y) -> _fourier(U,B,y,2)
+
+function _first_cheb(U, B, y, Dᶻ)
+    if size(U,1) == length(y)
+        return U * Dᶻ, B * Dᶻ  # multiply on right (faster contiguous rows)
     else
-        ∂ʸU₀ = gradient(U₀, y, dims=2, order=2)
-        ∂ʸB₀ = gradient(B₀, y, dims=2, order=2)
-    end
-
-    return ∂ʸU₀, ∂ʸB₀
-end
-
-"""
-    compute_first_derivatives_chebyshev(U₀, B₀, Dᶻ)
-
-Compute first derivatives of `B₀` and `U₀` using Chebyshev differentiation matrices.
-Returns: ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀
-"""
-function compute_first_derivatives_chebyshev(U₀::Matrix{T}, 
-                                            B₀::Matrix{T}, 
-                                            y::AbstractVector{T},
-                                            Dᶻ::AbstractMatrix{T}) where T
-
-    ∂ᶻU₀ = similar(U₀)
-    ∂ᶻB₀ = similar(U₀)
-
-    if size(U₀)[1] == length(y)
-        for it in 1:length(y)
-            ∂ᶻU₀[it,:] = Dᶻ * U₀[it,:]
-            ∂ᶻB₀[it,:] = Dᶻ * B₀[it,:]
-        end
-    else
-        for it in 1:length(y)
-            ∂ᶻU₀[:,it] = Dᶻ * U₀[:,it]
-            ∂ᶻB₀[:,it] = Dᶻ * B₀[:,it]
-        end
-    end
-
-    return ∂ᶻU₀, ∂ᶻB₀
-end
-
-function compute_cross_derivatives(∂ʸU₀::Matrix{T}, 
-                                  ∂ʸB₀::Matrix{T}, 
-                                  y::AbstractVector{T},
-                                  Dᶻ::AbstractMatrix{T}) where T
-
-    ∂ʸᶻU₀ = similar(∂ʸU₀)
-    ∂ʸᶻB₀ = similar(∂ʸU₀)
-
-    if size(∂ʸU₀)[1] == length(y)
-        for it in 1:length(y)
-            ∂ʸᶻU₀[it,:] = Dᶻ * ∂ʸU₀[it,:]
-            ∂ʸᶻB₀[it,:] = Dᶻ * ∂ʸB₀[it,:]
-        end
-    else
-        for it in 1:length(y)
-            ∂ʸᶻU₀[:,it] = Dᶻ * ∂ʸU₀[:,it]
-            ∂ʸᶻB₀[:,it] = Dᶻ * ∂ʸB₀[:,it]
-        end
-    end
-
-    return ∂ʸᶻU₀, ∂ʸᶻB₀
-end
-
-"""
-    compute_second_derivatives_chebyshev(U₀, Dy, Dz)
-
-Compute second derivatives of `U₀` using Chebyshev differentiation matrices.
-Returns: ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀
-"""
-function compute_second_derivatives_chebyshev(U₀::Matrix{T}, 
-                                            B₀::Matrix{T}, 
-                                            y::AbstractVector{T},
-                                            D²ᶻ::AbstractMatrix{T}) where T
-
-    ∂ᶻᶻU₀ = similar(U₀)
-    ∂ᶻᶻB₀ = similar(U₀)
-
-    if size(U₀)[1] == length(y)
-        for it in 1:length(y)
-            ∂ᶻᶻU₀[it,:] = D²ᶻ * U₀[it,:]
-            ∂ᶻᶻB₀[it,:] = D²ᶻ * B₀[it,:]
-        end
-    else
-        for it in 1:length(y)
-            ∂ᶻᶻU₀[:,it] = D²ᶻ * U₀[:,it]
-            ∂ᶻᶻB₀[:,it] = D²ᶻ * B₀[:,it]
-        end
-    end
-
-    return ∂ᶻᶻU₀, ∂ᶻᶻB₀
-end
-
-"""
-    Derivatives
-
-A struct to wrap all computed derivatives for U₀ and B₀.
-"""
-Base.@kwdef struct Derivatives{T}
-    ∂ʸU₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ʸB₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ʸʸU₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ʸʸB₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ʸᶻU₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ʸᶻB₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ᶻU₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ᶻB₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ᶻᶻU₀::Union{Matrix{T}, Nothing} = nothing
-    ∂ᶻᶻB₀::Union{Matrix{T}, Nothing} = nothing
-end
-
-
-"""
-    compute_derivatives(B₀, U₀, Dy, Dz, gridtype::Symbol)
-
-Automatically dispatch to Chebyshev or Fourier based on `gridtype` (:Fourier or :Chebyshev).
-Returns: ∂ʸB₀, ∂ᶻB₀, ∂ʸU₀, ∂ᶻU₀, ∂ʸʸU₀, ∂ᶻᶻU₀, ∂ʸᶻU₀
-"""
-function compute_derivatives(U₀::Matrix{T}, 
-                            B₀::Matrix{T}, 
-                            y::AbstractVector{T}, 
-                            Dᶻ::AbstractMatrix{T}, 
-                            D²ᶻ::AbstractMatrix{T}, 
-                            gridtype::Symbol) where T
-
-    if gridtype == :Fourier
-        return compute_derivatives(U₀, B₀, y, Dᶻ,      Val(:Fourier) )
-
-    elseif gridtype == :Chebyshev
-        return compute_derivatives(U₀, B₀, y, Dᶻ, D²ᶻ, Val(:Chebyshev))
-    
-    elseif gridtype == :All
-        return compute_derivatives(U₀, B₀, y, Dᶻ, D²ᶻ, Val(:All)      )
-
-    else
-        error("Unsupported grid type: $gridtype")
+        return Dᶻ * U, Dᶻ * B
     end
 end
 
+function _second_cheb(U, B, y, D²ᶻ)
+    if size(U,1) == length(y)
+        return U * D²ᶻ, B * D²ᶻ
+    else
+        return D²ᶻ * U, D²ᶻ * B
+    end
+end
+
+_cross(FyU, FyB, y, Dᶻ) = size(FyU,1) == length(y) ? (FyU * Dᶻ, FyB * Dᶻ) : (Dᶻ * FyU, Dᶻ * FyB)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Lazy property access with caching and alias support
+# ────────────────────────────────────────────────────────────────────────────────
+
+function Base.getproperty(D::Derivatives, s::Symbol)
+    # map legacy alias → canonical symbol
+    s = get(_ALIASES, s, s)
+
+    # direct fields
+    if s in (:U, :B, :y, :Dᶻ, :D²ᶻ, :gridtype, :cache)
+        return getfield(D, s)
+    end
+
+    # cached?
+    if haskey(D.cache, s)
+        return D.cache[s]
+    end
+
+    # compute required block lazily
+    if s in (:∂ʸU, :∂ʸB, :∂ʸʸU, :∂ʸʸB) && D.gridtype in (:Fourier, :Mixed, :All)
+        D.cache[:∂ʸU],  D.cache[:∂ʸB]  = _first_fourier(D.U, D.B, D.y)
+        D.cache[:∂ʸʸU], D.cache[:∂ʸʸB] = _second_fourier(D.U, D.B, D.y)
+
+    elseif s in (:∂ᶻU, :∂ᶻB, :∂ᶻᶻU, :∂ᶻᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
+        D.cache[:∂ᶻU],  D.cache[:∂ᶻB]  = _first_cheb(D.U, D.B, D.y, D.Dᶻ)
+        D.cache[:∂ᶻᶻU], D.cache[:∂ᶻᶻB] = _second_cheb(D.U, D.B, D.y, D.D²ᶻ)
+
+    elseif s in (:∂ʸᶻU, :∂ʸᶻB) && D.gridtype in (:Mixed, :All)
+        _ = getproperty(D, :∂ʸU)  # ensure Fourier block ready
+        D.cache[:∂ʸᶻU], D.cache[:∂ʸᶻB] = _cross(D.cache[:∂ʸU], D.cache[:∂ʸB], D.y, D.Dᶻ)
+
+    else
+        error("Property `$s` not available for gridtype $(D.gridtype)")
+    end
+
+    return D.cache[s]
+end
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Eager helper – compute selected derivative families now
+# ────────────────────────────────────────────────────────────────────────────────
+
 """
-    compute_derivatives(U₀, B₀, y, Dᶻ, D²ᶻ, :Mixed)
+    precompute!(D; which = :All) -> Derivatives
 
-Compute derivatives for mixed grids: Fourier in y and Chebyshev in z.
-Returns a `Derivatives` struct.
+Force computation of derivative blocks and return the same `Derivatives`
+object.  Valid `which` keys:
+* `:Fourier`   – y‑direction (∂ʸ*, ∂ʸʸ*)
+* `:Chebyshev` – z‑direction (∂ᶻ*, ∂ᶻᶻ*)
+* `:Cross`     – cross derivative (∂ʸᶻ*) – requires mixed grid
+* `:All`       – every family applicable to `D.gridtype`
+
+The function is idempotent: requesting the same block twice does no extra work.
 """
-function compute_derivatives(U₀::Matrix{T}, 
-                            B₀::Matrix{T}, 
-                            y::AbstractVector{T}, 
-                            Dᶻ::AbstractMatrix{T}, 
-                            D²ᶻ::AbstractMatrix{T}, 
-                            ::Val{:All}) where T
+function precompute!(D::Derivatives; which::Symbol = :All)
+    which ∈ (:Fourier, :Chebyshev, :Cross, :All) ||
+        error("Invalid value for `which`: $which")
 
-    ∂ʸU₀, ∂ʸB₀     = compute_first_derivatives_fourier(   U₀, B₀, y     )
-    ∂ʸʸU₀, ∂ʸʸB₀   = compute_second_derivatives_fourier(  U₀, B₀, y     )
-    ∂ᶻU₀, ∂ᶻB₀     = compute_first_derivatives_chebyshev( U₀, B₀, y, Dᶻ )
-    ∂ᶻᶻU₀, ∂ᶻᶻB₀   = compute_second_derivatives_chebyshev(U₀, B₀, y, D²ᶻ)
-    ∂ʸᶻU₀, ∂ʸᶻB₀   = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, y, Dᶻ)
+    if which in (:Fourier, :All) && D.gridtype in (:Fourier, :Mixed, :All)
+        _ = D.∂ʸU   # triggers Fourier block lazily
+    end
 
-    return Derivatives{T}(
-        ∂ʸU₀=∂ʸU₀, ∂ʸB₀=∂ʸB₀,
-        ∂ʸʸU₀=∂ʸʸU₀, ∂ʸʸB₀=∂ʸʸB₀,
-        ∂ᶻU₀=∂ᶻU₀, ∂ᶻB₀=∂ᶻB₀,
-        ∂ᶻᶻU₀=∂ᶻᶻU₀, ∂ᶻᶻB₀=∂ᶻᶻB₀,
-        ∂ʸᶻU₀=∂ʸᶻU₀, ∂ʸᶻB₀=∂ʸᶻB₀
-    )
+    if which in (:Chebyshev, :All) && D.gridtype in (:Chebyshev, :Mixed, :All)
+        _ = D.∂ᶻU   # triggers Chebyshev block lazily
+    end
+
+    if which in (:Cross, :All) && D.gridtype in (:Mixed, :All)
+        _ = D.∂ʸᶻU  # triggers cross derivative
+    end
+
+    return D
 end
-
-function compute_derivatives(U₀::Matrix{T}, 
-                            B₀::Matrix{T}, 
-                            y::AbstractVector{T}, 
-                            Dᶻ::AbstractMatrix{T}, 
-                            ::Val{:Fourier}) where T
-
-    ∂ʸU₀, ∂ʸB₀   = compute_first_derivatives_fourier(U₀, B₀, y)
-    ∂ʸʸU₀, ∂ʸʸB₀ = compute_second_derivatives_fourier(U₀, B₀, y)
-    ∂ʸᶻU₀, ∂ʸᶻB₀ = compute_cross_derivatives(∂ʸU₀, ∂ʸB₀, y, Dᶻ)
-
-    return Derivatives{T}(
-        ∂ʸU₀=∂ʸU₀, ∂ʸB₀=∂ʸB₀,
-        ∂ʸʸU₀=∂ʸʸU₀, ∂ʸʸB₀=∂ʸʸB₀,
-        ∂ʸᶻU₀=∂ʸᶻU₀, ∂ʸᶻB₀=∂ʸᶻB₀
-    )
-end
-
-function compute_derivatives(U₀::Matrix{T}, 
-                            B₀::Matrix{T}, 
-                            y::AbstractVector{T},
-                            Dᶻ::AbstractMatrix{T}, 
-                            D²ᶻ::AbstractMatrix{T}, 
-                            ::Val{:Chebyshev}) where T
-
-    ∂ᶻU₀, ∂ᶻB₀   = compute_first_derivatives_chebyshev( U₀, B₀, y, Dᶻ)
-    ∂ᶻᶻU₀, ∂ᶻᶻB₀ = compute_second_derivatives_chebyshev(U₀, B₀, y, D²ᶻ)
-
-    return Derivatives{T}(
-        ∂ᶻU₀=∂ᶻU₀, ∂ᶻB₀=∂ᶻB₀,
-        ∂ᶻᶻU₀=∂ᶻᶻU₀, ∂ᶻᶻB₀=∂ᶻᶻB₀
-    )
-end
-
 

@@ -158,7 +158,7 @@
 # identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively, 
 # and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 # denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
-# $\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^3$ are the first, second and third order
+# $\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^4$ are the first, second and fourth order
 # Fourier differentiation matrix of size of $(N_y \times N_y)$. 
 # $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
 # Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
@@ -190,8 +190,8 @@ using BiGSTARS: Problem, OperatorI, TwoDGrid
     E::T                = 1.0e-4        # the Ekman number
     Pr::T               = 1.0           # the Prandtl number
     k::T                = 0.0           # x-wavenumber
-    Ny::Int64           = 120           # no. of y-grid points
-    Nz::Int64           = 30            # no. of Chebyshev points
+    Ny::Int64           = 180           # no. of y-grid points
+    Nz::Int64           = 20            # no. of Chebyshev points
     w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
     ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
     b_bc::String        = "fixed"       # boundary condition for temperature
@@ -207,21 +207,14 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. 1.0 - Z          # basic state temperature
-    U₀   = @. 0.0 * Z          # basic state along-front velocity
+    B   = @. 1.0 - Z          # basic state temperature
+    U   = @. 0.0 * Z          # basic state along-front velocity
 
-    ## Calculate all the necessary derivatives
-    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
-
-    bs = initialize_basic_state_from_fields(B₀, U₀)
-
-    initialize_basic_state!(
-            bs,
-            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
-            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
-            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
-            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
-        )
+    ## Calculate all the 1st, 2nd and yz derivatives in 2D grids
+    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
+    precompute!(bs; which = :All)   # eager cache, returns bs itself
+    @assert bs.U === U              # originals live in the same object
+    @assert bs.B === B
 
     return bs
 end
@@ -259,17 +252,17 @@ function generalized_EigValProb(prob, grid, params)
     ## ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
-        w = (  # w-equation: ED⁴ -Dᶻ zero
+        w = (  # w-equation: [ED⁴] [-Dᶻᴺ] [zero]
                 sparse(params.E * D⁴ᴰ),
                 sparse(-prob.Dᶻᴺ),
                 spzeros(Float64, s₁, s₂)
         ),
-        ζ = (  # ζ-equation: Dᶻ ED² zero
+        ζ = (  # ζ-equation: [Dᶻᴰ] [ED²ᴺ] [zero]
                 sparse(prob.Dᶻᴰ),
                 sparse(params.E * D²ᴺ),
                 spzeros(Float64, s₁, s₂)
         ),
-        θ = (  # b-equation: I zero D²
+        θ = (  # b-equation: [I₀] [zero] [D²ᴰ]
                 sparse(I⁰),
                 spzeros(Float64, s₁, s₂),
                 sparse(D²ᴰ)
@@ -278,17 +271,17 @@ function generalized_EigValProb(prob, grid, params)
 
     ## Construct the matrix `B`
     Bblocks = (
-        w = (  # w-equation: zero, zero -∇ₕ²
+        w = (  # w-equation: [zero], [zero] [-∇ₕ²]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 sparse(-∇ₕ²)
         ),
-        ζ = (  # ζ-equation: zero, zero, zero
+        ζ = (  # ζ-equation: [zero], [zero], [zero]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
-        θ = (  # b-equation: zero, zero, zero
+        θ = (  # b-equation: [zero], [zero], [zero]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
@@ -317,39 +310,18 @@ function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.eig_solver == "arpack"
-
-        λ, Χ = solve_shift_invert_arpack(A, B; 
-                                        σ₀=σ₀, 
-                                        which=:LM, 
-                                        sortby=:R, 
-                                        nev = 10,
-                                        maxiter=100)
-
-    elseif params.eig_solver == "krylov"
-
-        λ, Χ = solve_shift_invert_krylov(A, B; 
-                                        σ₀=σ₀, 
-                                        which=:LM, 
-                                        sortby=:R, 
-                                        maxiter=100)
-
-    elseif params.eig_solver == "arnoldi"
-
-        λ, Χ = solve_shift_invert_arnoldi(A, B; 
-                                        σ₀=σ₀, 
-                                        which=:LM, 
-                                        sortby=:R,
-                                        nev = 10, 
-                                        maxiter=100)
-    end
-    ## ======================================================================
-    @assert length(λ) > 0 "No eigenvalue(s) found!"
+    ## Construct the eigenvalue solver
+    ## Methods available: :Krylov (by default), :Arnoldi, :Arpack
+    ## Here we are looking for minimum Rayleigh number (real part of eigenvalue)
+    ## `method=:Arnoldi' is good when looking for largest magnitude eigenvalue
+    solver = EigenSolver(A, B; σ₀=σ₀, method=:Arnoldi, nev=10, which=:LM, sortby=:R)
+    solve!(solver)
+    λ, Χ = get_results(solver)
+    print_summary(solver)
 
     ## looking for min Ra 
     λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")
     λ, Χ = sort_evals_(λ, Χ,  :R, rev=false)
-
     print_evals(complex.(λ))
 
     return λ[1], Χ[:,1]
