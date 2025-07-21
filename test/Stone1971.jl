@@ -113,7 +113,7 @@ function generalized_EigValProb(prob, grid, params)
         )
     )
 
-    ## Construct the matrix `A`
+    ## Construct the matrix `B`
     Bblocks = (
         w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
                 sparse(-params.ε^2 * D²ᴰ),
