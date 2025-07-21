@@ -118,7 +118,7 @@ makedocs(
                 "Differentiation matrix"        => "matrices.md",
                 "Methodology"                   => "method.md",
                 "Examples"                      => Any[
-                    "Stone1971"                 => "literated/Stone1971.md", 
+                    "Stone"                 => "literated/Stone1971.md", 
                     "Eady"                      => "literated/Eady.md",
                     "rotating RBC"              => "literated/rRBC.md"
                 ],
