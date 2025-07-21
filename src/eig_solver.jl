@@ -596,8 +596,7 @@ end
 Quick start example:
 
 ```julia
-using LinearAlgebra
-using .EigenvalueSolver
+using BiGSTARS
 
 # Create test matrices
 n = 100
