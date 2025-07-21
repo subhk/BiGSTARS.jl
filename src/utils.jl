@@ -213,4 +213,92 @@ function ∇f(f::AbstractVector{T}, x::AbstractVector{T}) where T<:AbstractFloat
     return ∂f_∂x ./ Δx
 end
 
+using SparseArrays, LinearAlgebra
+export field_to_spdiagm, spdiag_to_field, diagm
+
+# ────────────────────────────────────────────────────────────────────────────
+#  Original helpers (unchanged)                                              │
+# ────────────────────────────────────────────────────────────────────────────
+"""
+    field_to_spdiagm(U; k=0, order=:col, dims=nothing, scale=identity, pad=:error)
+
+See previous message for full docstring.
+"""
+function field_to_spdiagm(U::AbstractMatrix;
+                          k::Integer = 0,
+                          order::Symbol = :col,
+                          dims::Union{Nothing,Tuple{Int,Int}} = nothing,
+                          scale = identity,
+                          pad::Symbol = :error)
+
+    v = order === :row ? reshape(U', :) : vec(U)
+    v = scale.(v)
+    m, n = isnothing(dims) ? (length(v), length(v)) : dims
+    diag_len = min(m, n) - abs(k)
+    diag_len > 0 || error("Diagonal k=$k does not fit into $m×$n matrix")
+
+    # fit vector to diagonal length
+    if length(v) < diag_len
+        v = vcat(v, zeros(eltype(v), diag_len - length(v)))
+    elseif length(v) > diag_len
+        pad === :trim  && (v = v[1:diag_len])
+        pad === :zero  && (v = v[1:diag_len] .= v[diag_len+1:diag_len])
+        pad === :wrap  && (v = v[mod1.(1:diag_len, length(v))])
+        pad === :error && error("Vector length $(length(v)) exceeds diagonal length $diag_len")
+    end
+
+    return spdiagm(m, n, k => v)
+end
+
+"""
+    spdiag_to_field(S, m, n; k=0, order=:col)
+
+Inverse operation of `field_to_spdiagm`.
+"""
+function spdiag_to_field(S::SparseMatrixCSC, m::Int, n::Int;
+                         k::Integer = 0, order::Symbol = :col)
+    d = diag(S, k)
+    length(d) < m*n && (d = vcat(d, zeros(eltype(d), m*n - length(d))))
+    return order === :row ? reshape(d, n, m)' : reshape(d, m, n)
+end
+
+
+"""
+    DiagM(U::AbstractMatrix; k=0, order=:col, sparse=true,
+          dims=nothing, scale=identity, pad=:error)
+
+*If the first argument is a 2‑D array*, build a diagonal matrix from it.
+Keyword interface is identical to `field_to_spdiagm`.
+
+* `sparse=true`  → returns `SparseMatrixCSC` (uses `spdiagm`).  
+* `sparse=false` → returns dense `Matrix`, allocating zeros for the rest.
+"""
+function DiagM(U::AbstractMatrix;
+               k::Integer = 0,
+               order::Symbol = :col,
+               sparse::Bool = true,
+               dims::Union{Nothing,Tuple{Int,Int}} = nothing,
+               scale = identity,
+               pad::Symbol = :error)
+
+    if sparse
+        return field_to_spdiagm(U; k=k, order=order, dims=dims,
+                                   scale=scale, pad=pad)
+    else
+        # build dense version by filling zeros matrix then dropping diagonal in
+        m, n = isnothing(dims) ? (length(vec(U)), length(vec(U))) : dims
+        S = zeros(eltype(U), m, n)
+        v = order === :row ? reshape(U', :) : vec(U)
+        v = scale.(v)
+        diag_len = min(m, n) - abs(k)
+        v = length(v) ≥ diag_len ? v[1:diag_len] : vcat(v, zeros(eltype(v), diag_len - length(v)))
+
+        # place on the k‑th diagonal
+        r0, c0 = k ≥ 0 ? (1, 1+k) : (1-k, 1)
+        @inbounds for i = 1:diag_len
+            S[r0+i-1, c0+i-1] = v[i]
+        end
+        return S
+    end
+end
 

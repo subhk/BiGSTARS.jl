@@ -1,170 +1,10 @@
-# ### Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+# Baroclinic instability of a 2D front 
 #
-# ## Introduction
-# Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces, 
-# enabling eddies to tap available potential energy and convert it to kinetic energy.
-# Stone (1971) investigated non-hydrostatic effects on BCI using Eady’s framework. 
-# He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases 
-# while the growth rate diminishes relative to predictions from the quasigeostrophic (QG) approximation.
-# ## Basic state
-# The basic state is given by
-# ```math
-# \begin{align}
-#     B(y, z) &= Ri z - y, \\
-#     U(y, z) &= z - {1}/{2},
-# \end{align}
-# ```
-# where ``Ri`` is the Richardson number. We aim to analyze the stability of the 
-# above basic state against small perturbations. The perturbation variables are
-# defined as
-# ```math
-# \begin{align}
-#     \mathbf{u}(x, y, z, t) &= (u, v, \epsilon w)(x, y, z, t), \\
-#     p(x, y, z, t) &= p(x, y, z, t), \\
-#     b(x, y, z, t) &= b(x, y, z, t),
-# \end{align}
-# ```
-# where ``\epsilon`` is the aspect ratio, ``\mathbf{u}`` is the velocity perturbation, 
-# ``p`` is the pressure perturbation, and ``b`` is the buoyancy perturbation.
+# This example solves the linear stability problem of a 2D front based on the
+# analytical solution of Stone (1971). The problem is defined in the `Stone1971.jl` file.
+# The problem is solved using the `EigSolver` function, which constructs the
+# generalized eigenvalue problem and solves it using the `Krylov` method.
 #
-# ## Governing equations
-# The resulting nondimensional, linearized Boussinesq equations of motion 
-# under the ``f``-plane approximation are given by
-# ```math
-# \begin{align}
-#     \frac{D \mathbf{u}}{Dt}
-#     + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
-#     + \hat{z} \times \mathbf{u} &=
-#     -\nabla p + \frac{1}{\epsilon} b \hat{z} + E \nabla^2 \mathbf{u}, 
-# \\
-#     \frac{Db}{Dt}
-#     +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &= \frac{E}{Pr} \nabla^2 b, 
-# \\
-#     \nabla \cdot \mathbf{u} &= 0,
-# \end{align}
-# ```
-# where 
-# ```math
-# \begin{align}
-#   D/Dt \equiv \partial/\partial t + U (\partial/\partial x)
-# \end{align}
-# ```
-# is the material derivative. The operators:
-# ```math
-# \nabla \equiv (\partial/\partial x, \partial/\partial y, (1/\epsilon) \partial/\partial z),
-# ```
-# ```math
-# \nabla^2 \equiv \partial^2/\partial x^2 + \partial^2/\partial y^2 + (1/\epsilon^2) \partial^2/ \partial z^2,
-# ```
-# ```math
-#   \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
-# ```
-#
-# To eliminate pressure, following [teed2010rapidly@citet, we apply the operator 
-# $\hat{z} \cdot \nabla \times \nabla \times$  and $\hat{z} \cdot \nabla \times$ 
-# to the above momentum equation. This procedure yields governing equations of 
-# three perturbation variables, the vertical velocity $w$, the vertical vorticity $\zeta \, (=\hat{z} \cdot \nabla \times \mathbf{u})$, 
-# and the buoyancy $b$ 
-# ```math
-# \begin{align}
-#     \frac{D}{Dt}\nabla^2 {w} 
-#     + \frac{1}{\epsilon^2} \frac{\partial \zeta}{\partial z} 
-#     &= \frac{1}{\epsilon^2} \nabla_h^2 b + E \nabla^4 w,
-# \\
-#     \frac{D \zeta}{Dt}
-#     - \frac{\partial U}{\partial z}\frac{\partial w}{\partial y}
-#     - \frac{\partial w}{\partial z} &= E \nabla^2 \zeta, 
-# \\
-#     \frac{Db}{Dt}
-#     + v \frac{\partial B}{\partial y} + 
-#     w \frac{\partial B}{\partial z}
-#     &= \frac{E}{Pr} \nabla^2 b,
-# \end{align}
-# ```
-# where 
-# ```math
-#   \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
-# ```
-# The benefit of using the above sets of equations is that it enables us to 
-# examine the instability at an along-front wavenumber ``k \to 0``. 
-#
-#
-# ## Normal mode solutions
-# Next we consider normal-mode perturbation solutions in the form of 
-# ```math
-# \begin{align}
-#     [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{b}](y, z)  e^{i kx + \sigma t}\big),
-# \end{align}
-# ```
-# where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction. The variable 
-# $\sigma=\sigma_r + i \sigma_i$. The real part represents the growth rate, and the imaginary part 
-# shows the frequency of the  perturbation. 
-#
-# Finally following systems of differential equations are obtained,
-# ```math
-# \begin{align}
-#     (i k U - E \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
-#     + \epsilon^{-2} \partial_z \tilde{\zeta}
-#     - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &= -\sigma \mathcal{D}^2 \tilde{w},
-# \\
-#     - \partial_z U \partial_y \tilde{w}
-#     - \partial_z \tilde{w}
-#     + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= -\sigma \tilde{\zeta},
-# \\
-#     \partial_z B \tilde{w} + \partial_y B  \tilde{v} + 
-#     \left[ik U - E \mathcal{D}^2 \right] \tilde{b} &= -\sigma \tilde{b}, 
-# \end{align}
-# ```
-# where 
-# ```math
-#  \mathcal{D}^4  = (\mathcal{D}^2 )^2 = \big(\partial_y^2 + (1/\epsilon^2)\partial_z^2 - k^2\big)^2, 
-# ```
-# and
-# ```math
-#  \mathcal{D}_h^2 = (\partial_y^2 - k^2).
-# ```
-# 
-# ## Boundary conditions
-# We choose periodic boundary conditions in the ``y``-direction and 
-# free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
-# ```math
-# \begin{align}
-#   \tilde{w} = \partial_{zz} \tilde{w} = 
-#   \partial_z \tilde{\zeta} = \partial_z \tilde{b} = 0, 
-#   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
-# \end{align}
-# ```
-# ## Generalized eigenvalue problem
-# The above sets of equations with the boundary conditions can be expressed as a 
-# standard generalized eigenvalue problem (GEVP),
-# ```math
-# \begin{align}
-#  AX= λBX,
-# \end{align}
-# ```
-# where $\lambda$ is the eigenvalue, and $X$ is the eigenvector. The matrices    
-# $A$ and $B$ are given by
-# ```math
-# \begin{align}
-#     A &= \begin{bmatrix}
-#         \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)   
-#          & \mathcal{D}_z  & -\mathcal{D}_h^2 
-#   \\  
-#         -\partial_z U \mathcal{D}_y - \mathcal{D}_z  
-#           & i k U - E \mathcal{D}^2 & 0 
-#  \\ 
-#       \partial_z B -  \partial_y B H \mathcal{D}_{yz}   
-#       &  k \partial_y B H  & ikU - E \mathcal{D}^2 
-#     \end{bmatrix}, 
-# \,\,\,\,\,\,\,
-#     B &= \begin{bmatrix}  
-#         \epsilon^2 \mathcal{D}^2 & 0 & 0 \\   
-#         0 & I & 0 \\
-#         0 & 0 & I
-#     \end{bmatrix},
-# \end{align}
-# ```
-# where $I$ is the identity matrix and $H$ is the inverse of the horizontal Laplacian $(\mathcal{D}_h^2)^{-1}$.
 #
 # ## Load required packages
 using LazyGrids
@@ -208,21 +48,14 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. params.Ri * Z - Y          # buoyancy
-    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
+    B   = @. 1.0 * params.Ri * Z - Y    # buoyancy
+    U   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
-    ## Calculate all the necessary derivatives
-    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
-
-    bs = initialize_basic_state_from_fields(B₀, U₀)
-
-    initialize_basic_state!(
-            bs,
-            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
-            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
-            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
-            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
-        )
+    ## Calculate all the 1st, 2nd and yz derivatives in 2D grids
+    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
+    precompute!(bs; which = :All)   # eager cache, returns bs itself
+    @assert bs.U === U              # originals live in the same object
+    @assert bs.B === B
 
     return bs
 end
@@ -263,36 +96,36 @@ function generalized_EigValProb(prob, grid, params)
     # ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
-        w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.((-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2)),
+        w = (  # w-equation: [ε²(ikDiagM(U) - ED⁴ᴰ)], [Dᶻᴺ], [–∇ₕ²]
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * DiagM(bs.U) * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
-        ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
-                sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im * params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+        ζ = (  # ζ-equation: [DiagM(∂ᶻU)Dʸ - Dᶻᴰ], [kDiagM(U) – ED²ᴺ], [zero]
+                sparse(complex.(-DiagM(bs.∂ᶻU) * prob.Dʸ - prob.Dᶻᴰ)),
+                sparse(complex.(1.0im *params.k * DiagM(bs.U) * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
-        b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
+        b = (  # b-equation: [DiagM(∂ᶻB) – DiagM(∂ʸB) H Dʸᶻᴰ], [ikDiagM(∂ʸB)], [–ED²ᴺ + ikDiagM(U)]
+                sparse(complex.(DiagM(bs.∂ᶻB) * I⁰ - DiagM(bs.∂ʸB) * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * DiagM(bs.∂ʸB) * H),
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * DiagM(bs.U))
         )
     )
 
-    ## Construct the matrix `B`
+    ## Construct the matrix `A`
     Bblocks = (
-        w = (  # w-equation: [–ε²∂²], zero, zero
-                sparse(-params.ε^2 * D²),
+        w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
+                sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
-        ζ = (  # ζ-equation: zero, [–I], zero
+        ζ = (  # ζ-equation mass: [zero], [–I], [zero]
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰),
                 spzeros(Float64, s₁, s₂)
         ),
-        b = (  # b-equation: zero, zero, [–I]
+        b = (  # b-equation mass: [zero], [zero], [–I]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰)
@@ -321,24 +154,16 @@ function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.eig_solver == "arpack"
+    ## Construct the eigenvalue solver
+    ## Methods available: :Krylov, :Arnoldi (by default), :Arpack
+    ## Here we are looking for largest growth rate (real part of eigenvalue)
+    solver = EigenSolver(A, B; σ₀=σ₀, method=:Krylov, nev=1, which=:LR, sortby=:R)
+    solve!(solver)
+    λ, Χ = get_results(solver)
+    print_summary(solver)
 
-        λ, Χ = solve_shift_invert_arpack(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-
-    elseif params.eig_solver == "krylov"
-
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-
-    elseif params.eig_solver == "arnoldi"
-
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-    end
-    ## ======================================================================
-    @assert length(λ) > 0 "No eigenvalue(s) found!"
-
-    @printf "||AΧ - λBΧ||₂: %f \n" norm(A * Χ[:,1] - λ[1] * B * Χ[:,1])
-
-    print_evals(λ)
+    ## Print the largest growth rate
+    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
     return λ[1], Χ[:,1]
 end

@@ -153,23 +153,16 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     ## Define the basic state
-    B₀   = @. 1.0 * params.Ri * Z - Y    # buoyancy
-    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
+    B   = @. 1.0 * params.Ri * Z - Y    # buoyancy
+    U   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
-    ## Calculate all the necessary derivatives
-    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
+    ## Calculate all the 1st, 2nd and yz derivatives in 2D grids
+    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
+    precompute!(bs; which = :All)   # eager cache, returns bs itself
+    @assert bs.U === U              # originals live in the same object
+    @assert bs.B === B
 
-    bs = initialize_basic_state_from_fields(B₀, U₀)
-
-    initialize_basic_state!(
-            bs,
-            deriv.∂ʸB₀,  deriv.∂ᶻB₀, 
-            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
-            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
-            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
-        )
-
-    return bs, deriv
+    return bs
 end
 nothing #hide
 
@@ -177,7 +170,7 @@ nothing #hide
 # ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
-    bs, deriv = basic_state(grid, params)
+    bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
     I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
@@ -189,21 +182,15 @@ function generalized_EigValProb(prob, grid, params)
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
     ## some quantities required later
-    bs_∂ᶻB₀⁻¹  = @. 1.0/deriv.∂ᶻB₀
-    bs_∂ᶻB₀⁻²  = @. 1.0/(deriv.∂ᶻB₀ * deriv.∂ᶻB₀) 
-    
-    ∂ᶻB₀⁻¹::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-    ∂ᶻB₀⁻²::Array{Float64, 2} = SparseMatrixCSC(Zeros(N, N))
-    ∂ʸQ₀::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N)) # PV gradient is zero
+    ∂ᶻB⁻¹  = @. 1.0/bs.∂ᶻB
+    ∂ᶻB⁻²  = @. 1.0/(bs.∂ᶻB * bs.∂ᶻB)
 
-    ## converting to matrics 
-    ∂ᶻB₀⁻¹[diagind(∂ᶻB₀⁻¹)] = bs_∂ᶻB₀⁻¹
-    ∂ᶻB₀⁻²[diagind(∂ᶻB₀⁻²)] = bs_∂ᶻB₀⁻²
+    ∂ʸQ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N)) # PV gradient is zero
 
     ## definition of perturbation PV, q = D₂³ᵈ{ψ}
     D₂³ᵈ = (1.0 * ∇ₕ²
-            + 1.0  * ∂ᶻB₀⁻¹ * prob.D²ᶻ
-            - 1.0  * bs.fields.∂ᶻᶻB₀  * ∂ᶻB₀⁻² * prob.Dᶻ)
+            + 1.0  * DiagM(∂ᶻB⁻¹) * prob.D²ᶻ
+            - 1.0  * DiagM(bs.∂ᶻᶻB) * DiagM(∂ᶻB⁻²) * prob.Dᶻ)
 
     ## Construct the matrix `A`
     ## ──────────────────────────────────────────────────────────────────────────────
@@ -212,8 +199,8 @@ function generalized_EigValProb(prob, grid, params)
     ## Construct the matrix `A`
     Ablocks = (
         ψ = (  # ψ-equation
-                sparse(1.0im * params.k * bs.fields.U₀ * D₂³ᵈ
-                    + 1.0im * params.k * ∂ʸQ₀ 
+                sparse(1.0im * params.k * DiagM(bs.U) * D₂³ᵈ
+                    + 1.0im * params.k * ∂ʸQ
                     - 1.0 * params.E * ∇ₕ² * D₂³ᵈ
                 ) 
         ),
@@ -252,7 +239,7 @@ function generalized_EigValProb(prob, grid, params)
     bcᶻ⁺  = findall( x -> (x==params.Nz), zi )      ## @ z=1
 
     ## Implementing boundary condition for 𝓛 matrix in the z-direction: 
-    B[:,1:1s₂] = 1.0im * params.k * bs.fields.U₀ * prob.Dᶻ - 1.0im * params.k * bs.fields.∂ᶻU₀ 
+    B[:,1:1s₂] = 1.0im * params.k * DiagM(bs.U) * prob.Dᶻ - 1.0im * params.k * DiagM(bs.∂ᶻU) 
     
     ## Bottom boundary condition @ z=0  
     @. gevp.A[bcᶻ⁻, :] = B[bcᶻ⁻, :]
@@ -278,20 +265,15 @@ function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.eig_solver == "arpack"
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
+    ## Construct the eigenvalue solver
+    ## Methods available: :Krylov (by default), :Arnoldi, :Arpack
+    ## Here we are looking for largest growth rate (real part of eigenvalue)
+    solver = EigenSolver(A, B; σ₀=σ₀, method=:Krylov, nev=1, which=:LR, sortby=:R)
+    solve!(solver)
+    λ, Χ = get_results(solver)
+    print_summary(solver)
 
-    elseif params.eig_solver == "krylov"
-
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-
-    elseif params.eig_solver == "arnoldi"
-
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-    end
-    ## ======================================================================
-    @assert length(λ) > 0 "No eigenvalue(s) found!"
-
+    ## Print the largest growth rate
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
     return λ[1], Χ[:,1]

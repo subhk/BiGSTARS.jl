@@ -2,7 +2,7 @@
 # EigenvalueSolver.jl - A Unified Interface for Generalized Eigenvalue Problems
 # ==============================================================================
 
-module EigenvalueSolver
+#module EigenvalueSolver
 
 using LinearAlgebra
 using Printf
@@ -40,7 +40,7 @@ Configuration parameters for eigenvalue solvers.
 - `krylovdim::Int`: Krylov subspace dimension (Krylov method only)
 """
 @kwdef struct SolverConfig
-    method::Symbol = :Arnoldi
+    method::Symbol = :Krylov
     σ₀::Float64
     which::Symbol = :LM
     nev::Int = 1
@@ -51,7 +51,7 @@ Configuration parameters for eigenvalue solvers.
     Δσ₀::Float64 = 0.2
     incre::Float64 = 1.2
     ϵ::Float64 = 1e-5
-    krylovdim::Int = 100
+    krylovdim::Int = 200
 end
 
 """
@@ -163,11 +163,11 @@ function sort_eigenvalues!(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
     return λ[idx], Χ[:, idx]
 end
 
-function construct_linear_map(A_shifted, B)
-    # This function should be defined based on your specific linear map construction
-    # For now, assuming it returns a linear map for the shifted problem
-    return LinearMap(x -> A_shifted \ (B * x), size(A_shifted, 1))
-end
+# function construct_linear_map(A_shifted, B)
+#     # This function should be defined based on your specific linear map construction
+#     # For now, assuming it returns a linear map for the shifted problem
+#     return LinearMap(x -> A_shifted \ (B * x), size(A_shifted, 1))
+# end
 
 # ==============================================================================
 # Core Solver Methods
@@ -369,7 +369,7 @@ function compare_methods!(solver::EigenSolver;
     verbose && println("   " * "="^50)
     
     for method in methods
-        verbose && println("\n📊 Testing method: $method")
+        verbose && println("\n Testing method: $method")
         
         # Update config for this method
         new_config = SolverConfig(
@@ -412,7 +412,7 @@ function compare_methods!(solver::EigenSolver;
     
     # Summary
     if verbose
-        println("\n📋 Summary:")
+        println("\n Summary:")
         successful_methods = [m for (m, r) in results if !isnothing(r) && r.converged]
         if !isempty(successful_methods)
             fastest = minimum(m -> results[m].solve_time, successful_methods)
@@ -448,20 +448,34 @@ function print_summary(solver::EigenSolver)
     
     r = solver.results
     println("EigenSolver Results Summary")
-    println("   " * "="^40)
+    println("   " ^ 40)
     println("   Method: $(r.method_used)")
     println("   Converged: $(r.converged ? "✅ Yes" : "❌ No")")
     println("   Final shift: $(r.final_shift)")
-    println("   Total time: $(r.solve_time:.3f)s")
+    @printf("   Total time: %.3fs\n", r.solve_time)
     println("   Attempts: $(length(r.history.attempts))")
-    
+
     if r.converged
-        println("   Eigenvalues found: $(length(r.eigenvalues))")
-        for (i, λ) in enumerate(r.eigenvalues)
-            println("     λ[$i] = $(real(λ):.6f) + $(imag(λ):.6f)i")
+        nλ    = length(r.eigenvalues)
+        idx_w = length(string(nλ))             # index‐column width
+
+        # Pre‑format each eigenvalue once so we know the widest line
+        fmt(v) = @sprintf("% .6f %+.6fi", real(v), imag(v))
+        valstr = [fmt(λ) for λ in r.eigenvalues]
+        val_w  = maximum(length, valstr)       # eigenvalue column width
+
+        println("   ├─ Eigenvalues ($nλ) " * "─"^max(10, 16 - idx_w))
+        @printf("   │ %*s │ %-*s │\n", idx_w, "i", val_w, "λ (Re  Im·i)")
+        println("   │" * "─"^(idx_w + 2) * "┼" * "─"^(val_w + 2) * "│")
+
+        for (i, s) in enumerate(valstr)
+            @printf("   │ %*d │ %-*s │\n", idx_w, i, val_w, s)
         end
+
+        println("   └" * "─"^(idx_w + val_w + 5) * "┘")
     end
-    println("   " * "="^40)
+    println("   " ^ 40)
+
 end
 
 # ==============================================================================
@@ -584,7 +598,7 @@ function show_example_usage()
     """)
 end
 
-end # module EigenvalueSolver
+#end # module EigenvalueSolver
 
 # ==============================================================================
 # Usage Examples (outside module)
