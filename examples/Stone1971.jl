@@ -1,4 +1,4 @@
-# ### Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+# ### Baroclinic instability of a 2D front based on Stone (1971)
 #
 # ## Introduction
 # Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces, 

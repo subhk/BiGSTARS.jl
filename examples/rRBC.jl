@@ -1,4 +1,4 @@
-# ### Finding critical Rayleigh number for rotating Rayleigh-Benard Convection 
+# ### Critical Rayleigh number for rotating Rayleigh-Benard Convection 
 #
 # ## Introduction
 # This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
