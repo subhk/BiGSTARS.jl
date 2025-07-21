@@ -9,6 +9,7 @@
 The examples illustrate the key features of every module.  
 Browse the collection to see BiGSTARS.jl in action!
 
-* [Stone1971 example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971/)
+* [Stone example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971/)
+* [Eady example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Eady/)
 * [rRBC example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/rRBC/)
 
