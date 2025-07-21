@@ -254,8 +254,8 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
         
     ## Construct the 2nd order derivative
-    D²  = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
-    Dₙ² = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
+    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²)
+    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²)
 
     ## Construct the matrix `A`
     # ──────────────────────────────────────────────────────────────────────────────
@@ -263,41 +263,42 @@ function generalized_EigValProb(prob, grid, params)
     # ──────────────────────────────────────────────────────────────────────────────
     ## Construct the matrix `A`
     Ablocks = (
-        w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.((-params.E * D⁴ + 1.0im * params.k * bs.fields.U₀ * D²) * params.ε^2)),
+        w = (  # w-equation: [ε²(ikDiagM(U) - ED⁴ᴰ)], [Dᶻᴺ], [–∇ₕ²]
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * DiagM(bs.U) * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
-        ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
-                sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im * params.k * bs.fields.U₀ * I⁰ - params.E * Dₙ²)),
+        ζ = (  # ζ-equation: [DiagM(∂ᶻU)Dʸ - Dᶻᴰ], [kDiagM(U) – ED²ᴺ], [zero]
+                sparse(complex.(-DiagM(bs.∂ᶻU) * prob.Dʸ - prob.Dᶻᴰ)),
+                sparse(complex.(1.0im *params.k * DiagM(bs.U) * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
-        b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
-                sparse(-params.E * Dₙ² + 1.0im * params.k * bs.fields.U₀ * I⁰)
+        b = (  # b-equation: [DiagM(∂ᶻB) – DiagM(∂ʸB) H Dʸᶻᴰ], [ikDiagM(∂ʸB)], [–ED²ᴺ + ikDiagM(U)]
+                sparse(complex.(DiagM(bs.∂ᶻB) * I⁰ - DiagM(bs.∂ʸB) * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * DiagM(bs.∂ʸB) * H),
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * DiagM(bs.U))
         )
     )
 
-    ## Construct the matrix `B`
+    ## Construct the matrix `A`
     Bblocks = (
-        w = (  # w-equation: [–ε²∂²], zero, zero
-                sparse(-params.ε^2 * D²),
+        w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
+                sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
-        ζ = (  # ζ-equation: zero, [–I], zero
+        ζ = (  # ζ-equation mass: [zero], [–I], [zero]
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰),
                 spzeros(Float64, s₁, s₂)
         ),
-        b = (  # b-equation: zero, zero, [–I]
+        b = (  # b-equation mass: [zero], [zero], [–I]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰)
         )
     )
+
 
     # ──────────────────────────────────────────────────────────────────────────────
     # 2) Assemble in beautiful line
