@@ -1,7 +1,7 @@
 name = "BiGSTARS"
 uuid = "55e6fa54-20b2-4a8e-ba84-e72db1c430e6"
 authors = ["Subhajit Kar <subhajitkar19@gmail.com>"]
-version = "2.0.0"
+version = "2.0.1"
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
