@@ -1,4 +1,4 @@
-# <img width="70" height="16" alt="ChatGPT Image Jul 27, 2025 at 10_50_35 PM copy" src="https://github.com/user-attachments/assets/8b40f82a-28fd-4702-9b4e-c890dcea19b2" />
+# <img width="20" height="6" alt="ChatGPT Image Jul 27, 2025 at 10_50_35 PM copy" src="https://github.com/user-attachments/assets/8b40f82a-28fd-4702-9b4e-c890dcea19b2" />
 
 BiGSTARS.jl 
 
