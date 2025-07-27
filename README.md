@@ -1,7 +1,8 @@
-# BiGSTARS.jl 
+# ![Uploading ChatGPT Image Jul 27, 2025 at 10_41_39 PM.png…]()
+BiGSTARS.jl 
 
 <!-- description --> 
-  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS :star: ): A linear stability analysis tool for Geophysical flows with Julia. 
+  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS): A linear stability analysis tool for Geophysical flows with Julia. 
 
  <!-- Badges -->
  <p align="left">
