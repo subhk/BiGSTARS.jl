@@ -16,7 +16,7 @@ by focusing on eigenvalues near a target shift $\sigma$:
 ## Key Advantages
 
 * **Selective targeting:** Eigenvalues $\lambda$ closest to $\sigma$ correspond to the largest magnitudes of $\mu$, enabling efficient extraction via Krylov solvers (e.g., Arnoldi, Lanczos).
-* **Accelerated convergence:** Inverting the shifted operator $(A - \sigma B)$ compresses the spectrum so that desired eigenmodes dominate.
+* **Accelerated convergence:** Inverting the shifted operator $(A - \sigma B)$ compresses the spectrum so that desired eigenmodes dominate. Convergence rate $ \propto |\mu_1/\mu_2| where $\mu_1$, $\mu_2$ are the dominant transformed eigenvalues.
 
 ## Algorithm Outline
 
