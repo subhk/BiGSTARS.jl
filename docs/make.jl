@@ -116,9 +116,9 @@ makedocs(
                 "Home"                          => "index.md",
                 "Installation instructions"     => "installation_instructions.md",
                 "Differentiation matrix"        => "matrices.md",
-                "Methodology"                   => "method.md",
+                "Shift-and-Invert Method"       => "method.md",
                 "Examples"                      => Any[
-                    "Stone"                 => "literated/Stone1971.md", 
+                    "Stone"                     => "literated/Stone1971.md", 
                     "Eady"                      => "literated/Eady.md",
                     "rotating RBC"              => "literated/rRBC.md"
                 ],
