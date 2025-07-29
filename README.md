@@ -1,7 +1,7 @@
-# <img src="./gfd-emoji.svg" width="36" alt="GFD"> BiGSTARS.jl 
+# <img src="./instability_analysis_icon.svg" width="36" alt="GFD"> BiGSTARS.jl 
 
 <!-- description --> 
-  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS): A linear stability analysis tool for Geophysical flows with Julia. 
+  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS ⭐): A linear stability analysis tool for Geophysical flows with Julia. 
 
  <!-- Badges -->
  <p align="left">
