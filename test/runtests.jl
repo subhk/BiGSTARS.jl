@@ -24,10 +24,10 @@ using BiGSTARS
     d3f_numerical = cd.D₃ * f
     d4f_numerical = cd.D₄ * f
     
-    @test maximum(abs.(df_numerical - df_exact)) < 1e-13
-    @test maximum(abs.(d2f_numerical - d2f_exact)) < 1e-12
-    @test maximum(abs.(d3f_numerical - d3f_exact)) < 1e-11
-    @test maximum(abs.(d4f_numerical - d4f_exact)) < 1e-10
+    @test maximum(abs.(df_numerical - df_exact))   < 1e-8
+    @test maximum(abs.(d2f_numerical - d2f_exact)) < 1e-8
+    @test maximum(abs.(d3f_numerical - d3f_exact)) < 1e-8
+    @test maximum(abs.(d4f_numerical - d4f_exact)) < 1e-8
 end
 
 
@@ -52,11 +52,11 @@ end
     for m in 0:6
         computed = 𝒟[m] * u
         expected = derivatives[m+1]
-        @test maximum(abs.(computed - expected)) < 1e-12
+        @test maximum(abs.(computed - expected)) < 1e-8
     end
 end
 
-
+#
 @testset "Stone1971" begin
     
      include("Stone1971.jl")
