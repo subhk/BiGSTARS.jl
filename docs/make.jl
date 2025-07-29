@@ -117,6 +117,7 @@ makedocs(
                 "Installation instructions"     => "installation_instructions.md",
                 "Differentiation matrix"        => "matrices.md",
                 "Shift-and-Invert Method"       => "method.md",
+                "Utility functions"             => "basic_functionality.md",
                 "Examples"                      => Any[
                     "Stone"                     => "literated/Stone1971.md", 
                     "Eady"                      => "literated/Eady.md",
