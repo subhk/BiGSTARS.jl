@@ -1,4 +1,4 @@
-# Construction of Chebyshev and Fourier Differentiation Matrices
+# Chebyshev and Fourier Differentiation Matrices
 
 This document presents a detailed exposition of Chebyshev‑ and Fourier‑based differentiation matrices, which are essential to spectral discretisations of differential equations, with particular emphasis on their deployment in Chebyshev–Fourier spectral‑collocation frameworks for bi‑global linear stability analysis of geophysical flows, as implemented in BiGSTARS.jl.
 
