@@ -418,8 +418,8 @@ function solve_Stone1971(k::Float64)
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
     ## Analytical solution of Stone (1971) for the growth rate
-    μ  = 1.0 * params.k * √params.Ri
-    λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
+    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
+    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
 
     @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
