@@ -2,7 +2,7 @@
 EditURL = "../../../examples/Stone1971.jl"
 ```
 
-### Linear stability analysis of baroclinic instability of a 2D front based on Stone (1971)
+### Baroclinic instability of a 2D front based on Stone (1971)
 
 ## Introduction
 Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces,
@@ -167,7 +167,7 @@ $A$ and $B$ are given by
           & i k U - E \mathcal{D}^2 & 0
  \\
       \partial_z B -  \partial_y B (\mathcal{D}_h^1)^{-1} \partial_{yz}
-      &  k \partial_y B (\mathcal{D}_h^1)^{-1}  & ikU - E \mathcal{D}^2
+      &  ik \partial_y B (\mathcal{D}_h^2)^{-1}  & ikU - E \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
@@ -186,12 +186,13 @@ following sets of equations:
 \begin{align}
     A &= \begin{bmatrix}
         \epsilon^2(i k \text{diagm}(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D})
-       & -{D}_z^D & 0_n
+       & -{D}_z^D & \mathcal{D}^{2y} \otimes I-  k^2 Iₙ
 \\
         -\text{diagm}(\partial_z U) \mathcal{D}^y & i k \text{diagm}(U) - E \mathcal{D}^{2N} & 0_n
 \\
         \text{diagm}(\partial_z B) - \text{diagm}(\partial_y B) H \mathcal{D}^{yzD}
-        & k \text{diagm}(\partial_y B) H & ik \text{diagm}(U) - E \mathcal{D}^{2N}
+        & ik \text{diagm}(\partial_y B) H
+        & ik \text{diagm}(U) - E \mathcal{D}^{2N}
     \end{bmatrix},
 \end{align}
 ```
@@ -229,10 +230,10 @@ where $\otimes$ is the Kronecker product. ${I}_y$ and ${I}_z$ are
 identity matrices of size $(N_y \times N_y)$ and $(N_z \times N_z)$ respectively,
 and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
-$\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^3$ are the first, second and third order
-Fourier differentiation matrix of size of $(N_y \times N_y)$.
+$\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^4$ are the first, second and fourth order
+Fourier differentiation matrix of size of $(N_y \times N_y)$, respectively.
 $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
-Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
+Chebyshev differentiation matrix of size of $(N_z \times N_z)$, respectively.
 
 
 ## Load required packages
@@ -286,21 +287,14 @@ function basic_state(grid, params)
     Z    = transpose(Z)
 
     # Define the basic state
-    B₀   = @. 1.0 * params.Ri * Z - Y    # buoyancy
-    U₀   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
+    B   = @. 1.0 * params.Ri * Z - Y    # buoyancy
+    U   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
 
-    # Calculate all the necessary derivatives
-    deriv = compute_derivatives(U₀, B₀, grid.y, grid.Dᶻ, grid.D²ᶻ, :All)
-
-    bs = initialize_basic_state_from_fields(B₀, U₀)
-
-    initialize_basic_state!(
-            bs,
-            deriv.∂ʸB₀,  deriv.∂ᶻB₀,
-            deriv.∂ʸU₀,  deriv.∂ᶻU₀,
-            deriv.∂ʸʸU₀, deriv.∂ᶻᶻU₀, deriv.∂ʸᶻU₀,
-            deriv.∂ʸʸB₀, deriv.∂ᶻᶻB₀, deriv.∂ʸᶻB₀
-        )
+    # Calculate all the 1st, 2nd and yz derivatives in 2D grids
+    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
+    precompute!(bs; which = :All)   # eager cache, returns bs itself
+    @assert bs.U === U              # originals live in the same object
+    @assert bs.B === B
 
     return bs
 end
@@ -311,6 +305,7 @@ end
 ````julia
 function generalized_EigValProb(prob, grid, params)
 
+    # basic state
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
@@ -343,36 +338,36 @@ function generalized_EigValProb(prob, grid, params)
     # ──────────────────────────────────────────────────────────────────────────────
     # Construct the matrix `A`
     Ablocks = (
-        w = (  # w-equation: [z⁴+z²], [∂ᶻ Neumann], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * bs.fields.U₀ * D²ᴰ) * params.ε^2),
+        w = (  # w-equation: [ε²(ikDiagM(U) - ED⁴ᴰ)], [Dᶻᴺ], [–∇ₕ²]
+                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * DiagM(bs.U) * D²ᴰ) * params.ε^2),
                 sparse(complex.(prob.Dᶻᴺ)),
                 sparse(complex.(-∇ₕ²))
         ),
-        ζ = (  # ζ-equation: [∂ᶻU + Dirichlet], [kU–Ek], [zero]
-                sparse(complex.(-bs.fields.∂ᶻU₀ * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * bs.fields.U₀ * I⁰ - params.E * D²ᴺ)),
+        ζ = (  # ζ-equation: [DiagM(∂ᶻU)Dʸ - Dᶻᴰ], [kDiagM(U) – ED²ᴺ], [zero]
+                sparse(complex.(-DiagM(bs.∂ᶻU) * prob.Dʸ - prob.Dᶻᴰ)),
+                sparse(complex.(1.0im *params.k * DiagM(bs.U) * I⁰ - params.E * D²ᴺ)),
                 spzeros(ComplexF64, s₁, s₂)
         ),
-        b = (  # b-equation: [∂ᶻB – Dʸᶻᴰ], [k∂ʸB], [–Ek + kU]
-                sparse(complex.(bs.fields.∂ᶻB₀ * I⁰ - bs.fields.∂ʸB₀ * H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * bs.fields.∂ʸB₀ * H * I⁰),
-                sparse(-params.E * D²ᴺ + 1.0im * params.k * bs.fields.U₀ * I⁰)
+        b = (  # b-equation: [DiagM(∂ᶻB) – DiagM(∂ʸB) H Dʸᶻᴰ], [ikDiagM(∂ʸB)], [–ED²ᴺ + ikDiagM(U)]
+                sparse(complex.(DiagM(bs.∂ᶻB) * I⁰ - DiagM(bs.∂ʸB) * H * prob.Dʸᶻᴰ)),
+                sparse(1.0im * params.k * DiagM(bs.∂ʸB) * H),
+                sparse(-params.E * D²ᴺ + 1.0im * params.k * DiagM(bs.U))
         )
     )
 
-    # Construct the matrix `A`
+    # Construct the matrix `B`
     Bblocks = (
-        w = (  # w-equation mass: [–ε²∂²], zero, zero
+        w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
                 sparse(-params.ε^2 * D²ᴰ),
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂)
         ),
-        ζ = (  # ζ-equation mass: zero, [–I], zero
+        ζ = (  # ζ-equation mass: [zero], [–I], [zero]
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰),
                 spzeros(Float64, s₁, s₂)
         ),
-        b = (  # b-equation mass: zero, zero, [–I]
+        b = (  # b-equation mass: [zero], [zero], [–I]
                 spzeros(Float64, s₁, s₂),
                 spzeros(Float64, s₁, s₂),
                 sparse(-I⁰)
@@ -402,20 +397,15 @@ function EigSolver(prob, grid, params, σ₀)
 
     A, B = generalized_EigValProb(prob, grid, params)
 
-    if params.eig_solver == "arpack"
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
+    # Construct the eigenvalue solver
+    # Methods available: :Krylov, :Arnoldi (by default), :Arpack
+    # Here we are looking for largest growth rate (real part of eigenvalue)
+    solver = EigenSolver(A, B; σ₀=σ₀, method=:Krylov, nev=1, which=:LR, sortby=:R)
+    solve!(solver)
+    λ, Χ = get_results(solver)
+    print_summary(solver)
 
-    elseif params.eig_solver == "krylov"
-
-        λ, Χ = solve_shift_invert_krylov(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-
-    elseif params.eig_solver == "arnoldi"
-
-        λ, Χ = solve_shift_invert_arnoldi(A, B; σ₀=σ₀, which=:LR, sortby=:R)
-    end
-    # ======================================================================
-    @assert length(λ) > 0 "No eigenvalue(s) found!"
-
+    # Print the largest growth rate
     @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
 
     return λ[1], Χ[:,1]
@@ -445,11 +435,11 @@ function solve_Stone1971(k::Float64)
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
-    # Analytical solution of Eady (1949) for the growth rate
-    μ  = 1.0 * params.k * √params.Ri
-    λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
+    # Analytical solution of Stone (1971) for the growth rate
+    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
+    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
 
-    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₜ
+    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
 
@@ -463,13 +453,34 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 ````
 
 ````
-(attempt  1) trying σ = 0.024000
-Converged: first λ = 0.024868 + i 0.000000 (σ = 0.024000)
-(attempt  2) trying σ = 0.024800
-Converged: first λ = 0.024868 + i -0.000000 (σ = 0.024800)
-Successive eigenvalues converged: |Δλ| = 1.94e-12 < 1.00e-05
-largest growth rate : 2.4868e-02-7.9378e-14im
-Analytical solution of Eady (1949) for the growth rate: 0.028829 
+(attempt  1/16) trying σ = 0.024000 with Krylov
+  ✓ converged: λ₁ = 0.028805 + 0.000000i
+(attempt  2/16) trying σ = 0.024800 with Krylov
+  ✓ converged: λ₁ = 0.028805 + 0.000000i
+  ✓ successive eigenvalues converged: |Δλ| = 2.79e-11 < 1.00e-05
+EigenSolver Results Summary
+                                                                                                                        
+   Method: Krylov
+   Converged: ✅ Yes
+   Final shift: 0.0248
+   Total time: 4.684s
+   Attempts: 2
+   ├─ Eigenvalues (9) ───────────────
+   │ i │ λ (Re  Im·i)         │
+   │───┼──────────────────────│
+   │ 1 │  0.028805 +0.000000i │
+   │ 2 │  0.028596 +0.000000i │
+   │ 3 │  0.028569 -0.000000i │
+   │ 4 │  0.027985 +0.000000i │
+   │ 5 │  0.027897 +0.000000i │
+   │ 6 │  0.026823 -0.000000i │
+   │ 7 │  0.026754 +0.000000i │
+   │ 8 │  0.025380 -0.000000i │
+   │ 9 │  0.024868 -0.000000i │
+   └──────────────────────────┘
+                                                                                                                        
+largest growth rate : 2.8805e-02+2.9959e-12im
+Analytical solution of Stone (1971) for the growth rate: 0.028791 
 
 ````
 

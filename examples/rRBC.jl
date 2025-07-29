@@ -223,6 +223,7 @@ nothing #hide
 # ## Constructing GEVP
 function generalized_EigValProb(prob, grid, params)
 
+    ## basic state
     bs = basic_state(grid, params)
 
     n  = params.Ny * params.Nz
@@ -342,7 +343,6 @@ function solve_rRBC(k::Float64)
     prob = Problem(grid, ops)
 
     ## update the wavenumber
-    #params = Params(p; k = k)
     params.k = k
 
     ## initial guess for the growth rate

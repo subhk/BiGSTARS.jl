@@ -170,6 +170,7 @@ nothing #hide
 # ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
+    ## basic state
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
@@ -314,4 +315,3 @@ nothing #hide
 # ## Result
 solve_Eady(0.1) # growth rate is at k=0.1  
 nothing #hide
-

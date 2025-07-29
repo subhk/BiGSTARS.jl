@@ -292,6 +292,7 @@ nothing #hide
 # ## Constructing Generalized EVP
 function generalized_EigValProb(prob, grid, params)
 
+    ## basic state
     bs = basic_state(grid, params)
 
     N  = params.Ny * params.Nz
