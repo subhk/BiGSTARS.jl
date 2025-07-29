@@ -131,9 +131,6 @@ x = rand(size(∇ₕ², 1))
 u = H(x)  # equivalent to H * x
 ```
 
-**Fields:**
-- `Qᵀ::SparseMatrixCSC{T,Int}`: Transpose of orthogonal matrix Q
-- `invR::Matrix{T}`: Inverse of upper triangular matrix R
 
 ### Numerical Differentiation
 
@@ -149,8 +146,6 @@ Compute numerical derivative using high-order finite difference schemes.
 - `Vector{T}`: Numerical derivative ∂f/∂x
 
 **Features:**
-- 4th-order finite differences at boundaries
-- 8th-order finite differences in interior
 - Requires uniformly spaced grid
 
 **Example:**
