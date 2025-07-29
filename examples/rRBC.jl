@@ -159,9 +159,9 @@
 # and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 # denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
 # $\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^4$ are the first, second and fourth order
-# Fourier differentiation matrix of size of $(N_y \times N_y)$. 
+# Fourier differentiation matrix of size of $(N_y \times N_y)$, respectively. 
 # $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
-# Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
+# Chebyshev differentiation matrix of size of $(N_z \times N_z)$, respectively.
 #
 #
 # ## Load required packages
@@ -317,7 +317,7 @@ function EigSolver(prob, grid, params, σ₀)
     solver = EigenSolver(A, B; σ₀=σ₀, method=:Arnoldi, nev=10, which=:LM, sortby=:R)
     solve!(solver)
     λ, Χ = get_results(solver)
-    print_summary(solver)
+    #print_summary(solver)
 
     ## looking for min Ra 
     λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")

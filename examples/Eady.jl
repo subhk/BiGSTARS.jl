@@ -305,7 +305,7 @@ function solve_Eady(k::Float64)
     μ  = 1.0 * params.k * √params.Ri
     λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
 
-    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
+    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
 end

@@ -227,9 +227,9 @@
 # and ${I}={I}_y \otimes {I}_z$. The superscripts $D$ and $N$ in the operator matrices
 # denote the type of boundary conditions applied ($D$ for Dirichlet or $N$ for Neumann).
 # $\mathcal{D}_y$, $\mathcal{D}_y^2$ and $\mathcal{D}_y^4$ are the first, second and fourth order
-# Fourier differentiation matrix of size of $(N_y \times N_y)$. 
+# Fourier differentiation matrix of size of $(N_y \times N_y)$, respectively. 
 # $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second and fourth order
-# Chebyshev differentiation matrix of size of $(N_z \times N_z)$.
+# Chebyshev differentiation matrix of size of $(N_z \times N_z)$, respectively.
 #
 #
 # ## Load required packages
@@ -417,11 +417,11 @@ function solve_Stone1971(k::Float64)
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
-    ## Analytical solution of Eady (1949) for the growth rate
+    ## Analytical solution of Stone (1971) for the growth rate
     μ  = 1.0 * params.k * √params.Ri
     λₜ = 1.0/√params.Ri * √( (coth(0.5μ) - 0.5μ)*(0.5μ - tanh(0.5μ)) )
 
-    @printf "Analytical solution of Eady (1949) for the growth rate: %f \n" λₜ
+    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
     return abs(λ.re - λₜ) < 1e-3
 
