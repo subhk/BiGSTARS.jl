@@ -72,7 +72,7 @@ df_dx = cd * f            # equivalent to cd.D₁ * f
 
 ## Fourier Differentiation Matrices
 
-### `FourierDiff(n::Integer, m::Integer)` and `FourierDiffn`
+### `FourierDiff(n::Integer, m::Integer)` 
 
 Compute Fourier spectral differentiation matrices for periodic functions.
 
