@@ -70,10 +70,6 @@ $$\frac{Db}{Dt}
 $$\nabla \cdot \mathbf{u} = 0, \label{eq:3} \tag{3}$$
 
 
-
 # Acknowledgements
-
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
-Oh, and support from Kathryn Johnston during the genesis of this project.
 
 # References
