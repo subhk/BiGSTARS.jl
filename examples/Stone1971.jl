@@ -421,8 +421,7 @@ function solve_Stone1971(k::Float64)
     ## saving the result to file "stone_ms_eigenval.jld2" for the most unstable mode
     jldsave("stone_ms_eigenval.jld2";  
             y=grid.y, z=grid.z, k=params.k, 
-            λ=λ, X=X, 
-            U=diag(prob.U), B=diag(prob.B));
+            λ=λ, X=X);
 
     ## Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0

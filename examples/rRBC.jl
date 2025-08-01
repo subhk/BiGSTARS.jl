@@ -348,7 +348,7 @@ function solve_rRBC(k::Float64)
     ## initial guess for the growth rate
     σ₀   = 0.0 
 
-    λ, Χ = EigSolver(prob, grid, params, σ₀)
+    λ, X = EigSolver(prob, grid, params, σ₀)
 
     ## saving the result to file "rrbc_eigenval.jld2" for the most unstable mode
     jldsave("rrbc_eigenval.jld2";  

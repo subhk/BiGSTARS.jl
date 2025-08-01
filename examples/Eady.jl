@@ -305,8 +305,7 @@ function solve_Eady(k::Float64)
     ## saving the result to file "eady_eigenval_ms.jld2" for the most unstable mode
     jldsave("eady_ms_eigenval.jld2";  
             y=grid.y, z=grid.z, k=params.k, 
-            λ=λ, X=X, 
-            U=diag(prob.U), B=diag(prob.B));
+            λ=λ, X=X);
 
     ## Analytical solution of Eady (1949) for the growth rate
     μ  = 1.0 * params.k * √params.Ri
