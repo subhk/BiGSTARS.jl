@@ -350,6 +350,11 @@ function solve_rRBC(k::Float64)
 
     λ, Χ = EigSolver(prob, grid, params, σ₀)
 
+    ## saving the result to file "rrbc_eigenval.jld2" for the most unstable mode
+    jldsave("rrbc_eigenval.jld2";  
+            y=grid.y, z=grid.z, k=params.k, 
+            λ=λ, X=X);
+
     ## Theoretical results from Chandrashekar (1961)
     λₜ = 189.7 
     @printf "Analytical solution of critical Ra: %1.4e \n" λₜ 
