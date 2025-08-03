@@ -26,7 +26,7 @@ using BiGSTARS
 
 # Load and verify bibliography
 # Load bibliography from correct path
-bib = CitationBibliography("references.bib")  # relative to docs/ directory
+bib = CitationBibliography("src/references.bib")  # relative to docs/ directory
 println("Bibliography loaded with $(length(bib.entries)) entries")
 println("Available keys: ", collect(keys(bib.entries)))
 
