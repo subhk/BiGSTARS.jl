@@ -5,7 +5,7 @@ the stability analysis using the script `examples/visualization.jl`.
 
 ## Overview
 
-The code performs eigenfunction analysis for a two-dimensional geophysical flow problem, computing velocity components and plotting the real parts of perturbation fields. This is commonly used in studying instabilities in stratified rotating flows, such as oceanic or atmospheric dynamics.
+The code performs eigenfunction analysis for a two-dimensional geophysical flow problem, computing velocity components and plotting the real parts of perturbation fields. 
 
 ## Key Components
 
