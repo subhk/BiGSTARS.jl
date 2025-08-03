@@ -7,7 +7,7 @@ EditURL = "../../../examples/Stone1971.jl"
 ## Introduction
 Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces,
 enabling eddies to tap available potential energy and convert it to kinetic energy.
-Stone (1971) investigated non-hydrostatic effects on BCI using Eady’s framework.
+Stone (1971) [eady1949long](@cite) investigated non-hydrostatic effects on BCI using Eady’s framework.
 He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases
 while the growth rate diminishes relative to predictions from the quasigeostrophic (QG) approximation.
 
@@ -433,7 +433,12 @@ function solve_Stone1971(k::Float64)
     # initial guess for the growth rate
     σ₀   = 0.02
 
-    λ, Χ = EigSolver(prob, grid, params, σ₀)
+    λ, X = EigSolver(prob, grid, params, σ₀)
+
+    # saving the result to file "stone_ms_eigenval.jld2" for the most unstable mode
+    jldsave("stone_ms_eigenval.jld2";
+            y=grid.y, z=grid.z, k=params.k,
+            λ=λ, X=X);
 
     # Analytical solution of Stone (1971) for the growth rate
     cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
@@ -454,16 +459,16 @@ solve_Stone1971(0.1) # growth rate is at k=0.1
 
 ````
 (attempt  1/16) trying σ = 0.024000 with Krylov
-  ✓ converged: λ₁ = 0.028805 + 0.000000i
+  ✓ converged: λ₁ = 0.028805 + -0.000000i
 (attempt  2/16) trying σ = 0.024800 with Krylov
   ✓ converged: λ₁ = 0.028805 + 0.000000i
-  ✓ successive eigenvalues converged: |Δλ| = 2.79e-11 < 1.00e-05
+  ✓ successive eigenvalues converged: |Δλ| = 2.91e-11 < 1.00e-05
 EigenSolver Results Summary
                                                                                                                         
    Method: Krylov
    Converged: ✅ Yes
    Final shift: 0.0248
-   Total time: 4.684s
+   Total time: 1.083s
    Attempts: 2
    ├─ Eigenvalues (9) ───────────────
    │ i │ λ (Re  Im·i)         │
@@ -479,7 +484,7 @@ EigenSolver Results Summary
    │ 9 │  0.024868 -0.000000i │
    └──────────────────────────┘
                                                                                                                         
-largest growth rate : 2.8805e-02+2.9959e-12im
+largest growth rate : 2.8805e-02+1.3249e-11im
 Analytical solution of Stone (1971) for the growth rate: 0.028791 
 
 ````

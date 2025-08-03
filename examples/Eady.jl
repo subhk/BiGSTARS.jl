@@ -1,7 +1,7 @@
 # ### Baroclinic instability of a 2D front based on Eady (1949)
 #
 # ## Introduction
-# Eady (1949) showed that in a uniformly sheared, stratified layer between two rigid lids on 
+# Eady (1949) [stone1971](@cite) showed that in a uniformly sheared, stratified layer between two rigid lids on 
 # an ``f``-plane, two counter-propagating Rossby edge waves can phase lock and convert available potential energy 
 # into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about 
 # four deformation radii and on timescales of a few days.

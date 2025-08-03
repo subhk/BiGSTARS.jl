@@ -59,7 +59,7 @@ The visualization displays four contour plots arranged as follows:
 ### Sample Output Visualization
 
 Here's what the typical eigenfunction structure looks like for the Stone example:
-![Alt text](eigfun_stone)
+![Alt text](eigfun_stone.png)
 
 ## Usage Example
 

@@ -3,8 +3,7 @@
 # ## Introduction
 # This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
 # where the domain is periodic in y-direction.
-# The code is benchmarked against Chandrashekar's theoretical results.
-# Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95).
+# The code is benchmarked against Chandrashekar's theoretical results [chandra2013](@cite).
 #
 # Parameter: 
 #

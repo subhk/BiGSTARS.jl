@@ -1,11 +1,14 @@
 using Documenter
 using DocumenterCitations
 using Literate
+#using Bibliography
 
 using CairoMakie
 using Printf
 
 using BiGSTARS
+
+#bib = import_bibtex("src/references.bib")
 
 #####
 ##### Generate literated examples
@@ -17,8 +20,15 @@ using BiGSTARS
 #   dir="."
 # )
 
-bib_filepath = joinpath(dirname(@__FILE__), "src/references.bib")
-bib = CitationBibliography(bib_filepath, style=:authoryear)
+# bib_filepath = joinpath(dirname(@__FILE__), "references.bib")
+# bib = CitationBibliography(bib_filepath, style=:authoryear)
+# # #bib = import_bibtex("src/references.bib")
+
+# Load and verify bibliography
+# Load bibliography from correct path
+bib = CitationBibliography("references.bib")  # relative to docs/ directory
+println("Bibliography loaded with $(length(bib.entries)) entries")
+println("Available keys: ", collect(keys(bib.entries)))
 
 const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/literated")
@@ -121,7 +131,7 @@ makedocs(
                 "Examples"                      => Any[
                     "Stone"                     => "literated/Stone1971.md", 
                     "Eady"                      => "literated/Eady.md",
-                    "rotating RBC"              => "literated/rRBC.md"
+                    "rotating RBC"              => "literated/rRBC.md",
                 ],
                 "Visualization"                 => "visualization.md",
                 # "Modules"                   => Any[

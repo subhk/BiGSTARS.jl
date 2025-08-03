@@ -7,8 +7,7 @@ EditURL = "../../../examples/rRBC.jl"
 ## Introduction
 This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
 where the domain is periodic in y-direction.
-The code is benchmarked against Chandrashekar's theoretical results.
-Hydrodynamic and hydromagnetic stability by S. Chandrasekhar, 1961 (page no-95).
+The code is benchmarked against Chandrashekar's theoretical results [chandra2013](@cite).
 
 Parameter:
 
@@ -365,7 +364,12 @@ function solve_rRBC(k::Float64)
     # initial guess for the growth rate
     σ₀   = 0.0
 
-    λ, Χ = EigSolver(prob, grid, params, σ₀)
+    λ, X = EigSolver(prob, grid, params, σ₀)
+
+    # saving the result to file "rrbc_eigenval.jld2" for the most unstable mode
+    jldsave("rrbc_eigenval.jld2";
+            y=grid.y, z=grid.z, k=params.k,
+            λ=λ, X=X);
 
     # Theoretical results from Chandrashekar (1961)
     λₜ = 189.7
@@ -386,7 +390,7 @@ solve_rRBC(0.0) # Critical Rayleigh number is at k=0.0
   ✓ converged: λ₁ = 193.728586 + 0.000000i
 (attempt  2/16) trying σ = 0.000000 with Arnoldi
   ✓ converged: λ₁ = 193.728586 + 0.000000i
-  ✓ successive eigenvalues converged: |Δλ| = 2.01e-09 < 1.00e-05
+  ✓ successive eigenvalues converged: |Δλ| = 1.93e-10 < 1.00e-05
 Top 9 eigenvalues (sorted):
 Idx │ Real Part     Imag Part
 ────┼──────────────────────────────

@@ -5,7 +5,7 @@ EditURL = "../../../examples/Eady.jl"
 ### Baroclinic instability of a 2D front based on Eady (1949)
 
 ## Introduction
-Eady (1949) showed that in a uniformly sheared, stratified layer between two rigid lids on
+Eady (1949) [stone1971](@cite) showed that in a uniformly sheared, stratified layer between two rigid lids on
 an ``f``-plane, two counter-propagating Rossby edge waves can phase lock and convert available potential energy
 into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about
 four deformation radii and on timescales of a few days.
@@ -316,7 +316,12 @@ function solve_Eady(k::Float64)
     # initial guess for the growth rate
     σ₀   = 0.02
 
-    λ, Χ = EigSolver(prob, grid, params, σ₀)
+    λ, X = EigSolver(prob, grid, params, σ₀)
+
+    # saving the result to file "eady_eigenval_ms.jld2" for the most unstable mode
+    jldsave("eady_ms_eigenval.jld2";
+            y=grid.y, z=grid.z, k=params.k,
+            λ=λ, X=X);
 
     # Analytical solution of Eady (1949) for the growth rate
     μ  = 1.0 * params.k * √params.Ri
@@ -338,22 +343,22 @@ solve_Eady(0.1) # growth rate is at k=0.1
 (attempt  1/16) trying σ = 0.024000 with Krylov
   ✓ converged: λ₁ = 0.028829 + -0.000000i
 (attempt  2/16) trying σ = 0.024800 with Krylov
-  ✓ converged: λ₁ = 0.028829 + 0.000000i
-  ✓ successive eigenvalues converged: |Δλ| = 1.12e-12 < 1.00e-05
+  ✓ converged: λ₁ = 0.028829 + -0.000000i
+  ✓ successive eigenvalues converged: |Δλ| = 9.64e-13 < 1.00e-05
 EigenSolver Results Summary
                                                                                                                         
    Method: Krylov
    Converged: ✅ Yes
    Final shift: 0.0248
-   Total time: 3.303s
+   Total time: 3.467s
    Attempts: 2
    ├─ Eigenvalues (1) ───────────────
    │ i │ λ (Re  Im·i)         │
    │───┼──────────────────────│
-   │ 1 │  0.028829 +0.000000i │
+   │ 1 │  0.028829 -0.000000i │
    └──────────────────────────┘
                                                                                                                         
-largest growth rate : 2.8829e-02+1.7449e-13im
+largest growth rate : 2.8829e-02-1.3821e-13im
 Analytical solution of Eady (1949) for the growth rate: 0.028829 
 
 ````
