@@ -24,26 +24,8 @@ module BiGSTARS
 
     # 
     export
-       # Chebychev matrix
-    #    cheb,
-    #    chebdif,   
-    #    chebder_transform,
-    #    chebder_transform_ho,  
-    #    MinusLtoPlusL_transform, 
-    #    MinusLtoZero_transform,
-    #    zerotoL_transform, 
-    #    transform_02π_to_0L,
-    #    zerotoL_transform_ho, 
-    #    zerotoone_transform, 
-    #    cheb_coord_transform, 
-    #    cheb_coord_transform_ho,   
-
+       # Chebychev and Fourier differentiation matrices 
         ChebyshevDiffn,
-
-       # Fourier differentiation matrix
-    #    FourierDiff,
-    #    FourierDiff_fdm, 
-
         FourierDiffn,
 
        # Setting boundary conditions
@@ -52,14 +34,9 @@ module BiGSTARS
        # inverse of the horizontal Laplacian
         inverse_Lap_hor,
 
-       # eigenvalue solvers
-    #    Eigs_Arnoldi, 
-    #    Eigs_Krylov,
-    #    Eigs_Arpack,
-    #    solve_shift_invert_arnoldi,
-    #    solve_shift_invert_krylov,
-    #    solve_shift_invert_arpack,
+        
 
+        # Eigen Solver
         EigenSolver, 
         solve!, 
         get_results, 
@@ -88,8 +65,7 @@ module BiGSTARS
         stack,
         MinimalVec,
 
-        # pardiso_solver to construct linear map
-        #construct_linear_map_pardiso,
+        # construct linear map required for eigen solver
         construct_linear_map, 
 
         # Construct 2D grids
@@ -100,13 +76,8 @@ module BiGSTARS
 
         # compute necessary derivatives
         compute_derivatives,
-        compute_derivatives_legacy,  
         Derivatives,
         precompute!
-
-        # # initialize the basic state
-        # initialize_basic_state_from_fields,
-        # initialize_basic_state!
 
 
     import Base: show, summary

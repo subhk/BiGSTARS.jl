@@ -69,7 +69,7 @@ function cal_u_v(X, params, grid, prob)
     s₂ = size(I⁰, 2)
 
     ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.kₓ^2 * I⁰)
+    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
     # Setup inverse operator (see utils.jl)
     H   = InverseLaplace(∇ₕ²)
