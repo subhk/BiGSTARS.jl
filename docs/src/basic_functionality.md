@@ -89,17 +89,6 @@ Filter eigenvalues within specified bounds and remove corresponding eigenvectors
 **Returns:**
 - `Tuple`: Filtered eigenvalues and eigenvectors
 
-#### `remove_spurious(λₛ, X)`
-
-Remove the first (typically spurious) eigenvalue and corresponding eigenvector.
-
-**Parameters:**
-- `λₛ`: Eigenvalues
-- `X`: Eigenvectors
-
-**Returns:**
-- `Tuple`: Eigenvalues and eigenvectors with first element removed
-
 ### Matrix Operations
 
 #### `inverse_Lap_hor(∇ₕ²)`

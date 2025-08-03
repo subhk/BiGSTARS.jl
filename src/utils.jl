@@ -123,12 +123,12 @@ function remove_evals(λs, χ, lower, higher, which)
     #return nothing
 end
 
-function remove_spurious(λₛ, X)
-    #p = findall(x->x>=abs(item), abs.(real(λₛ)))  
-    deleteat!(λₛ, 1)
-    X₁ = X[:, setdiff(1:end, 1)]
-    return λₛ, X₁
-end
+# function remove_spurious(λₛ, X)
+#     #p = findall(x->x>=abs(item), abs.(real(λₛ)))  
+#     deleteat!(λₛ, 1)
+#     X₁ = X[:, setdiff(1:end, 1)]
+#     return λₛ, X₁
+# end
 
 function inverse_Lap_hor(∇ₕ²)
     Qm, Rm = qr(Matrix(∇ₕ²)) # need to convert to full matrix
@@ -213,8 +213,8 @@ function ∇f(f::AbstractVector{T}, x::AbstractVector{T}) where T<:AbstractFloat
     return ∂f_∂x ./ Δx
 end
 
-using SparseArrays, LinearAlgebra
-export field_to_spdiagm, spdiag_to_field, diagm
+# using SparseArrays, LinearAlgebra
+# export field_to_spdiagm, spdiag_to_field, diagm
 
 # ────────────────────────────────────────────────────────────────────────────
 #  Original helpers (unchanged)                                              │

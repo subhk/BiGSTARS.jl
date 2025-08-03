@@ -33,8 +33,7 @@ module BiGSTARS
     
        # inverse of the horizontal Laplacian
         inverse_Lap_hor,
-
-        
+        InverseLaplace,
 
         # Eigen Solver
         EigenSolver, 
@@ -54,6 +53,9 @@ module BiGSTARS
         remove_evals,
         remove_spurious,
         DiagM,
+        field_to_spdiagm, 
+        spdiag_to_field,
+
 
        # calculate gradient 
         gradient,
