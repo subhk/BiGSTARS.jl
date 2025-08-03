@@ -2,7 +2,7 @@
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "d011f4dcad8d14dcbe8f80593dbd93b7a67b1704"
+project_hash = "4fd3d0639b5ce1fc89431c07e9789bf44bf4b961"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "7927b9af540ee964cc5d1b73293f1eb0b761a3a1"
@@ -2002,6 +2002,11 @@ weakdeps = ["StatsBase"]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
+
+[[deps.Trapz]]
+git-tree-sha1 = "79eb0ed763084a3e7de81fe1838379ac6a23b6a0"
+uuid = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
+version = "2.0.3"
 
 [[deps.Tricks]]
 git-tree-sha1 = "0fc001395447da85495b7fef1dfae9789fdd6e31"

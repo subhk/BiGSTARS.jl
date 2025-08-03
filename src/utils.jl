@@ -153,7 +153,7 @@ struct InverseLaplace{T}
 end
 
 function InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T
-    F    = qr(∇ₕ²)
+    F    = qr(Matrix(∇ₕ²))
     Q    = sparse(Matrix(F.Q))  # force sparse Q
     R    = F.R
     invR = inv(R)

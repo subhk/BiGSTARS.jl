@@ -123,6 +123,7 @@ makedocs(
                     "Eady"                      => "literated/Eady.md",
                     "rotating RBC"              => "literated/rRBC.md"
                 ],
+                "Visualization"                 => "visualization.md",
                 # "Modules"                   => Any[
                 #     "Stone1971 API"         => "modules/Stone1971.md",
                 #     # "rRBC API"              => "modules/rRBC.md"

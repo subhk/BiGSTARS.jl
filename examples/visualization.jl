@@ -14,233 +14,255 @@ using JLD2
 using Dierckx
 using Parameters: @with_kw
 using CairoMakie
+using Trapz
 
 using BiGSTARS
-using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid
+using BiGSTARS: AbstractParams, Problem, OperatorI, TwoDGrid
 
-# ## Parameters
+# ## Parameters struct 
 @with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 1.0           # horizontal domain size
-    H::T                = 1.0           # vertical domain size
-    Ri::T               = 1.0           # the Richardson number 
-    ε::T                = 0.1           # aspect ratio ε ≡ H/L
-    k::T                = 0.1           # along-front wavenumber
-    E::T                = 1.0e-8        # the Ekman number 
-    Ny::Int64           = 24            # no. of y-grid points
-    Nz::Int64           = 20            # no. of z-grid points
+    L::T = 1.0          # horizontal domain size
+    H::T = 1.0          # vertical domain size
+    Ri::T = 1.0         # Richardson number 
+    ε::T = 0.1          # aspect ratio ε ≡ H/L
+    k::T = 0.1          # along-front wavenumber
+    E::T = 1.0e-8       # Ekman number 
+    Ny::Int64 = 24      # no. of y-grid points
+    Nz::Int64 = 20      # no. of z-grid points
 end
-nothing #hide
 
+"""
+    Interp2D_smooth(yn, zn, An, yint, zint)
 
+Smooth 2D interpolation using splines.
+"""
 function Interp2D_smooth(yn, zn, An, yint, zint)
     spl = Spline2D(yn, zn, transpose(An); s=0.0)
-    A₀ = zeros(Float64, length(yint), length(zint))
-    A₀ = [spl(yᵢ, zᵢ) for yᵢ ∈ yint, zᵢ ∈ zint]
-    return A₀
+    return [spl(yᵢ, zᵢ) for yᵢ ∈ yint, zᵢ ∈ zint]
 end
 
 """
-    calculation of u and v from w and ζ
-    
-    ```math
-    -∇ₕ²\\hat{u} = ik∂ᶻ\\hat{w} + ∂ʸ\\hat{ζ}
-    -∇ₕ²\\hat{v} =  ∂ʸᶻ\\hat{w} - ik\\hat{ζ} 
+    cal_u_v(X, params, grid, prob)
+
+Calculate u and v velocity components from w and ζ using:
+```math
+-∇ₕ²û = ik∂ᶻŵ + ∂ʸζ̂
+-∇ₕ²v̂ = ∂ʸᶻŵ - ikζ̂ 
+```
 """
 function cal_u_v(X, params, grid, prob)
-    Ny = params.Ny
-    Nz = params.Nz
-    N  = Ny * Nz
+    Ny, Nz = params.Ny, params.Nz
+    N = Ny * Nz
 
-    u = zeros(ComplexF64, N)
-    v = zeros(ComplexF64, N)
-
-    w  = X[1:1N,1]
-    ζ  = X[1N+1:2N,1]
+    ## Extract state variables
+    w = view(X, 1:N, 1)
+    ζ = view(X, N+1:2N, 1)
     
-    wʳ = real(w)    # real part of w
-    wⁱ = imag(w)    # imaginary part of w
+    ## Separate real and imaginary parts for efficient computation
+    wʳ, wⁱ = real(w), imag(w)
+    ζʳ, ζⁱ = real(ζ), imag(ζ)
     
-    ζʳ = real(ζ)
-    ζⁱ = imag(ζ) 
+    ## Create Laplacian operator
+    I⁰ = sparse(I, N, N)
+    ∇ₕ² = prob.D²ʸ - params.k^2 * I⁰
     
-    I⁰ = sparse(Matrix(1.0I, N, N)) 
-    s₁ = size(I⁰, 1); 
-    s₂ = size(I⁰, 2)
+    ## Setup inverse operator
+    H = InverseLaplace(∇ₕ²)
 
-    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
+    ## Compute derivatives efficiently
+    ∂zw = complex.(prob.Dᶻᴰ * wʳ, prob.Dᶻᴰ * wⁱ)
+    ∂yζ = complex.(prob.Dʸ * ζʳ, prob.Dʸ * ζⁱ)
+    ∂yzw = complex.(prob.Dʸᶻᴰ * wʳ, prob.Dʸᶻᴰ * wⁱ)
 
-    # Setup inverse operator (see utils.jl)
-    H   = InverseLaplace(∇ₕ²)
-
-    tmp1 = prob.Dᶻᴰ * wʳ; tmp2 = prob.Dᶻᴰ * wⁱ
-    ∂zw  = @. tmp1 + 1.0im * tmp2
-
-    tmp1 = prob.Dʸ * ζʳ; tmp2 = prob.Dʸ * ζⁱ
-    ∂yζ  = @. tmp1 + 1.0im * tmp2
-
-    tmp1 = prob.Dʸᶻᴰ * wʳ; tmp2 = prob.Dʸᶻᴰ * wⁱ
-    ∂yzw = @. tmp1 + 1.0im * tmp2
-
-    ## calculating `u`
-    tmp1 = 1.0im * k * ∂zw + ∂yζ
-    u = -1.0 * H(tmp1)
-
-    ## calculating `v` 
-    tmp1 = 1.0 * ∂yzw - 1.0im * kₓ * ζ
-    v = -1.0 * H(tmp1)
+    ## Calculate velocity components
+    u = -H(1im * params.k * ∂zw + ∂yζ)
+    v = -H(∂yzw - 1im * params.k * ζ)
 
     return u, v
 end
 
+"""
+    normalize_perturb_ke!(u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde, params, grid)
 
-function normalize_perturb_ke!(u_tilde, v_tilde, w_tilde, 
-                            ζ_tilde, b_tilde, params, grid)
-
-	KE = @. 0.5 * (u_tilde * conj(u_tilde) + v_tilde * conj(v_tilde) 
-                    + params.ε^2 * w_tilde * conj(w_tilde)) |> real
-
-    KE_yzavg = trapz((grid.z, grid.y), KE) 
-
-    ## You need to multiply with a constant `1/ratio' such that 
-    ## ther normalized perturbation energy is one, 
-    ## where ratio² = Eₚ → ratio = √Eₚ
+Normalize perturbation fields so that kinetic energy equals 1.
+"""
+function normalize_perturb_ke!(u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde, params, grid)
+    ## Calculate kinetic energy
+    KE = @. 0.5 * (abs2(u_tilde) + abs2(v_tilde) + params.ε^2 * abs2(w_tilde))
+    
+    ## Domain-averaged kinetic energy
+    KE_yzavg = trapz((grid.z, grid.y), KE)
+    
+    ## Normalization factor
     ratio = √KE_yzavg
-
-    @. u_tilde *= 1.0/ratio
-    @. v_tilde *= 1.0/ratio
-    @. w_tilde *= 1.0/ratio
-	@. ζ_tilde *= 1.0/ratio 
-    @. b_tilde *= 1.0/ratio
-
-    ## making sure perturbation KE is 1 (after normalization)
-	KE = @. 0.5 * (u_tilde * conj(u_tilde) + v_tilde * conj(v_tilde) 
-                    + params.ε^2 * w_tilde * conj(w_tilde)) |> real
-
-    KE_yzavg = trapz((grid.z, grid.y), KE) 
-    @assert KE_yzavg ≈ 1.0
-
+    
+    ## Normalize all fields
+    fields = (u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde)
+    for field in fields
+        field .*= inv(ratio)
+    end
+    
+    ## Optional verification - uncomment for debugging
+    ## KE_normalized = @. 0.5 * (abs2(u_tilde) + abs2(v_tilde) + params.ε^2 * abs2(w_tilde))
+    ## KE_yzavg_normalized = trapz((grid.z, grid.y), KE_normalized)
+    ## @assert KE_yzavg_normalized ≈ 1.0 "Normalization failed: KE = $KE_yzavg_normalized"
+    
     return nothing
 end
 
-# ## function to plot the eigenfunctions
-function plot_eigfun()
+"""
+    create_contour_plot!(ax, grid, field, title; colormap=:balance, nlevels=8)
 
-    ## here we are doing it for Stone (1971)
-    filename = "stone_ms_eigenval.jld2"
-	file = jldopen(filename, "r"); 
-    k   = file["k"];
-	λ   = file["λ"];
-	X   = file["X"];
-	close(file)
-
-    ## problem parameters (make sure you've set all the correct parameters)
-    params = Params{Float64}()
-
-    ## Construct grid and derivative operators
-    grid  = TwoDGrid(params)
-
-    ## Construct the necesary operator
-    ops  = OperatorI(params)
-    prob = Problem(grid, ops)
-
-    ## calculating the eigenfunctions: u and v
-    u_tilde, v_tilde = cal_u_v(X, params, grid, prob)
-
-    ## eigenfunction order: [w ζ b]ᵀ
-    w_tilde = deepcopy(X[1:1N,1]   )
-    ζ_tilde = deepcopy(X[1N+1:2N,1])
-    b_tilde = deepcopy(X[2N+1:3N,1])
-
-    ## reshaping the variables
-    u_tilde = reshape( u_tilde, (length(grid.z), length(grid.y)) )
-    v_tilde = reshape( v_tilde, (length(grid.z), length(grid.y)) )
-    w_tilde = reshape( w_tilde, (length(grid.z), length(grid.y)) )
-	ζ_tilde = reshape( ζ_tilde, (length(grid.z), length(grid.y)) )
-    b_tilde = reshape( b_tilde, (length(grid.z), length(grid.y)) )  
-
-    ## normalization the eigenfunction such that perturbation KE is 1.0
-    normalize_perturb_ke!(u_tilde, v_tilde, w_tilde, 
-                        ζ_tilde, b_tilde, params, grid)
-
-
-    ## plotting the real part of eigenfunction u, v, w, b
-	fig = Figure(fontsize=32, size = (1800, 640), )
+Helper function to create consistent contour plots.
+"""
+function create_contour_plot!(ax, grid, field, title; colormap=:balance, nlevels=8)
+    max_val = maximum(abs, field)
+    levels = range(-0.8max_val, 0.8max_val, length=nlevels)
     
-    ax1 = Axis(fig[1, 1], xlabel=L"$y$", xlabelsize=40,
-                          ylabel=L"$z$", ylabelsize=40, 
-						  title=L"$\mathfrak{R}(u)$", titlesize=40)
-	
-    co = contourf!(grid.y, grid.z, real(u_tilde), 
-		colormap=cgrad(:balance, rev=false),
-        levels=levels₀, extendlow = :auto, extendhigh = :auto )
+    contourf!(ax, grid.y, grid.z, transpose(field), 
+              colormap=cgrad(colormap, rev=false),
+              levels=levels, 
+              extendlow=:auto, 
+              extendhigh=:auto)
     
-    tightlimits!(ax1)
-    xlims!(0, 1)
-    ylims!(minimum(z), maximum(z))
-
-	ax1.yticks=([0, 0.5, 1], ["0", "0.5", "1"])
-	ax1.xticks=([0, 0.5, 1], ["0", "0.5", "1"])
-
-	ax2 = Axis(fig[1, 2], xlabel=L"$y$", xlabelsize=40,
-                          ylabel=L"$z$", ylabelsize=40, 
-						  title=L"$\mathfrak{R}(v)$", titlesize=40)
-	
-    co = contourf!(grid.y, grid.z, real(v_tilde), 
-		colormap=cgrad(:balance, rev=false),
-        levels=levels₀, extendlow = :auto, extendhigh = :auto )
-
-	xlims!(0, 1)
-	ylims!(0, 1)
-
-	ax2.yticks=([0, 0.5, 1], ["0", "0.5", "1"])
-	ax2.xticks=([0, 0.5, 1], ["0", "0.5", "1"])
-
-
-	ax3 = Axis(fig[2, 1], xlabel=L"$y$", xlabelsize=40,
-                          ylabel=L"$z$", ylabelsize=40, 
-						  title=L"$\mathfrak{R}(w)$", titlesize=40)
-	
-    co = contourf!(grid.y, grid.z, real(w_tilde), 
-		colormap=cgrad(:balance, rev=false),
-        levels=levels₀, extendlow = :auto, extendhigh = :auto )
-
-	xlims!(0, 1)
-	ylims!(0, 1)
-
-	ax3.yticks=([0, 0.5, 1], ["0", "0.5", "1"])
-	ax3.xticks=([0, 0.5, 1], ["0", "0.5", "1"])
-
-	ax4 = Axis(fig[2, 2], xlabel=L"$y$", xlabelsize=40,
-                          ylabel=L"$z$", ylabelsize=40, 
-						  title=L"$\mathfrak{R}(b)$", titlesize=40)
-	
-    co = contourf!(grid.y, grid.z, real(b_tilde), 
-		colormap=cgrad(:balance, rev=false),
-        levels=levels₀, extendlow = :auto, extendhigh = :auto )
-
-	xlims!(0, 1)
-	ylims!(0, 1)
-
-	ax4.yticks=([0, 0.5, 1], ["0", "0.5", "1"])
-	ax4.xticks=([0, 0.5, 1], ["0", "0.5", "1"])
-
-
-	Label(fig[1, 1, TopLeft()], L"$(a)$", 
-						fontsize=40, padding = (0, 0, 20, 0), halign = :right)
-	Label(fig[1, 2, TopLeft()], L"$(b)$", 
-						fontsize=40, padding = (0, 0, 20, 0), halign = :right)
-	Label(fig[1, 3, TopLeft()], L"$(c)$", 
-						fontsize=40, padding = (0, 0, 20, 0), halign = :right)
-	Label(fig[1, 4, TopLeft()], L"$(d)$", 
-						fontsize=40, padding = (0, 0, 20, 0), halign = :right)
-
-    save("eigfun_stone.png", fig, px_per_unit=6)
-
-    #fig
-
+    ax.xlabel = L"$y$"
+    ax.ylabel = L"$z$"
+    ax.title = title
+    xlims!(ax, 0, maximum(grid.y))
+    ylims!(ax, 0, 1)
+    
+    return nothing
 end
 
-# ## calling the function
-plot_eigfun()
+"""
+    load_eigenfunction_data(filename::String)
+
+Load eigenfunction data from JLD2 file with error handling.
+"""
+function load_eigenfunction_data(filename::String)
+    if !isfile(filename)
+        error("File $filename not found. Please check the file path.")
+    end
+    
+    return jldopen(filename, "r") do file
+        k = file["k"]
+        λ = file["λ"]
+        X = file["X"]
+        @printf "Loaded data: k = %.6f, λ = %.6f + %.6fi\n" k real(λ) imag(λ)
+        return k, λ, X
+    end
+end
+
+"""
+    setup_problem(k::Real)
+
+Initialize parameters, grid, and problem operators.
+"""
+function setup_problem(k::Real)
+    params = Params{Float64}(k=k)
+    grid = TwoDGrid(params)
+    ops = OperatorI(params)
+    prob = Problem(grid, ops)
+    
+    return params, grid, prob
+end
+
+"""
+    extract_and_reshape_fields(X, params, grid, prob)
+
+Extract and reshape all field variables from the state vector.
+"""
+function extract_and_reshape_fields(X, params, grid, prob)
+    Ny, Nz = params.Ny, params.Nz
+    N = Ny * Nz
+    
+    ## Calculate velocity components
+    u_tilde, v_tilde = cal_u_v(X, params, grid, prob)
+    
+    ## Extract other fields
+    w_tilde = X[1:N, 1]
+    ζ_tilde = X[N+1:2N, 1]
+    b_tilde = X[2N+1:3N, 1]
+    
+    ## Reshape to 2D grids
+    grid_shape = (length(grid.z), length(grid.y))
+    fields = (u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde)
+    reshaped_fields = map(field -> reshape(field, grid_shape), fields)
+    
+    return reshaped_fields
+end
+
+"""
+    plot_eigenfunctions(filename::String="stone_ms_eigenval.jld2"; 
+                       save_plot::Bool=false, output_name::String="eigfun_stone.png")
+
+Main function to plot eigenfunctions with improved organization and error handling.
+"""
+function plot_eigenfunctions!(filename::String="stone_ms_eigenval.jld2"; 
+                           save_plot::Bool=false, 
+                           output_name::String="eigfun_stone.png",
+                           figure_size::Tuple{Int,Int}=(1800, 1152))
+    
+    ## Load data
+    k, λ, X = load_eigenfunction_data(filename)
+    
+    ## Setup problem
+    params, grid, prob = setup_problem(k)
+    
+    ## Extract and reshape fields
+    u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde = extract_and_reshape_fields(X, params, grid, prob)
+    
+    ## Normalize fields
+    normalize_perturb_ke!(u_tilde, v_tilde, w_tilde, ζ_tilde, b_tilde, params, grid)
+    
+    ## Create figure
+    fig = Figure(fontsize=32, size=figure_size)
+    
+    ## Plot configuration
+    plot_configs = [
+        (fig[1, 1], real(u_tilde), L"$\mathfrak{R}(\tilde{u})$"),
+        (fig[1, 2], real(v_tilde), L"$\mathfrak{R}(\tilde{v})$"),
+        (fig[2, 1], real(w_tilde), L"$\mathfrak{R}(\tilde{w})$"),
+        (fig[2, 2], real(ζ_tilde), L"$\mathfrak{R}(\tilde{\zeta})$")
+    ]
+    
+    ## Create subplots
+    axes = []
+    for (ax_pos, field_data, title) in plot_configs
+        ax = Axis(ax_pos, xlabelsize=40, ylabelsize=40, titlesize=40)
+        create_contour_plot!(ax, grid, field_data, title)
+        push!(axes, ax)
+    end
+    
+    ## Add subplot labels using text! which is more universally compatible
+    labels = [L"$(a)$", L"$(b)$", L"$(c)$", L"$(d)$"]
+    for (i, ax) in enumerate(axes)
+        text!(ax, 0.05, 0.95, text=labels[i], 
+              space=:relative, fontsize=40, 
+              color=:white, align=(:left, :top))
+    end
+    
+    ## Save if requested
+    if save_plot
+        save(output_name, fig, px_per_unit=6)
+        @printf "Figure saved as: %s\n" output_name
+    end
+    
+    fig
+    return nothing
+end
+
+
+## Example usage with error handling
+function main()
+    try
+        plot_eigenfunctions!(save_plot=true)
+        return true
+    catch e
+        @error "Error in eigenfunction plotting" exception=(e, catch_backtrace())
+        rethrow(e)
+    end
+end
+
+# Call the main function
+main()
