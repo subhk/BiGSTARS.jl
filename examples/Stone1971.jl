@@ -60,7 +60,7 @@
 #   \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
 # ```
 #
-# To eliminate pressure, following [teed2010rapidly@citet, we apply the operator 
+# To eliminate pressure, following [teed2010]@citet, we apply the operator 
 # $\hat{z} \cdot \nabla \times \nabla \times$  and $\hat{z} \cdot \nabla \times$ 
 # to the above momentum equation. This procedure yields governing equations of 
 # three perturbation variables, the vertical velocity $w$, the vertical vorticity $\zeta \, (=\hat{z} \cdot \nabla \times \mathbf{u})$, 

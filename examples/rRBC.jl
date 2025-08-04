@@ -35,7 +35,7 @@
 # ```
 # where $E=\nu/(fH^2)$ is the Ekman number and $Ra = g\alpha \Delta T/(f \kappa)$, 
 # $\Delta T$ is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
-# By applying the operators $(\nabla \times \nabla \times)$ and $(\nabla \times)$ and 
+# Following [teed2010]@citet, by applying the operators $(\nabla \times \nabla \times)$ and $(\nabla \times)$ and 
 # taking the $z$-component of the equations and assuming wave-like perturbations, 
 # we obtained the equations for vertical velocity $w$, vertical vorticity $\zeta$ and temperature $\theta$,
 # ```math
