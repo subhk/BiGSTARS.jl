@@ -14,62 +14,72 @@ authors:
 affiliations:
   - name: Tel Aviv University, Israel
     index: 1
-date: 31 July 2025
+date: 4 August 2025
 bibliography: paper.bib
 ---
 
 
 # Summary
-`BiGSTARS.jl` a Julia-based [@Bezanson2017] package developed for performing bi-global linear stability analysis for rotating stratified atmospheric and oceanic flows.
-
+`BiGSTARS.jl` is a Julia-based package [@Bezanson2017] specifically developed for conducting bi-global linear stability analyses of rotating and stratified flows relevant to atmospheric and oceanic dynamics.
 
 # Statement of need
-Linear stability analysis is fundamental to understanding the dynamics of geophysical flows, from the onset of turbulence in oceanic currents to the formation of atmospheric waves and instabilities. The complexity and dimensionality of these analyses have evolved significantly, leading to distinct approaches with different computational requirements and physical insights.
-One-Dimensional (1D) Stability Analysis represents the classical approach where the base flow varies in only one spatial direction, typically the wall-normal direction in boundary layers or the vertical direction in stratified flows. Tri-Global (3D Global) Stability Analysis represents the most general case where the base flow varies in all three spatial directions, requiring full three-dimensional eigenvalue problems. 
+Linear stability analysis investigates the growth or decay of small perturbations about a basic state by linearizing the governing equations and solving the resulting eigenvalue problem. In geophysical fluid dynamics, the interplay between rotation (the Coriolis force) and stratification (the buoyancy force) gives rise to multiple instability mechanisms, including baroclinic instability driven by vertical shear and barotropic instability driven by horizontal shear [@pedlosky2013geophysical]. Such analyses are fundamental for understanding the onset of turbulence, the formation of eddies, and the associated energy transfer across scales in both oceanic and atmospheric systems.
 
-Bi-global linear stability analysis sits at the `Goldilocks' point between the 1D and Tri-Global stability analyses [@theo]. 
-Geophysical fluid dynamics frequently encounters flows that are inherently bi-global in nature, where classical 1D analysis fails to capture essential physics:
+The complexity and dimensionality of stability analyses have evolved substantially, giving rise to distinct methodological approaches with varying computational requirements [@theofilis2011global]. The classical one-dimensional (1D) stability analysis assumes that the basic state varies along only a single spatial direction. While computationally efficient, this approach presumes spatial homogeneity in the remaining directions and therefore often fails to capture the full dynamics of realistic geophysical flows. At the opposite extreme, the tri-global (3D global) stability analysis allows variations in all three spatial directions, providing the most complete representation of the underlying physics. However, this generality requires substantial computational resources, often beyond the reach of standard research computing infrastructures.
 
-Atmospheric Phenomena:
-- Mountain Wave Dynamics: Airflow over mountain ranges creates lee waves and rotors that vary significantly in both the vertical and cross-mountain directions. 1D analysis assuming only vertical variation misses critical three-dimensional wave interactions and breaking mechanisms.
-- Mesoscale Convective Systems: Organized convection in the atmosphere often develops two-dimensional structure in the vertical plane, with updrafts and downdrafts that cannot be captured by simple vertical profiles.
-- Jet Stream Instabilities: Upper-level atmospheric jets exhibit both vertical shear and horizontal curvature, requiring bi-global analysis to understand their meandering and breakdown.
+Bridging these two extremes, bi-global (2D global) linear stability analysis occupies an optimal middle ground between 1D and tri-global frameworks [@theofilis2011global]. In this approach, the basic state varies in two spatial directions while remaining homogeneous in the third, striking a balance between computational tractability and physical realism. Many geophysical flows naturally exhibit this structure, including atmospheric and oceanic jets [@pedlosky2013geophysical] as well as submesoscale oceanic fronts and filaments [@mcwilliams2016], where classical 1D analyses omit key dynamics and fully 3D approaches remain computationally prohibitive. 
 
-Oceanic Applications:
-- Western Boundary Current Separation: The Gulf Stream and Kuroshio Current exhibit complex separation dynamics where the flow varies significantly in both the vertical and cross-stream directions.
-- Overflow Dynamics: Dense water flowing over topographic features (Denmark Strait, Mediterranean outflow) creates flows that are fundamentally two-dimensional in the plane perpendicular to the flow direction.
-- Coastal Upwelling Systems: Wind-driven upwelling creates complex velocity and density structures that vary both vertically and across the shelf.
+To address this need, we present `BiGSTARS.jl`, a Julia‑based bi‑global stability solver designed to integrate seamlessly with the broader Julia scientific computing ecosystem. The package is distributed with validated benchmark examples and is intended to be readily accessible to the geophysical fluid dynamics community. `BiGSTARS.jl` implements a spectral–collocation framework in which the governing equations are discretized using Chebyshev polynomials in the vertical direction and Fourier modes in the horizontal direction, applied to a two‑dimensional basic state defined over a rectangular domain.
 
-At the same time, it makes the eigenvalue problem orders of magnitude smaller than a full 3D global stability solver. This economy lets researchers map growth rates and mode structures of different instability processes on standard workstations rather than supercomputers.
 
-This statement motivates the development of `BiGSTARS.jl` - an open‑source, Julia‑based bi‑global solver that integrates with the wider Julia scientific ecosystem, ships with validated examples, and accessible to the wider geophysical fluid dynamics community.
 
-`BiGSTARS.jl` implements a bi-global spectral–collocation method tailored for stability analysis of geophysical flows. The code defines a two-dimensional base flow over a rectangular domain and discretizes it using Chebyshev polynomials in the vertical direction and Fourier modes in horizontal direction. It is based on linearized Boussinesq equations of motion under the $f$-plane approximation by formulating a generalized eigenvalue problem, enforces boundary conditions via tau or penalty methods, and assembles a large, sparse generalized eigenvalue problem of the form $AX = \lambda BX$, where $A$ and $B$ are the matrices, $X$ is the eigenvector and $\lambda$ is the eigenvalue. The package provides specialized features for the large eigenvalue problems characteristic of bi-global analysis:
-- Shift-and-invert targeting: Efficiently find eigenvalues near specified regions of the complex plane, crucial for identifying for unstable modes.
-- Multiple backend integration: Seamless switching between Arnoldi.jl, Arpack.jl, and KrylovKit.jl solvers with performance comparison tools.
+<!-- It is based on linearized Boussinesq equations of motion under the $f$-plane approximation by formulating a generalized eigenvalue problem, enforces boundary conditions via tau or penalty methods, and assembles a large, sparse generalized eigenvalue problem of the form $AX = λBX$, where $A$ and $B$ are the matrices, $X$ is the eigenvector and $\lambda$ is the eigenvalue. The package provides specialized features for the large eigenvalue problems characteristic of bi-global analysis. -->
 
-Documented examples appear in the package's documentation, providing a starting point for new users and for the development of new or customized modules. 
+<!-- - Shift-and-invert targeting: Efficiently find eigenvalues near specified regions of the complex plane, crucial for identifying for unstable modes.
+- Multiple backend integration: Seamless switching between Arnoldi.jl, Arpack.jl, and KrylovKit.jl solvers with performance comparison tools. -->
+
 
 ## State of the field
 
-To the author’s best knowledge, there is currently no freely available, fully documented open-source package that delivers a turnkey bi-global eigenvalue solver capable of treating the lineralized Boussinesq-equation dynamics of rotating, stratified geophysical flows.
+Although several open-source packages exist for one-dimensional stability analyses (e.g., pyqg [@abernathey2022pyqg], eigentools [@eigentools_2021]), to the best of our knowledge, no fully documented open-source software currently offers a comprehensive bi-global eigenvalue solver capable of treating the linearized rotating Boussinesq equations of motion under the $f$‑plane approximation [@vallis2017atmospheric].
 
-## Mathematics
 
-The package is designed to solve eigenvaue problem of the linearized Boussinesq equations of motion, 
+## Key features
+BiGSTARS.jl leverages Chebyshev-Fourier discretization to handle vertically bounded and horizontally periodic domains — an optimal configuration for linear stability analyses of geophysical flows. 
+The framework also provides flexible boundary condition handling, allowing different mathematical boundary types (e.g., Dirichlet, Neumann) for each variable. 
 
-$$\frac{D {u}}{Dt}
+Additionally, the package is based on the shift-and-invert technique, which enables the efficient computation of eigenvalues in targeted regions of the complex plane, crucial for obtaining the most unstable modes. Users can seamlessly switch among multiple Julia eigen-solver backends — `ArnoldiMethod.jl`, `Arpack.jl`, and `KrylovKit.jl` — with built-in performance benchmarking tools. To address convergence challenges in large problems, `BiGSTARS.jl` employs adaptive convergence strategies, including automatic shift adjustments and retry logic, thus reducing the need for manual parameter tuning.
+
+The package documentation includes a collection of validated examples that illustrate the key functionalities of the solver, such as setting up a basic state, specifying boundary conditions, and visualizing the results. These examples not only provide an accessible starting point for new users unfamiliar with bi-global stability analysis but also serve as reference cases for developing customized modules.
+
+<!-- ## Mathematics
+
+The package is designed to solve eigenvaue problem of the linearized Boussinesq equations of motion under the $f$-plane approximation,
+
+$$\frac{D \mathbf{u}}{Dt}
     + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
-    + \hat{z} \times \mathbf{u} =
+    + f \hat{z} \times \mathbf{u} =
     -\nabla p + b \hat{z} + \nu \nabla^2 \mathbf{u}, \label{eq:1} \tag{1}$$
 
-$$\frac{Db}{Dt}
-    +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} 
+$$\frac{Db}{Dt} +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} 
     = \kappa \nabla^2 b \label{eq:2} \tag{2}$$
 
 $$\nabla \cdot \mathbf{u} = 0, \label{eq:3} \tag{3}$$
 
+where $\mathbf{u}\equiv(u,v,w)$ are the perturbation velocity in the $x$, $y$ and $z$-direction, rescpectively, 
+$p$ is the perturbation pressure, $b=-g\rho/\rho_0$ ($\rho$ is the density perturbation relative to the reference density $\rho_0$, 
+and $g$ is the gravitational acceleration). 
+The variables $U(y,z)$ is mean flow in the $x$-dircetion and $B(y,z)$ is the buoyancy of basic state, 
+which is in thermal-wind balance [@vallis2017atmospheric],
+$$\frac{\partial U}{\partial z} = -\frac{\partial B}{\partial y} \label{eq:4} \tag{4}$$.  
+For bi-global analysis, we assume normal mode solutions in the $x$-direction only,
+$$[\mathbf{u},p,b](x,y,z,t) = \mathfrak{R}[\tilde{\mathbf{u}},\tilde{p},\tilde{b}](y,z) e^{ikx+\lambda t} \label{eq:5} \tag{5}$$, 
+where $\mathfrak{R}$ denotes the real part, $k$ is the $x$-wavenumber and $\lambda$ is the complex frequncy with real part describes the 
+growthrate and imaginary part denotes the frequncy. The variables with superscript describes the eigenfunction. -->
+
 
 # Acknowledgements
+
+The author gratefully acknowledges Sohan Suresan of Tel Aviv University for the stimulating discussions.
 
 # References
