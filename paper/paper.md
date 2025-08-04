@@ -23,7 +23,7 @@ bibliography: paper.bib
 `BiGSTARS.jl` is a Julia-based package [@Bezanson2017] specifically developed for conducting bi-global linear stability analyses of rotating and stratified flows relevant to atmospheric and oceanic dynamics.
 
 # Statement of need
-Linear stability analysis investigates the growth or decay of small perturbations about a basic state by linearizing the governing equations and solving the resulting eigenvalue problem. In geophysical fluid dynamics, the interplay between rotation (the Coriolis force) and stratification (the buoyancy force) gives rise to multiple instability mechanisms, including baroclinic instability driven by vertical shear and barotropic instability driven by horizontal shear [@pedlosky2013geophysical]. Such analyses are fundamental for understanding the onset of turbulence, the formation of eddies, and the associated energy transfer across scales in both oceanic and atmospheric systems.
+Linear stability analysis investigates the growth or decay of small perturbations about a basic state by linearizing the governing equations and solving the resulting eigenvalue problem [@drazin2004]. In geophysical fluid dynamics, the interplay between rotation (the Coriolis force) and stratification (the buoyancy force) gives rise to multiple instability mechanisms, including baroclinic instability driven by vertical shear and barotropic instability driven by horizontal shear [@pedlosky2013geophysical]. Such analyses are fundamental for understanding the onset of turbulence, the formation of eddies, and the associated energy transfer across scales in both oceanic and atmospheric systems.
 
 The complexity and dimensionality of stability analyses have evolved substantially, giving rise to distinct methodological approaches with varying computational requirements [@theofilis2011global]. The classical one-dimensional (1D) stability analysis assumes that the basic state varies along only a single spatial direction. While computationally efficient, this approach presumes spatial homogeneity in the remaining directions and therefore often fails to capture the full dynamics of realistic geophysical flows. At the opposite extreme, the tri-global (3D global) stability analysis allows variations in all three spatial directions, providing the most complete representation of the underlying physics. However, this generality requires substantial computational resources, often beyond the reach of standard research computing infrastructures.
 
@@ -80,6 +80,6 @@ growthrate and imaginary part denotes the frequncy. The variables with superscri
 
 # Acknowledgements
 
-The author gratefully acknowledges Sohan Suresan of Tel Aviv University for the stimulating discussions.
+The author gratefully acknowledges Sohan Suresan for the stimulating discussions.
 
 # References
