@@ -132,7 +132,6 @@
 # \end{align}
 # ```
 #
-#
 # ## Boundary conditions
 # We choose periodic boundary conditions in the ``y``-direction and 
 # free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e., 
@@ -143,6 +142,7 @@
 #   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 # \end{align}
 # ```
+#
 # ## Generalized eigenvalue problem (GEVP)
 # The above sets of equations with the boundary conditions can be expressed as a 
 # standard generalized eigenvalue problem (GEVP),
