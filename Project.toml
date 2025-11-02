@@ -1,7 +1,7 @@
 name = "BiGSTARS"
 uuid = "55e6fa54-20b2-4a8e-ba84-e72db1c430e6"
-authors = ["Subhajit Kar <subhajitkar19@gmail.com>"]
 version = "2.0.5"
+authors = ["Subhajit Kar <subhajitkar19@gmail.com>"]
 
 [deps]
 ArnoldiMethod = "ec485272-7323-5ecc-a04f-4719b315124d"
@@ -44,7 +44,7 @@ DispatchDoctor = "0.4.22"
 DocumenterTools = "0.1.20"
 FFTW = "1"
 FillArrays = "1.13.0"
-JLD2 = "0.4, 0.5"
+JLD2 = "0.4, 0.5, 0.6"
 KrylovKit = "0.9.5"
 LazyGrids = "1.1.0"
 LinearAlgebra = "1.6"
