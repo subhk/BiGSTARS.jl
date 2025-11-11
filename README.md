@@ -19,8 +19,9 @@
       <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
         <img alt="latest docs" src="https://img.shields.io/badge/documentation-dev%20-orange">
     </a>
-  [![status](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d/status.svg)](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d)
 </p>
+
+  [![status](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d/status.svg)](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d)
 
 ## Installation
 
