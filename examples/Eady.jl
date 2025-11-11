@@ -1,20 +1,20 @@
 # ### Baroclinic instability of a 2D front based on Eady (1949)
 #
 # ## Introduction
-# Eady (1949) [stone1971](@cite) showed that in a uniformly sheared, stratified layer between two rigid lids on 
-# an ``f``-plane, two counter-propagating Rossby edge waves can phase lock and convert available potential energy 
-# into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about 
+# Eady (1949) [eady1949long](@cite) showed that in a uniformly sheared, stratified layer between two rigid lids on
+# an ``f``-plane, two counter-propagating Rossby edge waves can phase lock and convert available potential energy
+# into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about
 # four deformation radii and on timescales of a few days.
 #
 # ## Basic state
 # The basic state is given by
 # ```math
 # \begin{align}
-#     B(y, z) &= Ri z - y, \\
+#     B(y, z) &= \text{Ri}\, z - y, \\
 #     U(y, z) &= z - {1}/{2},
 # \end{align}
 # ```
-# where ``Ri`` is the Richardson number, and $N^2 = Ri$ is the stratification.
+# where ``\text{Ri}`` is the Richardson number, and $N^2 = \text{Ri}$ is the stratification.
 #
 # ## Governing equations
 # The non-dimensional form of the linearized version of the QG PV perturbation equation under 
@@ -22,8 +22,8 @@
 # ```math
 # \begin{align}
 #     \frac{\partial q^\text{qg}}{\partial t} + U \frac{\partial q^\text{qg}}{\partial x} + \frac{\partial \psi}{\partial x}
-#     \frac{\partial Q^\text{qg}}{\partial y} = E \, \nabla_h^2 q^\text{qg}, 
-# \,\,\,\,\,\,\  \text{for} \,\,\, 0 < z <1, 
+#     \frac{\partial Q^\text{qg}}{\partial y} = \text{E} \, \nabla_h^2 q^\text{qg},
+# \,\,\,\,\,\,\  \text{for} \,\,\, 0 < z <1,
 # \end{align}
 # ```
 # where $q^\text{qg}$ is the perturbation QG PV, and it is defined as 
@@ -35,9 +35,9 @@
 # \end{align}
 # ```
 #
-# The variable $\psi^\text{qg}$ describes the QG perturbation streamfunction with 
-# $u^\text{qg}=-\partial_y \psi^\text{qg}$ and $v^\text{qg}=\partial_x \psi^\text{qg}$. 
-# The variable $Q^\text{qg}$ describes the QG PV of the basic state, which is defined as \citep{pedlosky2013geophysical}
+# The variable $\psi^\text{qg}$ describes the QG perturbation streamfunction with
+# $u^\text{qg}=-\partial_y \psi^\text{qg}$ and $v^\text{qg}=\partial_x \psi^\text{qg}$.
+# The variable $Q^\text{qg}$ describes the QG PV of the basic state, which is defined as [pedlosky2013geophysical](@cite)
 # ```math
 # \begin{align}
 #     Q^\text{qg} = -\frac{\partial U}{\partial y} + \frac{\partial}{\partial z}\left(\frac{B}{N^2} \right),
@@ -73,8 +73,8 @@
 # In terms of streamfunction $\psi^\text{qg}$, 
 # ```math
 # \begin{align}
-#     [(\sigma + i k U) - E] \mathscr{L}\widetilde{\psi}^\text{qg} 
-#   + i k \partial_y Q^\text{qg} \widetilde{\psi}^\text{qg} &= 0, \,\,\,\,\  \text{for} \,\, 0 < z <1, 
+#     [(\sigma + i k U) - \text{E}] \mathscr{L}\widetilde{\psi}^\text{qg}
+#   + i k \partial_y Q^\text{qg} \widetilde{\psi}^\text{qg} &= 0, \,\,\,\,\  \text{for} \,\, 0 < z <1,
 # \\
 #     (\sigma + i k U_{-})\partial_z \widetilde{\psi}^\text{qg}_{-} 
 #   + i k \partial_y B_{-} \widetilde{\psi}^\text{qg}_{-} &= 0, \,\,\,\,\, \text{at} \,\, z = 0,
@@ -100,10 +100,10 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         ik U \mathcal{D}_0^2 
-#        + ik \partial_y Q 
-#       - E \mathcal{D}_h^2 \mathcal{D}_0^2 
-#   \end{bmatrix}, 
+#         ik U \mathcal{D}_0^2
+#        + ik \partial_y Q
+#       - E \mathcal{D}_h^2 \mathcal{D}_0^2
+#   \end{bmatrix},
 #   \,\,\,\,\,\,\,
 #     B &= \begin{bmatrix}
 #       - \mathcal{D}_0^2
@@ -290,7 +290,7 @@ function solve_Eady(k::Float64)
     ## Construct grid and derivative operators
     grid  = TwoDGrid(params)
 
-    ## Construct the necesary operator
+    ## Construct the necessary operator
     ops  = OperatorI(params)
     prob = Problem(grid, ops)
 
