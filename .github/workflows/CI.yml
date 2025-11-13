@@ -14,6 +14,7 @@ jobs:
         version:
           - "1.10" # LTS
           - "1.11"
+          - "1.12"
         os:
           - macOS-latest
           - windows-latest
@@ -52,3 +53,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           JULIA_DEBUG: Documenter
+
