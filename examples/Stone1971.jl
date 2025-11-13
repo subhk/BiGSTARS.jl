@@ -44,7 +44,7 @@
 #     \nabla \cdot \mathbf{u} &= 0,
 # \end{align}
 # ```
-# where ``\text{E}`` is the Eckman number, ``\text{Pr}`` is the Prandtl number, and
+# where ``\text{E}`` is the Ekman number, ``\text{Pr}`` is the Prandtl number, and
 # ```math
 # \begin{align}
 #   D/Dt \equiv \partial/\partial t + U (\partial/\partial x)
