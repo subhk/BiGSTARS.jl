@@ -1,15 +1,18 @@
-# ### Critical Rayleigh number for rotating Rayleigh-Benard Convection 
+# ### Critical Rayleigh number for rotating Rayleigh-Bénard Convection
 #
 # ## Introduction
-# This code finds critical Rayleigh number for the onset of convection for rotating Rayleigh Benrad Convection (rRBC)
+#
+# This code finds the critical Rayleigh number for the onset of convection for rotating Rayleigh-Bénard Convection (rRBC)
 # where the domain is periodic in y-direction.
 # The code is benchmarked against Chandrashekar's theoretical results [chandra2013](@cite).
 #
 # Parameter: 
 #
-# Ekman number $E = 10⁻⁴$
+# * Ekman number $\text{E} = 10⁻⁴$
+# * Eigenvalue: critical modified Rayleigh number $\text{Ra}_c = 189.7$
 #
-# Eigenvalue: critical modified Rayleigh number $Ra_c = 189.7$
+# In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bénard case where the domain
+# is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded.
 #
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
 # is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
@@ -23,9 +26,9 @@
 # The non-dimensional form of the equations governing the perturbation is given by 
 # ```math
 # \begin{align}
-#     \frac{E}{Pr} \frac{\partial \mathbf{u}}{\partial t} 
+#     \frac{\text{E}}{\text{Pr}} \frac{\partial \mathbf{u}}{\partial t}
 #     + \hat{z} \times \mathbf{u} &=
-#     -\nabla p + Ra \theta \hat{z} + E \nabla^2 \mathbf{u},
+#     -\nabla p + \text{Ra}\, \theta \hat{z} + \text{E} \nabla^2 \mathbf{u},
 # \\
 #     \frac{\partial \theta}{\partial t} 
 #     &= \mathbf{u} \cdot \hat{z} + \nabla^2 \theta,
@@ -33,16 +36,16 @@
 #     \nabla \cdot \mathbf{u} &= 0,
 # \end{align}
 # ```
-# where $E=\nu/(fH^2)$ is the Ekman number and $Ra = g\alpha \Delta T/(f \kappa)$, 
+# where $\text{E}=\nu/(fH^2)$ is the Ekman number and $\text{Ra} = g\alpha \Delta T/(f \kappa)$,
 # $\Delta T$ is the temperature difference between the bottom and the top walls) is the modified Rayleigh number.
 # Following [teed2010](@cite), by applying the operators $(\nabla \times \nabla \times)$ and $(\nabla \times)$ and 
 # taking the $z$-component of the equations and assuming wave-like perturbations, 
 # we obtained the equations for vertical velocity $w$, vertical vorticity $\zeta$ and temperature $\theta$,
 # ```math
 # \begin{align}
-#     E \mathcal{D}^4 w - \partial_z \zeta &= -Ra \mathcal{D}_h^2 \theta,
+#     \text{E} \mathcal{D}^4 w - \partial_z \zeta &= -\text{Ra}\, \mathcal{D}_h^2 \theta,
 # \\
-#     E \mathcal{D}^2 \zeta + \partial_z w &= 0,
+#     \text{E} \mathcal{D}^2 \zeta + \partial_z w &= 0,
 # \\
 #     \mathcal{D}^2 \theta + w &= 0.
 # \end{align}
@@ -55,13 +58,13 @@
 #  [w, \zeta, \theta](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{\theta}](y, z)  e^{i kx + \sigma t}\big),
 # \end{align}
 # ```
-# where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction. 
-# Finally following systems of differential equations are obtained,
+# where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction.
+# Finally, the following system of differential equations is obtained,
 # ```math
 # \begin{align}
-#     E \mathcal{D}^4  \tilde{w} - \partial_z \tilde{\zeta} &= - Ra \mathcal{D}_h^2 \tilde{\theta},
+#     \text{E} \mathcal{D}^4  \tilde{w} - \partial_z \tilde{\zeta} &= -\text{Ra}\, \mathcal{D}_h^2 \tilde{\theta},
 # \\
-#     E \mathcal{D}^2 \tilde{\zeta} + \partial_z \tilde{w} &= 0,
+#     \text{E} \mathcal{D}^2 \tilde{\zeta} + \partial_z \tilde{w} &= 0,
 # \\
 #     \mathcal{D}^2 \tilde{\theta} + \tilde{w} &= 0, 
 # \end{align}
@@ -73,7 +76,7 @@
 # \,\,\,\, \text{and} \,\, \mathcal{D}_h^2 = (\partial_y^2 - k^2).
 # \end{align}
 # ```
-# The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by the relations 
+# The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``\tilde{\zeta}`` by
 # ```math
 # \begin{align}
 #     -\mathcal{D}_h^2 \tilde{u} &= i k \partial_{z} \tilde{w} + \partial_y \tilde{\zeta},
@@ -99,14 +102,14 @@
 # \begin{align}
 #  AX = λBX, 
 # \end{align}
-# ```  
-# where $\lambda=Ra$ is the eigenvalue, and $X=[\tilde{w} \, \tilde{\zeta} \, \tilde{\theta}]^T$ is the eigenvector. 
+# ```
+# where $\lambda=\text{Ra}$ is the eigenvalue, and $X=[\tilde{w} \, \tilde{\zeta} \, \tilde{\theta}]^T$ is the eigenvector.
 # The matrices $A$ and $B$ are given by
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         E \mathcal{D}^4 & -\partial_z & 0 \\
-#         \partial_z & E \mathcal{D}^2 & 0 \\ 
+#         \text{E} \mathcal{D}^4 & -\partial_z & 0 \\
+#         \partial_z & \text{E} \mathcal{D}^2 & 0 \\
 #         1 & 0 & \mathcal{D}^2
 #     \end{bmatrix},
 # \,\,\,\,\,\,\,
@@ -125,8 +128,8 @@
 # ```math
 # \begin{align}
 #     A &= \begin{bmatrix}
-#         E {D}^{4D} & -{D}_z^D & 0_n \\
-#         \mathcal{D}^{zD} & E {D}^{2N} & 0_n \\ 
+#         \text{E} {D}^{4D} & -{D}_z^D & 0_n \\
+#         \mathcal{D}^{zD} & \text{E} {D}^{2N} & 0_n \\
 #         I_n & 0_n & \mathcal{D}^{2D}
 #     \end{bmatrix},
 # \,\,\,\,\,\,\,
@@ -337,7 +340,7 @@ function solve_rRBC(k::Float64)
     ## Construct grid and derivative operators
     grid  = TwoDGrid(params)
 
-    ## Construct the necesary operator
+    ## Construct the necessary operator
     ops  = OperatorI(params)
     prob = Problem(grid, ops)
 
