@@ -41,3 +41,11 @@ BiGSTARS.jl requires **Julia 1.6** or newer. Continuous-integration tests curren
 
 Example scripts can be found in the `examples/` directory. For the clearest overview, we recommend 
 browsing them through the package’s documentation. 
+
+## Contributing
+
+If you’re interested in contributing to the development of BiGSTARS.jl, we’re excited to have your help—no matter 
+how big or small the contribution. New perspectives are especially valuable: fresh eyes on the code often 
+reveal issues or improvements that existing developers may have missed.
+
+For more information, check out our [contributors' guide](https://github.com/subhk/BiGSTARS.jl?tab=contributing-ov-file)
