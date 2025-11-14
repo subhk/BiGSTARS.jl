@@ -43,7 +43,7 @@ Example scripts can be found in the `examples/` directory. For the clearest over
 browsing them through the package’s documentation.
 
 You can run the example scripts in the `examples/` directly using the `.toml` file.
-To do so, first start Julia and activate the project for this directory, for example:
+To do so, first start Julia and activate the project, for example:
 ```
 $ julia --project=.
 ```
