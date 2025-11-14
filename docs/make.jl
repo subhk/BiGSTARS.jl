@@ -94,7 +94,7 @@ format = Documenter.HTML(
 #     "References" => "references.md",
 # ]
 
-@printf("Building doc ...\n")
+# @printf("Building doc ...\n")
 
 # makedocs(sitename = "BiGSTARS.jl",
 #           authors = "Subhajit Kar, and contributors",
