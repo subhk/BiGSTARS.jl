@@ -170,7 +170,7 @@
 using LazyGrids
 using LinearAlgebra
 using Printf
-using StaticArrays
+using SparseArrays
 using FillArrays
 using JLD2
 using Parameters: @with_kw
