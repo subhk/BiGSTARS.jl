@@ -3,9 +3,6 @@ using DocumenterCitations
 using Literate
 #using Bibliography
 
-using CairoMakie
-using Printf
-
 using BiGSTARS
 
 #bib = import_bibtex("src/references.bib")
