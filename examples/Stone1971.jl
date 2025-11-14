@@ -238,14 +238,8 @@
 using LazyGrids
 using LinearAlgebra
 using Printf
-using StaticArrays
 using SparseArrays
-using SparseMatrixDicts
 using FillArrays
-using SpecialFunctions
-using Parameters
-using Test
-using BenchmarkTools
 using JLD2
 using Parameters: @with_kw
 
