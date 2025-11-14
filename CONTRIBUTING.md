@@ -4,10 +4,10 @@ Thanks for your interest in contributing to BiGSTARS.jl!
 
 Contributions of all kinds are welcome: bug reports, documentation improvements, 
 new examples, performance tweaks, and core features. 
-Best way to get in touch is to either just open a GitHub [issue](https://github.com/subhk/BiGSTARS.jl/issues) 
+The best way to get started is to open a GitHub [issue](https://github.com/subhk/BiGSTARS.jl/issues) 
 
-We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative
-practices. New contributors should make sure to read that guide.
+We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative practices. 
+New contributors are encouraged to read it before making their first contribution.
 
 ## What can I do?
  - Bug fixes – if something fails or behaves oddly.
