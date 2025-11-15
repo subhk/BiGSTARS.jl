@@ -11,7 +11,7 @@ New contributors are encouraged to read it before making their first contributio
 
 ## What can I do?
  - Bug fixes – if something fails or behaves oddly.
- - New features / extensions – e.g. new base flows, boundary conditions, parameterizations, or diagnostics.
+ - New features / extensions – e.g. new base flows, boundary conditions, or diagnostics.
  - Performance improvements – more efficient linear algebra, better use of sparse matrices, etc.
  - Documentation – clarifying docstrings, user docs in docs/, or worked examples in examples/.
  - Testing – adding coverage for edge cases, new solvers, or new physics.
