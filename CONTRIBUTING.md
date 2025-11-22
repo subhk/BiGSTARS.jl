@@ -79,5 +79,5 @@ Before opening a PR:
   - Why it’s useful.
   - How you tested it.
 
-Thank you for helping improve BiGSTARS.jl!
+Thank you for helping improve ``BiGSTARS.jl``
 
