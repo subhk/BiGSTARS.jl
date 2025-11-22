@@ -45,7 +45,7 @@ browsing them through the package’s documentation.
 
 ## Contributing
 
-If you’re interested in contributing to the development of BiGSTARS.jl, we’re excited to have your help—no matter 
+If you’re interested in contributing to the development of ``BiGSTARS.jl``, we’re excited to have your help—no matter 
 how big or small the contribution. New perspectives are especially valuable: fresh eyes on the code often 
 reveal issues or improvements that existing developers may have missed.
 
