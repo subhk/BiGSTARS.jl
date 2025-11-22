@@ -75,9 +75,9 @@ Before opening a PR:
 - [ ] ``Pkg.test()`` passes.
 - [ ] Docs are updated if behavior or API changed.
 - [ ] The PR description briefly explains:
- - What you changed.
- - Why it’s useful.
- - How you tested it.
+  - What you changed.
+  - Why it’s useful.
+  - How you tested it.
 
 Thank you for helping improve BiGSTARS.jl!
 
