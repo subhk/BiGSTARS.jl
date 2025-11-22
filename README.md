@@ -42,20 +42,6 @@ BiGSTARS.jl requires **Julia 1.6** or newer. Continuous-integration tests curren
 Example scripts can be found in the `examples/` directory. For the clearest overview, we recommend 
 browsing them through the package’s documentation.
 
-You can run the example scripts in the `examples/` directly using the `.toml` file.
-To do so, first start Julia and activate the project, for example:
-```
-$ julia --project=.
-```
-Then, in the Julia REPL, instantiate the project to install the dependencies:
-```julia
-] instantiate
-```
-After that, you can run any of the example scripts with:
-```julia
-include("examples/example_script.jl")
-```
-
 
 ## Contributing
 
