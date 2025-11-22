@@ -9,17 +9,62 @@ The best way to get started is to open a GitHub [issue](https://github.com/subhk
 We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative practices. 
 New contributors are encouraged to read it before making their first contribution.
 
-## What can I do?
- - Bug fixes – if something fails or behaves oddly.
- - New features / extensions – e.g. new base flows, boundary conditions, or diagnostics.
- - Performance improvements – more efficient linear algebra, better use of sparse matrices, etc.
- - Documentation – clarifying docstrings, user docs in docs/, or worked examples in examples/.
- - Testing – adding coverage for edge cases, new solvers, or new physics.
+## 1. Set up a development environment
 
-If you’re interested in working on something, please let us know by commenting on 
-an existing issue or opening a new one. This helps avoid duplicated work and gives 
-us a chance to share any context or guidance that might be useful before you get started.
+We assume you work from your own fork of the repository.
+
+### Step 1: Fork & clone
+
+On GitHub, fork:
+
+``https://github.com/subhk/BiGSTARS.jl``
+
+Then on your machine:
+
+```bash
+git clone https://github.com/<your-username>/BiGSTARS.jl.git
+cd BiGSTARS.jl
+```
+
+### Step 2: Instantiate the project
+
+From the repository root:
+
+```julia
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+```
+
+## 2. Run the tests
+
+After the environment is instantiated:
+
+**From the shell:**
+
+```julia
+julia --project=. -e 'using Pkg; Pkg.test()'
+```
 
 
+## 3. Build the documentation
+
+The documentation has its own environment in ``docs/Project.toml``
+
+### Step 1: Instantiate the docs environment
+**From the shell:**
+
+```julia
+julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+```
+
+### Step 2: Build the docs
+
+```julia
+julia --project=docs -e 'include("docs/make.jl")'
+```
+
+The HTML files will be written to ``docs/build/``.
+Open ``docs/build/index.html`` in a browser to preview.
+
+If you change the public API or examples, please update the docs and make sure they build without errors.
 
 
