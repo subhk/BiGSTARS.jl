@@ -9,6 +9,8 @@ The best way to get started is to open a GitHub [issue](https://github.com/subhk
 We follow the [ColPrac guide](https://github.com/SciML/ColPrac) for collaborative practices. 
 New contributors are encouraged to read it before making their first contribution.
 
+A suggested workflow for making contributions is outlined as follows:
+
 ## 1. Set up a development environment
 
 We assume you work from your own fork of the repository.
