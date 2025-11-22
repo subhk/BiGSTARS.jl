@@ -71,13 +71,13 @@ If you change the public API or examples, please update the docs and make sure t
 ## 4. Pull request checklist
 Before opening a PR:
 
-- [] You created a feature/topic branch (not working on main).
-- [] Pkg.test() passes.
-- [] Docs are updated if behavior or API changed.
-- [] The PR description briefly explains:
-  - What you changed.
-  - Why it’s useful.
-  - How you tested it.
+- [ ] You created a feature/topic branch (not working on main).
+- [ ] Pkg.test() passes.
+- [ ] Docs are updated if behavior or API changed.
+- [ ] The PR description briefly explains:
+   - What you changed.
+   - Why it’s useful.
+   - How you tested it.
 
 Thank you for helping improve BiGSTARS.jl!
 
