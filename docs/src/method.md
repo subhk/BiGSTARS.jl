@@ -11,9 +11,9 @@ A x = \lambda B x
 ```
 
 It implements three different solver methods with automatic shift selection and convergence verification:
-- **Arnoldi Method** (ArnoldiMethod.jl)
-- **ARPACK Method** (Arpack.jl) 
-- **Krylov Method** (KrylovKit.jl)
+- **Arnoldi Method** ([ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl))
+- **ARPACK Method** ([Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl)) 
+- **Krylov Method** ([KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl))
 
 ## Core Components
 
@@ -29,13 +29,13 @@ Configuration parameters for eigenvalue solvers.
     which::Symbol = :LM               # Which eigenvalues to find (:LM, :LR, :SR, etc.)
     nev::Int = 1                      # Number of eigenvalues to compute
     maxiter::Int = 300                # Maximum iterations
-    tol::Float64 = 1e-12             # Convergence tolerance
+    tol::Float64 = 1e-12              # Convergence tolerance
     sortby::Symbol = :M               # Sort eigenvalues by (:R, :I, :M)
     n_tries::Int = 8                  # Number of retry attempts
-    Δσ₀::Float64 = 0.2               # Initial shift increment
-    incre::Float64 = 1.2             # Increment growth factor
-    ϵ::Float64 = 1e-5                # Successive eigenvalue tolerance
-    krylovdim::Int = 200             # Krylov subspace dimension (Krylov method only)
+    Δσ₀::Float64 = 0.2                # Initial shift increment
+    incre::Float64 = 1.2              # Increment growth factor
+    ϵ::Float64 = 1e-5                 # Successive eigenvalue tolerance
+    krylovdim::Int = 200              # Krylov subspace dimension (Krylov method only)
 end
 ```
 

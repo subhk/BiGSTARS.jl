@@ -4,7 +4,7 @@
 #
 # This code finds the critical Rayleigh number for the onset of convection for rotating Rayleigh-Bénard Convection (rRBC)
 # where the domain is periodic in y-direction.
-# The code is benchmarked against Chandrashekar's theoretical results [chandra2013](@cite).
+# The code is benchmarked against Chandrasekhar's theoretical results [chandra2013](@cite).
 #
 # Parameter: 
 #
@@ -351,7 +351,7 @@ function solve_rRBC(k::Float64)
             y=grid.y, z=grid.z, k=params.k, 
             λ=λ, X=X);
 
-    ## Theoretical results from Chandrashekar (1961)
+    ## Theoretical results from Chandrasekhar (1961)
     λₜ = 189.7 
     @printf "Analytical solution of critical Ra: %1.4e \n" λₜ 
 
