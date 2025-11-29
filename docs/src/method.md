@@ -12,7 +12,7 @@ A x = \lambda B x
 
 It implements three different solver methods with automatic shift selection and convergence verification:
 - **Arnoldi Method** ([ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl))
-- **ARPACK Method** ([Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl)) 
+- **Arpack Method** ([Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl)) 
 - **Krylov Method** ([KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl))
 
 ## Core Components
