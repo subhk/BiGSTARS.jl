@@ -3,7 +3,7 @@
 <!-- description --> 
   **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS ⭐): A linear stability analysis tool for Geophysical flows with Julia. 
 
-Bi-global stability analysis offers a pragmatic alternative between  1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground: spectral Chebyshev–Fourier discretizations, shift-and-invert eigen solvers, and ready-to-run benchmarks for rotating, stratified flows so you can resolve key instabilities without the need for massive computational resources.
+Bi-global stability analysis offers a pragmatic alternative between  1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground: spectral Chebyshev–Fourier discretizations, shift-and-invert eigensolvers, and ready-to-run benchmarks for rotating, stratified flows so you can resolve key instabilities without the need for massive computational resources.
 
  <!-- Badges -->
  <p align="left">
