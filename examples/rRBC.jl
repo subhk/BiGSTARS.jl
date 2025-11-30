@@ -14,9 +14,6 @@
 # In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bénard case where the domain
 # is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded.
 #
-# In this module, we do a linear stability analysis of a 2D rotating Rayleigh-Bernard case where the domain 
-# is periodic in the ``y``-direction, in the ``x``-direction is of infinite extent and vertically bounded. 
-#
 # The background temperature profile $\overline{\theta}$ is given by 
 # ```math
 # \overline{\theta} = 1 - z.
@@ -240,7 +237,7 @@ function generalized_EigValProb(prob, grid, params)
         + 2.0 * prob.D²ʸ²ᶻᴰ)
         
     ## Construct the 2nd order derivative
-    D²ᴰ = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)  # with Dirchilet BC
+    D²ᴰ = (1.0 * prob.D²ᶻᴰ  + 1.0 * ∇ₕ²)  # with Dirichlet BC
     D²ᴺ = (1.0 * prob.D²ᶻᴺ  + 1.0 * ∇ₕ²)  # with Neumann BC
 
     ## See `Numerical Implementation' section for the theory
