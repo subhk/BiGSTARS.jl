@@ -11,7 +11,7 @@ The code performs eigenfunction analysis for a two-dimensional geophysical flow 
 
 ### Parameters Structure
 
-The analysis uses a comprehensive parameter set from the Stone exmaple:
+The analysis uses a comprehensive parameter set from the Stone example:
 
 ```julia
 @with_kw mutable struct Params{T} <: AbstractParams
