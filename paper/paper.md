@@ -20,7 +20,7 @@ bibliography: paper.bib
 
 
 # Summary
-`BiGSTARS.jl` is a Julia-based package [@Bezanson2017] specifically developed for conducting bi-global linear stability analyses of rotating and stratified flows relevant to atmospheric and oceanic dynamics.
+`BiGSTARS.jl` is a software package written in the Julia programming language [@Bezanson2017] for investigating the stability of fluid flows relevant to the atmosphere and ocean. It performs bi-global linear stability analysis — a technique that determines whether small disturbances introduced into a flow will grow  or decay. The "bi-global" aspect means the method can handle flows whose properties vary in two spatial directions, enabling analysis of realistic features like fronts, jets, and vortices. Because the package is tailored for rotating and stratified fluids, it captures the physical ingredients essential to atmospheric and oceanic dynamics.
 
 # Statement of need
 Linear stability analysis investigates the growth or decay of small perturbations about a basic state by linearizing the governing equations and solving the resulting eigenvalue problem [@drazin2004]. In geophysical fluid dynamics, the interplay between rotation (the Coriolis force) and stratification (the buoyancy force) gives rise to multiple instability mechanisms, including baroclinic instability driven by vertical shear and barotropic instability driven by horizontal shear [@pedlosky2013geophysical]. Such analyses are fundamental for understanding the onset of turbulence, the formation of eddies, and the associated energy transfer across scales in both oceanic and atmospheric systems.
