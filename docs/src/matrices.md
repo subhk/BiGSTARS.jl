@@ -4,6 +4,13 @@ This document presents a detailed exposition of Chebyshev‑ and Fourier‑based
 
 ## Chebyshev Differentiation Matrices
 
+The code uses **Chebyshev-Gauss-Lobatto collocation points**, defined by:
+```julia
+xₖ = cos(πk/(n-1)),  k = 0, 1, ..., n-1,
+```
+where `n` is the number of grid points.
+These are the extrema of the Chebyshev polynomial $T_{n-1}(x)$, including both endpoints at $x = \pm1$.
+
 ### `chebdif(n::Int, m::Int)`
 
 Compute Chebyshev differentiation matrix of order `m` on `n` Chebyshev points.
@@ -14,14 +21,14 @@ A spectral differentiation operator using Chebyshev polynomials with pre-compute
 
 #### Description
 
-The `chebdif` function computes the m-th order Chebyshev differentiation matrix on n Chebyshev-Gauss-Lobatto points. This is the core function that implements the spectral differentiation using a recursive algorithm with Toeplitz matrices for efficient computation.
+This is the core function that implements the spectral differentiation using a recursive algorithm with Toeplitz matrices for efficient computation.
 
 The `ChebyshevDiffn` struct provides a high-level interface that pre-computes and caches differentiation matrices up to 4th order for efficient repeated use, with automatic domain transformation from [-1,1] to arbitrary intervals [a,b].
 
 #### Parameters
 
 **For `chebdif(n::Int, m::Int)`:**
-- **`n`** (`Int`): Number of Chebyshev points (n ≥ 2)
+- **`n`** (`Int`): Number of grid points (n ≥ 2)
 - **`m`** (`Int`): Order of differentiation (1 ≤ m < n)
 
 **For `ChebyshevDiffn(n, domain, max_order=1)`:**
