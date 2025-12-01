@@ -67,25 +67,39 @@ The derivative order is determined by the `derivative_order` field of the calcul
 function (calc::GradientCalculator{S})(f::AbstractArray{T}, x::AbstractVector{T}; 
                                       dims::Int=1) where {S<:AbstractFloat, T<:AbstractFloat}
     
+    grad = similar(f)
+    return calc(grad, f, x; dims=dims)
+end
+
+"""
+    (calc::GradientCalculator)(grad, f, x; dims=1)
+
+In-place derivative computation. Writes into the preallocated `grad` array
+instead of allocating a new output.
+"""
+function (calc::GradientCalculator{S})(grad::AbstractArray{T},
+                                       f::AbstractArray{T},
+                                       x::AbstractVector{T};
+                                       dims::Int=1) where {S<:AbstractFloat, T<:AbstractFloat}
     # Input validation
-    @assert 1 ≤ dims ≤ ndims(f) "dims must be between 1 and $(ndims(f))"
+    nd = ndims(f)
+    @assert nd == ndims(grad) "grad and f must have the same dimensionality"
+    @assert size(grad) == size(f) "grad size must match f"
+    @assert 1 ≤ dims ≤ nd "dims must be between 1 and $nd"
     @assert length(x) == size(f, dims) "Length of x ($(length(x))) must match size of f along dimension $dims ($(size(f, dims)))"
-    @assert ndims(f) ≤ 3 "GradientCalculator currently only supports 1D, 2D, or 3D arrays"
-    
-    # Initialize result array
+    @assert nd ≤ 3 "GradientCalculator currently only supports 1D, 2D, or 3D arrays"
+
     n = size(f)
-    gradient_array = similar(f)
-    
-    # Compute gradient based on array dimensionality
-    if ndims(f) == 1
-        _compute_gradient_1d!(calc, gradient_array, f, x)
-    elseif ndims(f) == 2
-        _compute_gradient_2d!(calc, gradient_array, f, x, dims, n)
-    else # ndims(f) == 3
-        _compute_gradient_3d!(calc, gradient_array, f, x, dims, n)
+
+    if nd == 1
+        _compute_gradient_1d!(calc, grad, f, x)
+    elseif nd == 2
+        _compute_gradient_2d!(calc, grad, f, x, dims, n)
+    else # nd == 3
+        _compute_gradient_3d!(calc, grad, f, x, dims, n)
     end
-    
-    return gradient_array
+
+    return grad
 end
 
 # Convenience methods for different derivative orders and boundary conditions
@@ -104,11 +118,26 @@ Compute nth-order derivative (gradient) using specified boundary conditions.
 gradient(f, x; dims=1, order=1, bc="nearest") = GradientCalculator(bc, max(3, order), order)(f, x; dims=dims)
 
 """
+    gradient!(grad, f, x; dims=1, order=1, bc="nearest")
+
+In-place version of `gradient` that writes into `grad` to avoid allocating
+the output array.
+"""
+gradient!(grad, f, x; dims=1, order=1, bc="nearest") = GradientCalculator(bc, max(3, order), order)(grad, f, x; dims=dims)
+
+"""
     derivative(f, x, order; dims=1, bc="nearest")
 
 Compute nth-order derivative using specified boundary conditions.
 """
 derivative(f, x, order; dims=1, bc="nearest") = GradientCalculator(bc, max(3, order), order)(f, x; dims=dims)
+
+"""
+    derivative!(grad, f, x, order; dims=1, bc="nearest")
+
+In-place nth-order derivative; writes into `grad` to avoid output allocation.
+"""
+derivative!(grad, f, x, order; dims=1, bc="nearest") = GradientCalculator(bc, max(3, order), order)(grad, f, x; dims=dims)
 
 # Convenience methods for different boundary conditions (1st derivative)
 """

@@ -59,7 +59,9 @@ module BiGSTARS
 
        # calculate gradient 
         gradient,
+        gradient!,
         derivative,
+        derivative!,
 
         # wrappers for vectors
         wrapvec,

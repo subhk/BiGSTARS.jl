@@ -123,13 +123,25 @@ function Base.getproperty(D::Derivatives, s::Symbol)
     end
 
     # compute required block lazily
-    if s in (:∂ʸU, :∂ʸB, :∂ʸʸU, :∂ʸʸB) && D.gridtype in (:Fourier, :Mixed, :All)
-        D.cache[:∂ʸU],  D.cache[:∂ʸB]  = _first_fourier(D.U, D.B, D.y)
-        D.cache[:∂ʸʸU], D.cache[:∂ʸʸB] = _second_fourier(D.U, D.B, D.y)
+    if s in (:∂ʸU, :∂ʸB) && D.gridtype in (:Fourier, :Mixed, :All)
+        if !haskey(D.cache, :∂ʸU)
+            D.cache[:∂ʸU], D.cache[:∂ʸB] = _first_fourier(D.U, D.B, D.y)
+        end
 
-    elseif s in (:∂ᶻU, :∂ᶻB, :∂ᶻᶻU, :∂ᶻᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
-        D.cache[:∂ᶻU],  D.cache[:∂ᶻB]  = _first_cheb(D.U, D.B, D.y, D.Dᶻ)
-        D.cache[:∂ᶻᶻU], D.cache[:∂ᶻᶻB] = _second_cheb(D.U, D.B, D.y, D.D²ᶻ)
+    elseif s in (:∂ʸʸU, :∂ʸʸB) && D.gridtype in (:Fourier, :Mixed, :All)
+        if !haskey(D.cache, :∂ʸʸU)
+            D.cache[:∂ʸʸU], D.cache[:∂ʸʸB] = _second_fourier(D.U, D.B, D.y)
+        end
+
+    elseif s in (:∂ᶻU, :∂ᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
+        if !haskey(D.cache, :∂ᶻU)
+            D.cache[:∂ᶻU], D.cache[:∂ᶻB] = _first_cheb(D.U, D.B, D.y, D.Dᶻ)
+        end
+
+    elseif s in (:∂ᶻᶻU, :∂ᶻᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
+        if !haskey(D.cache, :∂ᶻᶻU)
+            D.cache[:∂ᶻᶻU], D.cache[:∂ᶻᶻB] = _second_cheb(D.U, D.B, D.y, D.D²ᶻ)
+        end
 
     elseif s in (:∂ʸᶻU, :∂ʸᶻB) && D.gridtype in (:Mixed, :All)
         _ = getproperty(D, :∂ʸU)  # ensure Fourier block ready
@@ -163,11 +175,13 @@ function precompute!(D::Derivatives; which::Symbol = :All)
         error("Invalid value for `which`: $which")
 
     if which in (:Fourier, :All) && D.gridtype in (:Fourier, :Mixed, :All)
-        _ = D.∂ʸU   # triggers Fourier block lazily
+        _ = D.∂ʸU    # first derivative
+        _ = D.∂ʸʸU   # second derivative
     end
 
     if which in (:Chebyshev, :All) && D.gridtype in (:Chebyshev, :Mixed, :All)
-        _ = D.∂ᶻU   # triggers Chebyshev block lazily
+        _ = D.∂ᶻU    # first derivative
+        _ = D.∂ᶻᶻU   # second derivative
     end
 
     if which in (:Cross, :All) && D.gridtype in (:Mixed, :All)
@@ -176,4 +190,3 @@ function precompute!(D::Derivatives; which::Symbol = :All)
 
     return D
 end
-
