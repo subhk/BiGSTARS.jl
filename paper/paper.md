@@ -45,8 +45,7 @@ Although several open-source packages exist for one-dimensional stability analys
 
 
 ## Key features
-BiGSTARS.jl leverages Chebyshev-Fourier discretization to handle vertically bounded and horizontally periodic domains — an optimal configuration for linear stability analyses of geophysical flows. 
-The framework also provides flexible boundary condition handling, allowing different mathematical boundary types (e.g., Dirichlet, Neumann) for each variable. 
+BiGSTARS.jl leverages Chebyshev-Fourier discretization to handle vertically bounded and horizontally periodic domains — an optimal configuration for linear stability analyses of geophysical flows. The Chebyshev operators are constructed using Chebyshev–Gauss–Lobatto nodes, which are the extrema of first-kind Chebyshev polynomials, including the endpoints [@trefethen2000spectral]. Additionally, the framework offers flexible boundary condition handling, enabling the use of different types of mathematical boundary conditions (e.g., Dirichlet, Neumann) for each variable.
 
 Additionally, the package is based on the shift-and-invert technique, which enables the efficient computation of eigenvalues in targeted regions of the complex plane, crucial for obtaining the most unstable modes. Users can seamlessly switch among multiple Julia eigen-solver backends — `ArnoldiMethod.jl` [@Stoppels], `Arpack.jl` [@shah2018], and `KrylovKit.jl` [@haegeman2025] — with built-in performance benchmarking tools. To address convergence challenges in large problems, `BiGSTARS.jl` employs adaptive convergence strategies, including automatic shift adjustments and retry logic, thus reducing the need for manual parameter tuning.
 
