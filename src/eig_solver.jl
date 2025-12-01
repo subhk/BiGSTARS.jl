@@ -162,18 +162,17 @@ end
 # ==============================================================================
 
 """
-    solve_arnoldi_single(A, B, σ; config)
+    solve_arnoldi_single(op, σ; config)
 
-Single Arnoldi solve without retry logic.
+Single Arnoldi solve without retry logic. Expects a prebuilt shift-and-invert
+operator `op` for the current shift `σ` to avoid per-call allocations.
 """
-function solve_arnoldi_single(A, B, σ::Float64; config::SolverConfig)
-    op = construct_linear_map(A - σ * B, B)
-    
+function solve_arnoldi_single(op, σ::Float64; config::SolverConfig)
     decomp, history = partialschur(op;
-                                  nev=config.nev,
-                                  tol=config.tol,
-                                  restarts=config.maxiter,
-                                  which=config.which)
+                                   nev=config.nev,
+                                   tol=config.tol,
+                                   restarts=config.maxiter,
+                                   which=config.which)
     
     μ, Χ = partialeigen(decomp)
     λ = @. 1.0 / μ + σ
@@ -199,20 +198,19 @@ function solve_arpack_single(A, B, σ::Float64; config::SolverConfig)
 end
 
 """
-    solve_krylov_single(A, B, σ; config)
+    solve_krylov_single(op, σ; config)
 
-Single KrylovKit solve without retry logic.
+Single KrylovKit solve without retry logic. Expects a prebuilt shift-and-invert
+operator `op` for the current shift `σ` to avoid per-call allocations.
 """
-function solve_krylov_single(A, B, σ::Float64; config::SolverConfig)
-    op = construct_linear_map(A - σ * B, B)
-    
+function solve_krylov_single(op, σ::Float64; config::SolverConfig)
     λinv, Χ, info = eigsolve(op,
-                            rand(ComplexF64, size(A, 1)),
-                            1,
-                            config.which;
-                            maxiter=config.maxiter,
-                            krylovdim=config.krylovdim,
-                            verbosity=0)
+                             rand(ComplexF64, size(op, 1)),
+                             1,
+                             config.which;
+                             maxiter=config.maxiter,
+                             krylovdim=config.krylovdim,
+                             verbosity=0)
     
     λ = if config.which == :LR
         @. 1.0 / λinv + σ
@@ -246,6 +244,10 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
     config = solver.config
     history = ConvergenceHistory()
     
+    # Reusable buffers to avoid per-attempt allocations
+    A_shifted = solver.A + solver.B                 # establishes union sparsity pattern
+    temp      = Vector{eltype(A_shifted)}(undef, size(solver.A, 1))
+    
     # Generate shift attempts
     Δσs_up = [config.Δσ₀ * config.incre^(i-1) * abs(config.σ₀) for i in 1:config.n_tries]
     Δσs_dn = [-δ for δ in Δσs_up]
@@ -263,11 +265,15 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
         try
             # Dispatch to appropriate solver
             λ, Χ = if config.method == :Arnoldi
-                solve_arnoldi_single(solver.A, solver.B, σ; config=config)
+                A_shifted .= solver.A .- σ .* solver.B
+                op = construct_linear_map(factorize(A_shifted), solver.B, temp)
+                solve_arnoldi_single(op, σ; config=config)
             elseif config.method == :Arpack  
                 solve_arpack_single(solver.A, solver.B, σ; config=config)
             elseif config.method == :Krylov
-                solve_krylov_single(solver.A, solver.B, σ; config=config)
+                A_shifted .= solver.A .- σ .* solver.B
+                op = construct_linear_map(factorize(A_shifted), solver.B, temp)
+                solve_krylov_single(op, σ; config=config)
             else
                 throw(ArgumentError("Unknown method: $(config.method)"))
             end
