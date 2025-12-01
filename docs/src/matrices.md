@@ -9,8 +9,7 @@ The code uses **Chebyshev-Gauss-Lobatto collocation points**, defined by:
 xₖ = cos(πk/(n-1)),  k = 0, 1, ..., n-1,
 ```
 where `n` is the number of grid points.
-These are the extrema of the Chebyshev polynomial $T_{n-1}(x)$, 
-including both endpoints at $x = ± 1$ [trefethen2000spectral](@cite).
+These are the extrema of the Chebyshev polynomial of first kind [trefethen2000spectral](@cite).
 
 ### `chebdif(n::Int, m::Int)`
 
