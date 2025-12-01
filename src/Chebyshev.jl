@@ -66,9 +66,9 @@ function chebdif(n::Int, m::Int)
     # Build differentiation matrix recursively
     𝐃 = Matrix{Float64}(I, n, n)
     
-    @views for ℓ in 1:m
-        diagD = view(𝐃, diagind(𝐃))             # view to avoid copying diagonal
-        @. 𝐃 = ℓ * 𝐙 * (𝐂 * diagD' - 𝐃)          # fused elementwise operations
+    for ℓ in 1:m
+        diagD = diag(𝐃)                          # copy to avoid aliasing during update
+        @. 𝐃 = ℓ * 𝐙 * (𝐂 * diagD - 𝐃)           # elementwise, with diag broadcast across columns
         𝐃[𝐈] .= -sum(𝐃, dims=2)
     end
     
