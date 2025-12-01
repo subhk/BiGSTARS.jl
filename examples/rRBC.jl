@@ -225,7 +225,6 @@ function generalized_EigValProb(prob, grid, params)
     s₂ = size(I⁰, 2);
 
     ## the horizontal Laplacian operator: ∇ₕ² = ∂ʸʸ - k²
-    ∇ₕ² = SparseMatrixCSC(Zeros(n, n))
     ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
 
     ## Construct the 4th order derivative
