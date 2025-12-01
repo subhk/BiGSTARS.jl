@@ -66,15 +66,17 @@ function chebdif(n::Int, m::Int)
     # Build differentiation matrix recursively
     𝐃 = Matrix{Float64}(I, n, n)
     
-    for ℓ in 1:m
-        𝐃 = ℓ .* 𝐙 .* (𝐂 .* repeat(diag(𝐃), 1, n) .- 𝐃)
+    @views for ℓ in 1:m
+        diagD = view(𝐃, diagind(𝐃))             # view to avoid copying diagonal
+        @. 𝐃 = ℓ * 𝐙 * (𝐂 * diagD' - 𝐃)          # fused elementwise operations
         𝐃[𝐈] .= -sum(𝐃, dims=2)
     end
     
-    # Reverse for descending order
-    reverse!(𝐃);
+    # Reverse for descending order (in-place to avoid extra allocation)
+    reverse!(𝐃)
+    reverse!(x̂)
     
-    return reverse(x̂), 𝐃
+    return x̂, 𝐃
 end
 
 #══════════════════════════════════════════════════════════════════════════════#
@@ -225,4 +227,3 @@ end
 
 # Convenient operator overloading
 Base.:*(cd::ChebyshevDiffn, f::Vector) = derivative(cd, f, 1)
-

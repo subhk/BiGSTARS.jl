@@ -104,30 +104,49 @@ struct GEVPMatrices{TA<:Number, TB<:Number}
         TA_inf = eltype(first_row[1])
         TB_inf = eltype(Bblocks[row_labels[1]][1])
 
-        # 4) Allocate A, B
-        A = spzeros(TA_inf, n*N, m*N)
-        B = spzeros(TB_inf, n*N, m*N)
+        # 4) Assemble blocks by collecting triplets (avoids kron allocations)
+        A_rows = Int[]; A_cols = Int[]; A_vals = TA_inf[]
+        B_rows = Int[]; B_cols = Int[]; B_vals = TB_inf[]
 
-        # 5) Assemble blocks via sparse-kron
         for (i, lbl) in enumerate(row_labels)
             Ai_row = Ablocks[lbl]; Bi_row = Bblocks[lbl]
             for j in 1:m
-                Eij = sparse([i], [j], [one(Int)], n, m)
-                blockA = Ai_row[j]
-                blockB = Bi_row[j]
-                A_block = blockA isa SparseMatrixCSC ? blockA : sparse(blockA)
-                B_block = blockB isa SparseMatrixCSC ? blockB : sparse(blockB)
-                A += kron(Eij, A_block)
-                B += kron(Eij, B_block)
+                row_off = (i-1) * N
+                col_off = (j-1) * N
+
+                A_block = Ai_row[j]
+                B_block = Bi_row[j]
+
+                As = A_block isa SparseMatrixCSC ? A_block : sparse(A_block)
+                Bs = B_block isa SparseMatrixCSC ? B_block : sparse(B_block)
+
+                @inbounds for col in 1:size(As, 2)
+                    for nz in As.colptr[col]:(As.colptr[col+1]-1)
+                        push!(A_rows, As.rowval[nz] + row_off)
+                        push!(A_cols, col + col_off)
+                        push!(A_vals, As.nzval[nz])
+                    end
+                end
+
+                @inbounds for col in 1:size(Bs, 2)
+                    for nz in Bs.colptr[col]:(Bs.colptr[col+1]-1)
+                        push!(B_rows, Bs.rowval[nz] + row_off)
+                        push!(B_cols, col + col_off)
+                        push!(B_vals, Bs.nzval[nz])
+                    end
+                end
             end
         end
 
-        # 6) Block-row views
+        A = sparse(A_rows, A_cols, A_vals, n*N, m*N)
+        B = sparse(B_rows, B_cols, B_vals, n*N, m*N)
+
+        # 5) Block-row views
         row_labels = collect(keys(Ablocks))  # ensure correct order
         As = (; map(i -> row_labels[i] => view(A, (i-1)*N+1:i*N, :), 1:n)...)
         Bs = (; map(i -> row_labels[i] => view(B, (i-1)*N+1:i*N, :), 1:n)...)
 
-        # 7) Construct instance
+        # 6) Construct instance
         return new{TA_inf,TB_inf}(A, B, As, Bs)
     end
 end
