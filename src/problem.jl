@@ -175,16 +175,16 @@ function TwoDGrid(params::AbstractParams)
 
     T = eltype(Dʸ)
 
-   # Convert to mutable matrices to allow BCs
-    Dᶻᴰ  = Matrix(deepcopy(Dᶻ) )
-    D²ᶻᴰ = Matrix(deepcopy(D²ᶻ))
-    D³ᶻᴰ = Matrix(deepcopy(D⁴ᶻ))
-    D⁴ᶻᴰ = Matrix(deepcopy(D⁴ᶻ))
+   # Convert to mutable matrices to allow BCs (shallow copy is sufficient)
+    Dᶻᴰ  = copy(Dᶻ)
+    D²ᶻᴰ = copy(D²ᶻ)
+    D³ᶻᴰ = copy(D⁴ᶻ)
+    D⁴ᶻᴰ = copy(D⁴ᶻ)
 
-    Dᶻᴺ  = Matrix(deepcopy(Dᶻ) )
-    D²ᶻᴺ = Matrix(deepcopy(D²ᶻ))
-    D³ᶻᴺ = Matrix(deepcopy(D⁴ᶻ))
-    D⁴ᶻᴺ = Matrix(deepcopy(D⁴ᶻ))
+    Dᶻᴺ  = copy(Dᶻ)
+    D²ᶻᴺ = copy(D²ᶻ)
+    D³ᶻᴺ = copy(D⁴ᶻ)
+    D⁴ᶻᴺ = copy(D⁴ᶻ)
 
     #### Create the grid object
     grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
@@ -202,7 +202,6 @@ function TwoDGrid(params::AbstractParams)
 
     return grid
 end
-
 
 
 
