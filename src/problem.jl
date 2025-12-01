@@ -6,6 +6,10 @@ const SparseMat{T} = SparseMatrixCSC{T, Int}
 @inline sparse kron product for memory efficiency.
 """
 @inline function kron_s(A, B)
+    # kron(sparse, sparse) already returns a sparse matrix; avoid re-wrapping
+    if issparse(A) && issparse(B)
+        return kron(A, B)
+    end
     return sparse(kron(A, B))
 end
 
@@ -198,7 +202,6 @@ function TwoDGrid(params::AbstractParams)
 
     return grid
 end
-
 
 
 
