@@ -23,7 +23,7 @@ If something stops working or your code behaves unexpectedly after an update, fe
 We're more than happy to help you get your model up and running again.
 
 
-!!! warn "Julia 1.6 or newer required; Julia 1.10 or newer strongly encouraged"
+!!! warn "Julia 1.10 or newer required"
     The latest version of `BiGSTARS.jl` requires **at least Julia v1.6** to run.  
     Installing `BiGSTARS.jl` with an older version of Julia will instead install the latest version that is compatible with your Julia installation.
 

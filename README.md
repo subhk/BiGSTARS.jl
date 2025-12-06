@@ -35,7 +35,7 @@ julia> ]
 (@v1.11) pkg> instantiate
 ```
 
-BiGSTARS.jl requires **Julia 1.6** or newer. Continuous-integration tests currently run on **Julia 1.10** (the current long-term support), **Julia 1.11** and **Julia 1.12**.
+BiGSTARS.jl requires **Julia 1.10** or newer.
 
 
 ## Examples
