@@ -5,7 +5,6 @@ module BiGSTARS
     using StaticArrays
     using SparseArrays
     using SparseMatrixDicts
-    using SpecialFunctions
     using Parameters
     using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM
 
