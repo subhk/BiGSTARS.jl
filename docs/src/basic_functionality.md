@@ -4,25 +4,6 @@ A Julia utility library providing functions for eigenvalue analysis, matrix oper
 
 ## Core Functions
 
-### Array Utilities
-
-#### `myfindall(condition, x)`
-
-Custom implementation of `findall` that returns indices where a condition is satisfied.
-
-**Parameters:**
-- `condition`: Function that returns a boolean
-- `x`: Input array to search
-
-**Returns:**
-- `Vector{Int}`: Indices where condition is true
-
-**Example:**
-```julia
-indices = myfindall(x -> x > 5, [1, 6, 3, 8, 2])
-# Returns: [2, 4]
-```
-
 ### Eigenvalue Analysis
 
 #### `EigenvalueDisplay`

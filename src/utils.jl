@@ -4,16 +4,6 @@ using Tullio
 using Dierckx #: Spline1D, derivative, evaluate
 #using BasicInterpolators: BicubicInterpolator
 
-function myfindall(condition, x)
-    results = Int[]
-    for i in 1:length(x)
-        if condition(x[i])
-            push!(results, i)
-        end
-    end
-    return results
-end
-
 # # print the eigenvalues
 # function print_evals(λs, n)
 #     @printf "%i largest eigenvalues: \n" n
