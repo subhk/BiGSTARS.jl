@@ -8,7 +8,6 @@ using JLD2
 using Dierckx
 using Parameters: @with_kw
 using CairoMakie
-using Trapz
 
 using BiGSTARS
 using BiGSTARS: AbstractParams, Problem, OperatorI, TwoDGrid
