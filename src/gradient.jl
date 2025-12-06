@@ -186,7 +186,7 @@ function _spline_workspace(m::Int, k::Int)
         Vector{Float64}(undef, m),          # y buffer
         ones(Float64, m),                   # weights (all ones)
         Vector{Float64}(undef, nest),       # knots
-        Vector{Float64}(undef, nest),       # coeffs (upper bound)
+        Vector{Float64}(undef, nest),       # coefficients (upper bound)
         Vector{Float64}(undef, lwrk),       # work array
         Vector{Int32}(undef, nest),         # integer workspace
         k

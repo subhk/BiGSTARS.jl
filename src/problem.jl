@@ -35,7 +35,7 @@ struct Problem{Tg<:AbstractFloat}
     D²ʸ    :: SparseMat{Tg}
     D⁴ʸ    :: SparseMat{Tg}
 
-    # Chebychev with any BC
+    # Chebyshev with any BC
     Dᶻ     :: SparseMat{Tg}
     D²ᶻ    :: SparseMat{Tg}
     D⁴ᶻ    :: SparseMat{Tg}
@@ -178,12 +178,12 @@ function TwoDGrid(params::AbstractParams)
    # Convert to mutable matrices to allow BCs (shallow copy is sufficient)
     Dᶻᴰ  = copy(Dᶻ)
     D²ᶻᴰ = copy(D²ᶻ)
-    D³ᶻᴰ = copy(D⁴ᶻ)
+    D³ᶻᴰ = copy(D³ᶻ)
     D⁴ᶻᴰ = copy(D⁴ᶻ)
 
     Dᶻᴺ  = copy(Dᶻ)
     D²ᶻᴺ = copy(D²ᶻ)
-    D³ᶻᴺ = copy(D⁴ᶻ)
+    D³ᶻᴺ = copy(D³ᶻ)
     D⁴ᶻᴺ = copy(D⁴ᶻ)
 
     #### Create the grid object

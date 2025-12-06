@@ -177,7 +177,7 @@ function solve_Stone1971(k::Float64)
     # ### Construct grid and derivative operators
     grid  = TwoDGrid(params)
 
-    # ### Construct the necesary operator
+    # ### Construct the necessary operator
     ops  = OperatorI(params)
     prob = Problem(grid, ops)
 

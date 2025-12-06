@@ -53,7 +53,7 @@ The package documentation includes a collection of validated examples that illus
 
 <!-- ## Mathematics
 
-The package is designed to solve eigenvaue problem of the linearized Boussinesq equations of motion under the $f$-plane approximation,
+The package is designed to solve eigenvalue problem of the linearized Boussinesq equations of motion under the $f$-plane approximation,
 
 $$\frac{D \mathbf{u}}{Dt}
     + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
@@ -65,16 +65,16 @@ $$\frac{Db}{Dt} +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partia
 
 $$\nabla \cdot \mathbf{u} = 0, \label{eq:3} \tag{3}$$
 
-where $\mathbf{u}\equiv(u,v,w)$ are the perturbation velocity in the $x$, $y$ and $z$-direction, rescpectively, 
+where $\mathbf{u}\equiv(u,v,w)$ are the perturbation velocity in the $x$, $y$ and $z$-direction, respectively, 
 $p$ is the perturbation pressure, $b=-g\rho/\rho_0$ ($\rho$ is the density perturbation relative to the reference density $\rho_0$, 
 and $g$ is the gravitational acceleration). 
-The variables $U(y,z)$ is mean flow in the $x$-dircetion and $B(y,z)$ is the buoyancy of basic state, 
+The variables $U(y,z)$ is mean flow in the $x$-direction and $B(y,z)$ is the buoyancy of basic state, 
 which is in thermal-wind balance [@vallis2017atmospheric],
 $$\frac{\partial U}{\partial z} = -\frac{\partial B}{\partial y} \label{eq:4} \tag{4}$$.  
 For bi-global analysis, we assume normal mode solutions in the $x$-direction only,
 $$[\mathbf{u},p,b](x,y,z,t) = \mathfrak{R}[\tilde{\mathbf{u}},\tilde{p},\tilde{b}](y,z) e^{ikx+\lambda t} \label{eq:5} \tag{5}$$, 
-where $\mathfrak{R}$ denotes the real part, $k$ is the $x$-wavenumber and $\lambda$ is the complex frequncy with real part describes the 
-growthrate and imaginary part denotes the frequncy. The variables with superscript describes the eigenfunction. -->
+where $\mathfrak{R}$ denotes the real part, $k$ is the $x$-wavenumber and $\lambda$ is the complex frequency with real part describes the
+growthrate and imaginary part denotes the frequency. The variables with superscript describes the eigenfunction. -->
 
 
 # Acknowledgements

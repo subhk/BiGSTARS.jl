@@ -24,7 +24,7 @@ module BiGSTARS
 
     # 
     export
-       # Chebychev and Fourier differentiation matrices 
+       # Chebyshev and Fourier differentiation matrices
         ChebyshevDiffn,
         FourierDiffn,
 
