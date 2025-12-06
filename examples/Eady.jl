@@ -117,7 +117,6 @@
 using LazyGrids
 using LinearAlgebra
 using SparseArrays
-using FillArrays
 using Printf
 using JLD2
 using Parameters: @with_kw
@@ -179,7 +178,7 @@ function generalized_EigValProb(prob, grid, params)
     ∂ᶻB⁻¹  = @. 1.0/bs.∂ᶻB
     ∂ᶻB⁻²  = @. 1.0/(bs.∂ᶻB * bs.∂ᶻB)
 
-    ∂ʸQ::Array{Float64, 2}   = SparseMatrixCSC(Zeros(N, N)) # PV gradient is zero
+    ∂ʸQ = spzeros(N, N) # PV gradient is zero
 
     ## definition of perturbation PV, q = D₂³ᵈ{ψ}
     D₂³ᵈ = (1.0 * ∇ₕ²
@@ -220,20 +219,17 @@ function generalized_EigValProb(prob, grid, params)
     ##    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b
     ## ──────────────────────────────────────────────────────────────────────────────
 
-    B = SparseMatrixCSC(Zeros{ComplexF64}(s₁, s₂))
-    C = SparseMatrixCSC(Zeros{ Float64  }(s₁, s₂))
-
     ## ──────────────────────────────────────────────────────────────────────────────
     ## 4) Implementing boundary conditions
     ## ──────────────────────────────────────────────────────────────────────────────
     _, zi = ndgrid(1:1:params.Ny, 1:1:params.Nz)
     zi    = transpose(zi);
     zi    = zi[:];
-    bcᶻ⁻  = findall( x -> (x==1),         zi )      ## @ z=0  
+    bcᶻ⁻  = findall( x -> (x==1),         zi )      ## @ z=0
     bcᶻ⁺  = findall( x -> (x==params.Nz), zi )      ## @ z=1
 
-    ## Implementing boundary condition for 𝓛 matrix in the z-direction: 
-    B[:,1:1s₂] = 1.0im * params.k * DiagM(bs.U) * prob.Dᶻ - 1.0im * params.k * DiagM(bs.∂ᶻU) 
+    ## Implementing boundary condition for 𝓛 matrix in the z-direction:
+    B = 1.0im * params.k * DiagM(bs.U) * prob.Dᶻ - 1.0im * params.k * DiagM(bs.∂ᶻU) 
     
     ## Bottom boundary condition @ z=0  
     @. gevp.A[bcᶻ⁻, :] = B[bcᶻ⁻, :]
@@ -241,8 +237,8 @@ function generalized_EigValProb(prob, grid, params)
     ## Top boundary condition @ z = 1
     @. gevp.A[bcᶻ⁺, :] = B[bcᶻ⁺, :]
 
-    ## Implementing boundary condition for ℳ matrix in the z-direction: 
-    C[:,1:1s₂] = -1.0 * prob.Dᶻ
+    ## Implementing boundary condition for ℳ matrix in the z-direction:
+    C = -1.0 * prob.Dᶻ
 
     ## Bottom boundary condition @ z=0  
     @. gevp.B[bcᶻ⁻, :] = C[bcᶻ⁻, :]
