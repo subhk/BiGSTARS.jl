@@ -7,8 +7,6 @@ module BiGSTARS
     using SparseMatrixDicts
     using SpecialFunctions
     using Parameters
-    using BenchmarkTools
-
     using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM
 
     using Arpack
@@ -20,9 +18,7 @@ module BiGSTARS
     using Statistics
     using VectorInterface
 
-    using Reexport
-
-    # 
+    #
     export
        # Chebyshev and Fourier differentiation matrices
         ChebyshevDiffn,

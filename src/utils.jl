@@ -1,6 +1,5 @@
 using LinearAlgebra
 using Printf
-using Tullio
 using Dierckx #: Spline1D, derivative, evaluate
 #using BasicInterpolators: BicubicInterpolator
 
