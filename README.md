@@ -20,9 +20,11 @@ Bi-global stability analysis offers a pragmatic alternative between  1D (too ide
       <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
         <img alt="latest docs" src="https://img.shields.io/badge/documentation-dev%20-orange">
     </a>
+    <a href="https://doi.org/10.5281/zenodo.18385010">
+        <img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.18385010.svg">
+    </a>
 </p>
 
-  [![status](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d/status.svg)](https://joss.theoj.org/papers/f686c9125240b2a3b85b19dcecc25f5d)
 
 ## Installation
 
