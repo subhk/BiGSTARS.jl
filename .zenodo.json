@@ -1,0 +1,11 @@
+{
+    "title": "BiGSTARS.jl: A Julia package for bi-global stability analysis for rotating stratified flows",
+    "creators": [
+        {
+            "name": "Kar, Subhajit",
+            "orcid": "0000-0001-9737-3345",
+            "affiliation": "Tel Aviv University, Israel"
+        }
+    ],
+    "license": "MIT"
+}
