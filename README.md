@@ -23,6 +23,9 @@ Bi-global stability analysis offers a pragmatic alternative between  1D (too ide
     <a href="https://doi.org/10.5281/zenodo.18385010">
         <img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.18385010.svg">
     </a>
+    <a style="border-width:0" href="https://doi.org/10.21105/joss.09368">
+         <img src="https://joss.theoj.org/papers/10.21105/joss.09368/status.svg" alt="DOI badge" >
+    </a>
 </p>
 
 
