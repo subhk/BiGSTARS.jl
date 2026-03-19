@@ -185,11 +185,8 @@ S_dense = DiagM(U; sparse=false)
 # Sort by magnitude (descending)
 λs_sorted, χ_sorted = sort_evals(λs, χ, "M")
 
-# Remove spurious modes
-λs_clean, χ_clean = remove_spurious(λs_sorted, χ_sorted)
-
 # Display results
-print_evals(λs_clean)
+print_evals(λs_sorted)
 ```
 
 ### Inverse Laplacian Operations

@@ -256,13 +256,12 @@ function derivative!(𝒟::FourierDiffn{T}, m::Integer) where {T}
     
     # Compute new operator on canonical domain [0, 2π)
     _, Dₘ = FourierDiff(𝒟.n, m)
-    
+
     # Apply domain scaling: (2π/L)^m
-    scaling_factor = (2π / 𝒟.L)^m
-    
-    # Cache the scaled operator (ensure proper Toeplitz conversion)
-    𝒟.cache[m] = Toeplitz(T(scaling_factor) * T.(Dₘ))
-    
+    # Scale the Toeplitz column/row vectors directly to preserve O(n) storage
+    s = T((2π / 𝒟.L)^m)
+    𝒟.cache[m] = Toeplitz(s .* T.(Dₘ.vc), s .* T.(Dₘ.vr))
+
     return 𝒟.cache[m]
 end
 

@@ -111,7 +111,7 @@ struct ChebyshevDiffn{T<:Real}
     max_order  :: Int
     x          :: Vector{T}
     D₁         :: Matrix{T}
-    D₂         :: Matrix{T}
+    D₂         :: Union{Matrix{T}, Nothing}
     D₃         :: Union{Matrix{T}, Nothing}
     D₄         :: Union{Matrix{T}, Nothing}
 end
@@ -152,8 +152,7 @@ function ChebyshevDiffn(
     # Compute raw differentiation matrices on [-1,1]
     # ──────────────────────────────────────────────────────────────────────────
     x̂, D₁̂ = chebdif(n, 1)
-    _, D₂̂  = chebdif(n, 2)
-    
+    D₂̂ = max_order ≥ 2 ? chebdif(n, 2)[2] : nothing
     D₃̂ = max_order ≥ 3 ? chebdif(n, 3)[2] : nothing
     D₄̂ = max_order ≥ 4 ? chebdif(n, 4)[2] : nothing
     
@@ -169,7 +168,7 @@ function ChebyshevDiffn(
     
     # Apply appropriate scaling to each derivative order
     D₁ = α * D₁̂
-    D₂ = α^2 * D₂̂
+    D₂ = D₂̂ === nothing ? nothing : α^2 * D₂̂
     D₃ = D₃̂ === nothing ? nothing : α^3 * D₃̂
     D₄ = D₄̂ === nothing ? nothing : α^4 * D₄̂
     

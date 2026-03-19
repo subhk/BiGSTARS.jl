@@ -100,8 +100,8 @@ function remove_evals(λs, χ, lower, higher, which)
         arg = findall( (lower .≤ real(λs)) .& (real(λs) .≤ higher) )
     end
     
-    if which == "M" # absolute magnitude 
-        arg = findall( abs.(λs) .≤ higher )
+    if which == "M" # absolute magnitude
+        arg = findall( (lower .≤ abs.(λs)) .& (abs.(λs) .≤ higher) )
     end
     
     χ  = χ[:,arg]
@@ -120,12 +120,10 @@ end
 # end
 
 function inverse_Lap_hor(∇ₕ²)
-    Qm, Rm = qr(Matrix(∇ₕ²)) # need to convert to full matrix
-    invR   = inv(Rm) 
-    # by sparsing the matrix speeds up matrix-matrix multiplication 
-    Qm     = sparse(Qm) 
+    Qm, Rm = qr(Matrix(∇ₕ²))
+    Qm     = sparse(Qm)
     Qᵀ     = transpose(Qm)
-    H      = (invR * Qᵀ)
+    H      = Rm \ Matrix(Qᵀ)
     return H
 end
 
@@ -138,20 +136,18 @@ end
 
 struct InverseLaplace{T}
     Qᵀ::SparseMatrixCSC{T,Int}
-    invR::Matrix{T}
+    R::Matrix{T}
 end
 
 function InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T
     F    = qr(Matrix(∇ₕ²))
     Q    = sparse(Matrix(F.Q))  # force sparse Q
-    R    = F.R
-    invR = inv(R)
-    return InverseLaplace{T}(Q', invR)
+    return InverseLaplace{T}(Q', Matrix(F.R))
 end
 
-"""    
+"""
     H = InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T<:AbstractFloat
-    
+
     # Suppose ∇ₕ² is your horizontal Laplacian matrix
     ∇ₕ² = your_matrix_here
     H = InverseLaplace(∇ₕ²)
@@ -161,7 +157,7 @@ end
     u = H(x)  # equivalent to H * x
     """
 @inline function (H::InverseLaplace)(x::AbstractVector{T}) where T
-    return H.invR * (H.Qᵀ * x)
+    return H.R \ (H.Qᵀ * x)
 end
 
 
@@ -174,6 +170,7 @@ end
 
 function ∇f(f::AbstractVector{T}, x::AbstractVector{T}) where T<:AbstractFloat
     @assert length(f) == length(x)
+    @assert length(x) ≥ 9 "∇f requires at least 9 points (uses 8th-order central stencil)"
     dx = x[2:end] .- x[1:end-1]
     @assert std(dx) ≤ 1.0e-6 "x must be uniformly spaced"
     Δx = dx[1]

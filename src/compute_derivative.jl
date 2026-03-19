@@ -34,33 +34,46 @@ mutable struct Derivatives{T}
     Dᶻ       :: Union{AbstractMatrix{T}, Nothing}
     D²ᶻ      :: Union{AbstractMatrix{T}, Nothing}
     gridtype :: Symbol
+    ydim     :: Int
     cache    :: Dict{Symbol,Any}
 end
 
 function Derivatives(U::AbstractMatrix{T}, B::AbstractMatrix{T}, y::AbstractVector{T};
                      Dᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
                      D²ᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
-                     gridtype::Symbol=:Mixed) where {T}
+                     gridtype::Symbol=:Mixed,
+                     ydim::Union{Int, Nothing}=nothing) where {T}
 
     if gridtype in (:Chebyshev, :Mixed, :All)
         @assert Dᶻ  !== nothing "Chebyshev derivatives requested but `Dᶻ` is missing"
         @assert D²ᶻ !== nothing "Chebyshev derivatives requested but `D²ᶻ` is missing"
     end
 
-    Derivatives{T}(U, B, y, Dᶻ, D²ᶻ, gridtype, Dict{Symbol,Any}())
+    # Infer ydim if not provided; error on ambiguous (square) case
+    if ydim === nothing
+        if size(U, 1) == size(U, 2)
+            error("Ambiguous layout: U is square ($(size(U,1))×$(size(U,2))). " *
+                  "Specify `ydim=1` if rows are y-points, or `ydim=2` if columns are.")
+        end
+        ydim = size(U, 1) == length(y) ? 1 : 2
+    end
+    @assert ydim in (1, 2) "ydim must be 1 or 2"
+
+    Derivatives{T}(U, B, y, Dᶻ, D²ᶻ, gridtype, ydim, Dict{Symbol,Any}())
 end
 
 # ────────────────────────────────────────────────────────────────────────────────
 # User‑facing constructors
 # ────────────────────────────────────────────────────────────────────────────────
 
-compute_derivatives(U::AbstractMatrix{T}, 
-                    B::AbstractMatrix{T}, 
+compute_derivatives(U::AbstractMatrix{T},
+                    B::AbstractMatrix{T},
                     y::AbstractVector{T};
                     Dᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
                     D²ᶻ::Union{AbstractMatrix{T}, Nothing}=nothing,
-                    gridtype::Symbol=:Mixed) where {T} =
-    Derivatives(U, B, y; Dᶻ=Dᶻ, D²ᶻ=D²ᶻ, gridtype=gridtype)
+                    gridtype::Symbol=:Mixed,
+                    ydim::Union{Int, Nothing}=nothing) where {T} =
+    Derivatives(U, B, y; Dᶻ=Dᶻ, D²ᶻ=D²ᶻ, gridtype=gridtype, ydim=ydim)
 
 # Legacy tuple‑return API for older BiGSTARS code
 function compute_derivatives_legacy(U::AbstractMatrix{T}, 
@@ -77,32 +90,39 @@ end
 # Helper kernels (BLAS‑friendly eager computations)
 # ────────────────────────────────────────────────────────────────────────────────
 
-_fourier(U, B, y, order) = begin
-    dim = (size(U,1) == length(y)) ? 1 : 2
-    (gradient(U, y; dims=dim, order=order),
-     gradient(B, y; dims=dim, order=order))
+_fourier(U, B, y, ydim, order) = begin
+    (gradient(U, y; dims=ydim, order=order),
+     gradient(B, y; dims=ydim, order=order))
 end
 
-_first_fourier  = (U,B,y) -> _fourier(U,B,y,1)
-_second_fourier = (U,B,y) -> _fourier(U,B,y,2)
+_first_fourier(U, B, y, ydim)  = _fourier(U, B, y, ydim, 1)
+_second_fourier(U, B, y, ydim) = _fourier(U, B, y, ydim, 2)
 
-function _first_cheb(U, B, y, Dᶻ)
-    if size(U,1) == length(y)
-        return U * Dᶻ, B * Dᶻ  # multiply on right (faster contiguous rows)
+function _first_cheb(U, B, ydim, Dᶻ)
+    if ydim == 1
+        # y along rows, z along columns → apply Dᶻ on the right
+        return U * Dᶻ, B * Dᶻ
     else
+        # y along columns, z along rows → apply Dᶻ on the left
         return Dᶻ * U, Dᶻ * B
     end
 end
 
-function _second_cheb(U, B, y, D²ᶻ)
-    if size(U,1) == length(y)
+function _second_cheb(U, B, ydim, D²ᶻ)
+    if ydim == 1
         return U * D²ᶻ, B * D²ᶻ
     else
         return D²ᶻ * U, D²ᶻ * B
     end
 end
 
-_cross(FyU, FyB, y, Dᶻ) = size(FyU,1) == length(y) ? (FyU * Dᶻ, FyB * Dᶻ) : (Dᶻ * FyU, Dᶻ * FyB)
+function _cross(FyU, FyB, ydim, Dᶻ)
+    if ydim == 1
+        return FyU * Dᶻ, FyB * Dᶻ
+    else
+        return Dᶻ * FyU, Dᶻ * FyB
+    end
+end
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Lazy property access with caching and alias support
@@ -113,7 +133,7 @@ function Base.getproperty(D::Derivatives, s::Symbol)
     s = get(_ALIASES, s, s)
 
     # direct fields
-    if s in (:U, :B, :y, :Dᶻ, :D²ᶻ, :gridtype, :cache)
+    if s in (:U, :B, :y, :Dᶻ, :D²ᶻ, :gridtype, :ydim, :cache)
         return getfield(D, s)
     end
 
@@ -122,30 +142,32 @@ function Base.getproperty(D::Derivatives, s::Symbol)
         return D.cache[s]
     end
 
+    ydim = getfield(D, :ydim)
+
     # compute required block lazily
     if s in (:∂ʸU, :∂ʸB) && D.gridtype in (:Fourier, :Mixed, :All)
         if !haskey(D.cache, :∂ʸU)
-            D.cache[:∂ʸU], D.cache[:∂ʸB] = _first_fourier(D.U, D.B, D.y)
+            D.cache[:∂ʸU], D.cache[:∂ʸB] = _first_fourier(D.U, D.B, D.y, ydim)
         end
 
     elseif s in (:∂ʸʸU, :∂ʸʸB) && D.gridtype in (:Fourier, :Mixed, :All)
         if !haskey(D.cache, :∂ʸʸU)
-            D.cache[:∂ʸʸU], D.cache[:∂ʸʸB] = _second_fourier(D.U, D.B, D.y)
+            D.cache[:∂ʸʸU], D.cache[:∂ʸʸB] = _second_fourier(D.U, D.B, D.y, ydim)
         end
 
     elseif s in (:∂ᶻU, :∂ᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
         if !haskey(D.cache, :∂ᶻU)
-            D.cache[:∂ᶻU], D.cache[:∂ᶻB] = _first_cheb(D.U, D.B, D.y, D.Dᶻ)
+            D.cache[:∂ᶻU], D.cache[:∂ᶻB] = _first_cheb(D.U, D.B, ydim, D.Dᶻ)
         end
 
     elseif s in (:∂ᶻᶻU, :∂ᶻᶻB) && D.gridtype in (:Chebyshev, :Mixed, :All)
         if !haskey(D.cache, :∂ᶻᶻU)
-            D.cache[:∂ᶻᶻU], D.cache[:∂ᶻᶻB] = _second_cheb(D.U, D.B, D.y, D.D²ᶻ)
+            D.cache[:∂ᶻᶻU], D.cache[:∂ᶻᶻB] = _second_cheb(D.U, D.B, ydim, D.D²ᶻ)
         end
 
     elseif s in (:∂ʸᶻU, :∂ʸᶻB) && D.gridtype in (:Mixed, :All)
         _ = getproperty(D, :∂ʸU)  # ensure Fourier block ready
-        D.cache[:∂ʸᶻU], D.cache[:∂ʸᶻB] = _cross(D.cache[:∂ʸU], D.cache[:∂ʸB], D.y, D.Dᶻ)
+        D.cache[:∂ʸᶻU], D.cache[:∂ʸᶻB] = _cross(D.cache[:∂ʸU], D.cache[:∂ʸB], ydim, D.Dᶻ)
 
     else
         error("Property `$s` not available for gridtype $(D.gridtype)")

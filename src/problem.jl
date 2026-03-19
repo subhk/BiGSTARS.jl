@@ -33,22 +33,26 @@ struct Problem{Tg<:AbstractFloat}
     # Fourier in y
     Dʸ     :: SparseMat{Tg}
     D²ʸ    :: SparseMat{Tg}
+    D³ʸ    :: SparseMat{Tg}
     D⁴ʸ    :: SparseMat{Tg}
 
     # Chebyshev with any BC
     Dᶻ     :: SparseMat{Tg}
     D²ᶻ    :: SparseMat{Tg}
+    D³ᶻ    :: SparseMat{Tg}
     D⁴ᶻ    :: SparseMat{Tg}
-
-    # Chebyshev in z (Neumann BC)
-    Dᶻᴺ    :: SparseMat{Tg}
-    D²ᶻᴺ   :: SparseMat{Tg}
-    D⁴ᶻᴺ   :: SparseMat{Tg}
 
     # Chebyshev in z (Dirichlet BC)
     Dᶻᴰ    :: SparseMat{Tg}
     D²ᶻᴰ   :: SparseMat{Tg}
+    D³ᶻᴰ   :: SparseMat{Tg}
     D⁴ᶻᴰ   :: SparseMat{Tg}
+
+    # Chebyshev in z (Neumann BC)
+    Dᶻᴺ    :: SparseMat{Tg}
+    D²ᶻᴺ   :: SparseMat{Tg}
+    D³ᶻᴺ   :: SparseMat{Tg}
+    D⁴ᶻᴺ   :: SparseMat{Tg}
 
     # Mixed
     Dʸᶻᴰ   :: SparseMat{Tg}
@@ -74,21 +78,25 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
     # For Fourier differentiation matrix
     Dʸ      = kron_s(grid.Dʸ,  cache.Iᶻ)
     D²ʸ     = kron_s(grid.D²ʸ, cache.Iᶻ)
+    D³ʸ     = kron_s(grid.D³ʸ, cache.Iᶻ)
     D⁴ʸ     = kron_s(grid.D⁴ʸ, cache.Iᶻ)
 
     # Kronecker products: no BC
     Dᶻ      = kron_s(cache.Iʸ, grid.Dᶻ )
     D²ᶻ     = kron_s(cache.Iʸ, grid.D²ᶻ)
+    D³ᶻ     = kron_s(cache.Iʸ, grid.D³ᶻ)
     D⁴ᶻ     = kron_s(cache.Iʸ, grid.D⁴ᶻ)
 
     # Kronecker products: Dirichlet
     Dᶻᴰ     = kron_s(cache.Iʸ, grid.Dᶻᴰ )
     D²ᶻᴰ    = kron_s(cache.Iʸ, grid.D²ᶻᴰ)
+    D³ᶻᴰ    = kron_s(cache.Iʸ, grid.D³ᶻᴰ)
     D⁴ᶻᴰ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴰ)
 
     # Kronecker products: Neumann
     Dᶻᴺ     = kron_s(cache.Iʸ, grid.Dᶻᴺ)
     D²ᶻᴺ    = kron_s(cache.Iʸ, grid.D²ᶻᴺ)
+    D³ᶻᴺ    = kron_s(cache.Iʸ, grid.D³ᶻᴺ)
     D⁴ᶻᴺ    = kron_s(cache.Iʸ, grid.D⁴ᶻᴺ)
 
     # Mixed derivatives
@@ -97,10 +105,10 @@ function Problem(grid::AbstractGrid{T, Ty, Tm},
     D²ʸ²ᶻᴰ  = kron_s(grid.D²ʸ,  grid.D²ᶻᴰ)
 
     #### Create the grid object
-    prob = Problem{T}(Dʸ, D²ʸ, D⁴ʸ,
-                    Dᶻ, D²ᶻ, D⁴ᶻ,
-                    Dᶻᴺ, D²ᶻᴺ, D⁴ᶻᴺ,
-                    Dᶻᴰ, D²ᶻᴰ, D⁴ᶻᴰ,
+    prob = Problem{T}(Dʸ, D²ʸ, D³ʸ, D⁴ʸ,
+                    Dᶻ, D²ᶻ, D³ᶻ, D⁴ᶻ,
+                    Dᶻᴰ, D²ᶻᴰ, D³ᶻᴰ, D⁴ᶻᴰ,
+                    Dᶻᴺ, D²ᶻᴺ, D³ᶻᴺ, D⁴ᶻᴺ,
                     Dʸᶻᴰ, Dʸ²ᶻᴰ, D²ʸ²ᶻᴰ
     )
 
@@ -109,7 +117,7 @@ end
 
 
 
-struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
+mutable struct TwoDGrid{T<:AbstractFloat, Ty, Tm} <: AbstractGrid{T, Ty, Tm}
     "Number of grid points in the y-direction"  
     Ny::Int
     "Number of grid points in the z-direction"
@@ -156,22 +164,22 @@ function TwoDGrid(params::AbstractParams)
     L  = params.L
     H  = params.H
 
-    # setup Fourier differentiation matrices  
-    fd  = FourierDiffn(Ny; L = L) 
+    # setup Fourier differentiation matrices
+    fd  = FourierDiffn(Ny; L = L)
     y   = fd.x
-    Dʸ  = fd.D₁
-    D²ʸ = fd.D₂
-    D³ʸ = fd.D₃
-    D⁴ʸ = fd.D₄     
+    Dʸ  = sparse(fd.D₁)
+    D²ʸ = sparse(fd.D₂)
+    D³ʸ = sparse(fd.D₃)
+    D⁴ʸ = sparse(fd.D₄)
 
 
     # Chebyshev in the z-direction
     cd  = ChebyshevDiffn(Nz, [0.0, H], 4)
     z   = cd.x
-    Dᶻ  = cd.D₁
-    D²ᶻ = cd.D₂
-    D³ᶻ = cd.D₃
-    D⁴ᶻ = cd.D₄
+    Dᶻ  = sparse(cd.D₁)
+    D²ᶻ = sparse(cd.D₂)
+    D³ᶻ = sparse(cd.D₃)
+    D⁴ᶻ = sparse(cd.D₄)
 
     T = eltype(Dʸ)
 
@@ -187,7 +195,7 @@ function TwoDGrid(params::AbstractParams)
     D⁴ᶻᴺ = copy(D⁴ᶻ)
 
     #### Create the grid object
-    grid = TwoDGrid{T, typeof(y), typeof(Dʸ)}(
+    grid = TwoDGrid{T, typeof(y), SparseMatrixCSC{T, Int}}(
         Ny, Nz, L, H, y, z,
         Dʸ, D²ʸ, D³ʸ, D⁴ʸ,
         Dᶻ, D²ᶻ, D³ᶻ, D⁴ᶻ,

@@ -189,7 +189,7 @@ function solve_Stone1971(k::Float64)
 
     @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
 
-    return abs(λ.re - λₜ) < 1e-3
+    return abs(real(λ) - λₜ) < 1e-3
 
 end
 nothing #hide

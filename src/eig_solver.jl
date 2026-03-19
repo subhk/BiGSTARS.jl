@@ -212,11 +212,7 @@ function solve_krylov_single(op, σ::Float64; config::SolverConfig)
                              krylovdim=config.krylovdim,
                              verbosity=0)
     
-    λ = if config.which == :LR
-        @. 1.0 / λinv + σ
-    else
-        @. 1.0 / λinv
-    end
+    λ = @. 1.0 / λinv + σ
     
     return sort_eigenvalues!(λ, stack(unwrapvec, Χ), config.sortby; rev=true)
 end
@@ -412,13 +408,13 @@ function compare_methods!(solver::EigenSolver;
             fastest = minimum(m -> results[m].solve_time, successful_methods)
             fastest_method = findfirst(m -> results[m].solve_time == fastest, successful_methods)
             println("   Successful methods: $successful_methods")
-            println("   Fastest method: $fastest_method ($(fastest:.3f)s)")
-            
+            @printf("   Fastest method: %s (%.3fs)\n", fastest_method, fastest)
+
             # Check consistency
             eigenvals = [results[m].eigenvalues[1] for m in successful_methods]
             if length(eigenvals) > 1
                 max_diff = maximum(abs(λ - eigenvals[1]) for λ in eigenvals)
-                println("   Max eigenvalue difference: $(max_diff:.2e)")
+                @printf("   Max eigenvalue difference: %.2e\n", max_diff)
             end
         else
             println("   ❌ No methods converged successfully")

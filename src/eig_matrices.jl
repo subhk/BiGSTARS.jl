@@ -100,9 +100,12 @@ struct GEVPMatrices{TA<:Number, TB<:Number}
         @assert length(Bblocks[row_labels[1]]) == m "Ablocks/Bblocks mismatch"
         N = size(first_row[1], 1)
 
-        # 3) Infer TA, TB
-        TA_inf = eltype(first_row[1])
-        TB_inf = eltype(Bblocks[row_labels[1]][1])
+        # 3) Infer TA, TB and promote to common type
+        TA_raw = eltype(first_row[1])
+        TB_raw = eltype(Bblocks[row_labels[1]][1])
+        Tcommon = promote_type(TA_raw, TB_raw)
+        TA_inf = Tcommon
+        TB_inf = Tcommon
 
         # 4) Assemble blocks by collecting triplets (avoids kron allocations)
         A_rows = Int[]; A_cols = Int[]; A_vals = TA_inf[]
