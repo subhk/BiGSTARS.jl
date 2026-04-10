@@ -1,75 +1,117 @@
-# Visualization
+# Post-Processing and Visualization
 
-This document presents a Julia implementation for visualizing eigenfunctions from 
-the stability analysis using the script `examples/visualization.jl`.
+## Computing Fields from Eigenvectors
 
-## Overview
+After solving the eigenvalue problem, use `@compute` to evaluate any expression on the eigenvector fields. The syntax is the same DSL used for defining equations.
 
-The code performs eigenfunction analysis for a two-dimensional geophysical flow problem, computing velocity components and plotting the real parts of perturbation fields. 
-
-## Key Components
-
-### Parameters Structure
-
-The analysis uses a comprehensive parameter set from the Stone example:
+### Setup
 
 ```julia
-@with_kw mutable struct Params{T} <: AbstractParams
-    L::T = 1.0          # horizontal domain size
-    H::T = 1.0          # vertical domain size
-    Ri::T = 1.0         # Richardson number 
-    ε::T = 0.1          # aspect ratio ε ≡ H/L
-    k::T = 0.1          # along-front wavenumber
-    E::T = 1.0e-8       # Ekman number 
-    Ny::Int64 = 24      # no. of y-grid points
-    Nz::Int64 = 20      # no. of z-grid points
+cache = discretize(prob)
+results = solve(cache, [k_val]; sigma_0=0.02)
+
+# Set up the post-processing context:
+@compute_setup cache results[1].eigenvectors[:, 1] k_val
+```
+
+### Evaluate Expressions
+
+```julia
+# Reconstruct velocity components:
+@compute v = -dy(dz(w)) + dx(zeta)
+@compute u = -dx(dz(w)) - dy(zeta)
+
+# Derived quantities:
+@compute vorticity = dx(dx(psi)) + dy(dy(psi))
+@compute buoyancy = dz(psi)
+
+# Expressions with parameters and substitutions:
+@compute momentum_flux = U * dy(b) - E * D2(zeta)
+
+# Products of fields (nonlinear):
+@compute buoyancy_flux = w * b
+@compute kinetic_energy = u * u + v * v + eps2 * w * w
+```
+
+All DSL features work inside `@compute`: derivatives (`dx`, `dy`, `dz`), parameters, substitutions, and derived variables.
+
+### Multiple Eigenmodes
+
+Switch eigenvector to compute fields for a different mode:
+
+```julia
+# Most unstable mode:
+@compute_setup cache results[1].eigenvectors[:, 1] k_val
+@compute v1 = -dy(dz(w)) + dx(zeta)
+
+# Second mode:
+@compute_setup cache results[1].eigenvectors[:, 2] k_val
+@compute v2 = -dy(dz(w)) + dx(zeta)
+```
+
+### Different Wavenumbers
+
+```julia
+for (i, k) in enumerate(k_values)
+    @compute_setup cache results[i].eigenvectors[:, 1] k
+    @compute v = -dy(dz(w)) + dx(zeta)
+    # ... plot v at each k
 end
 ```
 
-### Velocity Calculation
+## Reconstructing Derived Variables
 
-The code computes horizontal velocity components (u, v) from the vertical velocity (w) and vorticity (ζ) using the relations:
-
-- **u-component**: `-∇ₕ²ũ = ik∂ᶻw̃ + ∂ʸζ̃`
-- **v-component**: `-∇ₕ²ṽ = ∂ʸᶻw̃ - ikζ̃`
-
-### Normalization
-
-The perturbation fields are normalized so that the kinetic energy equals unity:
+For variables defined via `@derive`, use `reconstruct`:
 
 ```julia
-KE = 0.5 * (|u|² + |v|² + ε²|w|²)
+v_coeffs = reconstruct(cache, prob, eigvec, k_val, :v)
 ```
 
-This ensures consistent comparison between different eigenmode solutions.
-
-## Visualization Output
-
-The main plotting function `plot_eigenfunctions!()` generates a 2×2 subplot arrangement showing the real parts of the perturbation fields:
-
-### Expected Figure Structure
-
-The visualization displays four contour plots arranged as follows:
-
-- **(a) Real part of u-velocity perturbation** - Shows horizontal velocity component in x-direction
-- **(b) Real part of v-velocity perturbation** - Shows horizontal velocity component in y-direction  
-- **(c) Real part of w-velocity perturbation** - Shows vertical velocity component
-- **(d) Real part of vorticity perturbation** - Shows the vorticity field
-
-### Sample Output Visualization
-
-Here's what the typical eigenfunction structure looks like for the Stone example:
-![Alt text](eigfun_stone.png)
-
-## Usage Example
+Or get all fields at once:
 
 ```julia
-# Basic usage - plot and display
-plot_eigenfunctions!()
-
-# Save the figure
-plot_eigenfunctions!(save_plot=true, output_name="my_eigenfunctions.png")
-
-# Custom figure size
-plot_eigenfunctions!(figure_size=(2400, 1536), save_plot=true)
+fields = reconstruct_all(cache, prob, eigvec, k_val)
+# fields[:w], fields[:zeta], fields[:b] — from eigenvector
+# fields[:v] — reconstructed via @derive inverse operator
 ```
+
+## Converting to Physical Space
+
+Results from `@compute` are in spectral coefficient space. Convert for plotting:
+
+```julia
+z = gridpoints(domain, :z)
+v_physical = to_physical(v, :chebyshev; x=z)
+
+y = gridpoints(domain, :y)
+f_physical = to_physical(f, :fourier)
+```
+
+## Complete Post-Processing Example
+
+```julia
+using BiGSTARS
+
+# ... (define and solve the problem) ...
+cache = discretize(prob)
+results = solve(cache, [0.1]; sigma_0=0.02)
+
+# Post-process the most unstable mode:
+@compute_setup cache results[1].eigenvectors[:, 1] 0.1
+
+# Velocity reconstruction:
+@compute v = -dy(dz(w)) + dx(zeta)
+@compute u = -dx(dz(w)) - dy(zeta)
+
+# Convert to physical space for plotting:
+z = gridpoints(domain, :z)
+v_phys = to_physical(v, :chebyshev; x=z)
+u_phys = to_physical(u, :chebyshev; x=z)
+w_phys = to_physical(reconstruct_all(cache, prob, results[1].eigenvectors[:, 1], 0.1)[:w], :chebyshev; x=z)
+```
+
+## Sample Output
+
+Typical eigenfunction structure from the Stone (1971) example:
+
+![Eigenfunction visualization](eigfun_stone.png)
