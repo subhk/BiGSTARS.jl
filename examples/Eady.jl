@@ -166,13 +166,13 @@ function solve_eady(cache, k_values, Ri)
             solve!(solver; verbose=false)
             λ, _ = get_results(solver)
             growth_rates[i] = real(λ[1])
-            sigma_shift = real(λ[1])  # adapt shift for next wavenumber
+            sigma_shift = real(λ[1])  ## adapt shift for next wavenumber
         catch
             growth_rates[i] = NaN
         end
     end
 
-    # Results
+    ## Results
     valid_idx = findall(!isnan, growth_rates)
     if !isempty(valid_idx)
         idx_max = valid_idx[argmax(growth_rates[valid_idx])]
@@ -182,7 +182,7 @@ function solve_eady(cache, k_values, Ri)
         println("No wavenumber converged.")
     end
 
-    # Compare with analytical Eady solution
+    ## Compare with analytical Eady solution
     println("\nComparison with Eady (1949) analytical solution:")
     for k_test in [0.1, 0.5, 1.0, 1.5]
         mu = k_test * sqrt(Ri)
