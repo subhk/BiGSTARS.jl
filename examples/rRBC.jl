@@ -242,14 +242,14 @@ function solve_rRBC(k_val::Float64)
     
     cache = discretize(prob)
 
-    # For rRBC, the critical Ra is the smallest positive eigenvalue.
-    # nev=10 finds several eigenvalues so we can filter for the physical one.
+    ## For rRBC, the critical Ra is the smallest positive eigenvalue.
+    ## nev=10 finds several eigenvalues so we can filter for the physical one.
     A, B = assemble(cache, k_val)
     solver = EigenSolver(A, B; σ₀=10.0, method=:Arnoldi, nev=10, which=:LM, sortby=:R)
     solve!(solver)
     λ, Χ = get_results(solver)
 
-    # Filter for positive real eigenvalues (Ra must be real and positive)
+    ## Filter for positive real eigenvalues (Ra must be real and positive)
     λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")
     λ_sorted, _ = sort_evals(λ, Χ, :R; rev=false)
     print_evals(complex.(λ_sorted))
@@ -257,7 +257,7 @@ function solve_rRBC(k_val::Float64)
     Ra_numerical = real(λ_sorted[1])
     @printf "Numerical critical Ra: %1.4e\n" Ra_numerical
 
-    # Theoretical results from Chandrasekhar (1961)
+    ## Theoretical results from Chandrasekhar (1961)
     Ra_theory = 189.7
     @printf "Analytical solution of critical Ra: %1.4e\n" Ra_theory
     @printf "Relative error: %1.4e\n" abs(Ra_numerical - Ra_theory) / Ra_theory
