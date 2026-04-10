@@ -121,24 +121,18 @@ makedocs(
     pages     = Any[
                 "Home"                          => "index.md",
                 "Installation instructions"     => "installation_instructions.md",
-                "Differentiation matrix"        => "matrices.md",
-                "Shift-and-Invert Method"       => "method.md",
+                "Equation DSL"                  => "equation_dsl.md",
+                "Spectral Operators"            => "matrices.md",
+                "Eigenvalue Solver"             => "method.md",
                 "Utility functions"             => "basic_functionality.md",
                 "Examples"                      => Any[
-                    "Stone"                     => "literated/Stone1971.md", 
                     "Eady"                      => "literated/Eady.md",
-                    "rotating RBC"              => "literated/rRBC.md",
+                    "Stone (1971)"              => "literated/Stone1971.md",
+                    "Rotating RBC"              => "literated/rRBC.md",
                 ],
                 "Visualization"                 => "visualization.md",
-                # "Modules"                   => Any[
-                #     "Stone1971 API"         => "modules/Stone1971.md",
-                #     # "rRBC API"              => "modules/rRBC.md"
-                # ],
-                # "Examples" => [ 
-                #     "literated/Stone1971.md",
-                # ],
-                "Contributor's Guide"       => "contributing.md",
-                "References"                => "references.md"
+                "Contributor's Guide"           => "contributing.md",
+                "References"                    => "references.md"
             ]
 )
 

@@ -17,7 +17,6 @@ module BiGSTARS
         Fourier,
         Chebyshev,
         gridpoints,
-        meshgrid,
 
         # Problem types
         EVP,
@@ -26,8 +25,6 @@ module BiGSTARS
         @equation,
         @bc,
         @substitution,
-        @derive,
-        @derive_bc,
 
         # Discretization and solving
         discretize,
@@ -37,11 +34,6 @@ module BiGSTARS
         AssemblyWorkspace,
         solve,
         DiscretizationCache,
-        reconstruct,
-        reconstruct_all,
-        evaluate_field,
-        @compute,
-        @compute_setup,
 
         # Eigenvalue solver
         EigenSolver,
@@ -91,7 +83,6 @@ module BiGSTARS
     # Discretization and solving
     include("discretize.jl")
     include("solve.jl")
-    include("reconstruct.jl")
 
     # Utilities
     include("utils.jl")

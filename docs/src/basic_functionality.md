@@ -1,218 +1,108 @@
-# utils.jl Documentation
+# Utility Functions
 
-A Julia utility library providing functions for eigenvalue analysis, matrix operations, numerical differentiation, and sparse matrix construction.
+## Spectral Differentiation
 
-## Core Functions
+### `differentiate(f, domain, coord; order=1, filter=:none)`
 
-### Eigenvalue Analysis
+Spectrally differentiate a function given as physical-space values on the grid. This is the primary tool for computing derivatives of background profiles.
 
-#### `EigenvalueDisplay`
+**Chebyshev directions** — converts to Chebyshev T coefficients, applies the ultraspherical differentiation chain, and converts back to physical space.
 
-Custom struct for formatted eigenvalue output with real and imaginary parts.
+**Fourier directions** — applies `(ik)^p` in Fourier space with optional spectral filtering.
 
-**Fields:**
-- `λ::Complex`: The eigenvalue
-- `idx::Int`: Index/position of the eigenvalue
-
-#### `print_evals(λs::Vector{<:Complex})`
-
-Pretty-print eigenvalues in a formatted table showing real and imaginary parts.
-
-**Parameters:**
-- `λs`: Vector of complex eigenvalues
-
-**Output Format:**
-```
-Top N eigenvalues (sorted):
-Idx │ Real Part     Imag Part
-────┼──────────────────────────────
-  1 │  1.234567   +1.234567im
-  2 │ -2.345678e  +0.548678im         
-```
-
-#### `sort_evals(λs, χ, which; sorting="lm")`
-
-Sort eigenvalues and corresponding eigenvectors by specified criteria.
-
-**Parameters:**
-- `λs::AbstractVector`: Eigenvalues
-- `χ::AbstractMatrix`: Eigenvectors (columns correspond to eigenvalues)
-- `which::String`: Sorting criterion (`"M"` for magnitude, `"I"` for imaginary part, `"R"` for real part)
-- `sorting::String`: Order (`"lm"` for descending, default)
-
-**Returns:**
-- `Tuple`: Sorted eigenvalues and eigenvectors
-
-#### `sort_evals_(λ, Χ, by; rev=true)`
-
-Alternative eigenvalue sorting function with symbol-based criteria.
-
-**Parameters:**
-- `λ::Vector`: Eigenvalues
-- `Χ::Matrix`: Eigenvectors
-- `by::Symbol`: Sorting criterion (`:R` for real, `:I` for imaginary, `:M` for magnitude)
-- `rev::Bool`: Reverse order (descending if true)
-
-**Returns:**
-- `Tuple`: Sorted eigenvalues and eigenvectors
-
-#### `remove_evals(λs, χ, lower, higher, which)`
-
-Filter eigenvalues within specified bounds and remove corresponding eigenvectors.
-
-**Parameters:**
-- `λs`: Eigenvalues
-- `χ`: Eigenvectors
-- `lower`: Lower bound
-- `higher`: Upper bound
-- `which::String`: Component to filter (`"M"`, `"I"`, or `"R"`)
-
-**Returns:**
-- `Tuple`: Filtered eigenvalues and eigenvectors
-
-### Matrix Operations
-
-#### `inverse_Lap_hor(∇ₕ²)`
-
-Compute the inverse of a horizontal Laplacian matrix using QR decomposition.
-
-**Parameters:**
-- `∇ₕ²`: Horizontal Laplacian matrix
-
-**Returns:**
-- Inverse matrix `H = R⁻¹ * Qᵀ`
-
-#### `InverseLaplace` Struct
-
-Efficient representation of the inverse Laplacian operator using precomputed QR factorization.
-
-**Constructor:**
 ```julia
-H = InverseLaplace(∇ₕ²::AbstractMatrix{T}) where T
+domain = Domain(z = Chebyshev(64, [0, 1]))
+z = gridpoints(domain, :z)
+
+U = @. z^2
+dUdz   = differentiate(U, domain, :z)            # 2z
+d2Udz2 = differentiate(U, domain, :z; order=2)   # 2
 ```
 
-**Usage:**
+**Fourier with filtering:**
+
 ```julia
-# Create inverse operator
-H = InverseLaplace(∇ₕ²)
-
-# Apply to vector
-x = rand(size(∇ₕ², 1))
-u = H(x)  # equivalent to H * x
+domain = Domain(y = Fourier(64, [0, 2*pi]))
+y = gridpoints(domain, :y)
+f = sin.(y)
+dfdy = differentiate(f, domain, :y; filter=:exp)   # exponential filter
 ```
 
+| Filter | Description |
+|--------|-------------|
+| `:none` | No filtering (default) |
+| `:exp` | Exponential filter (Vandeven 1991) |
+| `Symbol("2/3")` | 2/3 dealiasing rule |
+| `Function` | Custom `sigma(k, k_max)` |
 
-### Numerical Differentiation
+## Eigenvalue Analysis
 
-#### `∇f(f, x)`
+### `print_evals(lambdas)`
 
-Compute numerical derivative using high-order finite difference schemes.
+Pretty-print eigenvalues in a formatted table.
 
-**Parameters:**
-- `f::AbstractVector{T}`: Function values
-- `x::AbstractVector{T}`: Uniformly spaced grid points
+### `sort_evals(lambdas, chi, by; rev=true)`
 
-**Returns:**
-- `Vector{T}`: Numerical derivative ∂f/∂x
+Sort eigenvalues and eigenvectors. `by` can be a Symbol (`:R`, `:I`, `:M`) or String (`"R"`, `"I"`, `"M"`).
 
-**Features:**
-- Requires uniformly spaced grid
-
-**Example:**
 ```julia
-x = 0:0.1:2π
-f = sin.(x)
-df_dx = ∇f(f, x)  # ≈ cos.(x)
+lambdas_sorted, chi_sorted = sort_evals(lambdas, chi, :R; rev=true)
 ```
 
-### Sparse Matrix Construction
+### `remove_evals(lambdas, chi, lower, higher, which)`
 
-#### `field_to_spdiagm(U; k=0, order=:col, dims=nothing, scale=identity, pad=:error)`
+Filter eigenvalues within bounds. `which` can be Symbol or String.
 
-Convert a 2D field/matrix into a sparse diagonal matrix.
-
-**Parameters:**
-- `U::AbstractMatrix`: Input 2D field
-- `k::Integer`: Diagonal offset (0 for main diagonal)
-- `order::Symbol`: Vectorization order (`:col` or `:row`)
-- `dims::Union{Nothing,Tuple{Int,Int}}`: Output matrix dimensions
-- `scale::Function`: Scaling function applied to elements
-- `pad::Symbol`: Behavior when vector is too long (`:error`, `:trim`, `:zero`, `:wrap`)
-
-**Returns:**
-- `SparseMatrixCSC`: Sparse diagonal matrix
-
-#### `spdiag_to_field(S, m, n; k=0, order=:col)`
-
-Inverse operation of `field_to_spdiagm` - extract diagonal as a 2D field.
-
-**Parameters:**
-- `S::SparseMatrixCSC`: Sparse matrix
-- `m::Int, n::Int`: Dimensions of output field
-- `k::Integer`: Diagonal offset
-- `order::Symbol`: Reshaping order
-
-**Returns:**
-- `Matrix`: 2D field reconstructed from diagonal
-
-#### `DiagM(U; k=0, order=:col, sparse=true, dims=nothing, scale=identity, pad=:error)`
-
-Flexible diagonal matrix constructor from 2D arrays.
-
-**Parameters:**
-- `U::AbstractMatrix`: Input 2D array
-- `sparse::Bool`: Return sparse (`true`) or dense (`false`) matrix
-- Other parameters same as `field_to_spdiagm`
-
-**Returns:**
-- `SparseMatrixCSC` or `Matrix`: Diagonal matrix (sparse or dense)
-
-**Example:**
 ```julia
-# Create sparse diagonal matrix from 2D field
-U = rand(10, 10)
-S_sparse = DiagM(U; sparse=true)
-S_dense = DiagM(U; sparse=false)
+lambdas_filtered, chi_filtered = remove_evals(lambdas, chi, 0.1, 1e5, :R)
 ```
 
-## Usage Patterns
+## Grid and Transform Utilities
 
-### Eigenvalue Analysis Workflow
+### `gridpoints(domain, dims...)`
+
+Return grid points for resolved dimensions.
+
 ```julia
-# Solve eigenvalue problem
-λs, χ = eigen(A, B)
-
-# Sort by magnitude (descending)
-λs_sorted, χ_sorted = sort_evals(λs, χ, "M")
-
-# Display results
-print_evals(λs_sorted)
+z = gridpoints(domain, :z)              # 1D
+y, z = gridpoints(domain, :y, :z)       # separate vectors
 ```
 
-### Inverse Laplacian Operations
+### `meshgrid(domain, dim1, dim2)`
+
+Return 2D meshgrid arrays (N_dim2 x N_dim1, z-fastest ordering).
+
 ```julia
-# Setup inverse operator
-∇ₕ² = build_horizontal_laplacian()  # your matrix
-H = InverseLaplace(∇ₕ²)
-
-# Solve Poisson equation: ∇ₕ²u = f
-f = rand(size(∇ₕ², 1))
-u = H(f)  # u = ∇ₕ²⁻¹ * f
+Y, Z = meshgrid(domain, :y, :z)
+U = @. Z - 0.5 + 0.1 * sin(2*pi * Y)  # 2D field
+prob[:U] = vec(U)
 ```
 
-### Numerical Differentiation
+### `to_coefficients(f, coord_type)`
+
+Transform physical-space values to spectral coefficients.
+
 ```julia
-# Setup grid and function
-x = range(0, 2π, length=100)
-f = sin.(x)
-
-# Compute derivative
-df_dx = ∇f(f, collect(x))
+c = to_coefficients(f_values, :chebyshev)
+c = to_coefficients(f_values, :fourier)
 ```
 
-## Notes
+### `to_physical(c, coord_type; x=nothing)`
 
-- All eigenvalue functions work with complex eigenvalues
-- Sparse matrix operations are optimized for memory efficiency
-- Numerical differentiation requires uniformly spaced grids
-- QR-based inverse operators are suitable for well-conditioned matrices
+Transform spectral coefficients back to physical space.
+
+### `chebyshev_points(N, a, b)`
+
+N Chebyshev-Gauss-Lobatto points on [a, b].
+
+### `chebyshev_coefficients(f_values)`
+
+Chebyshev T coefficients from values at CGL points.
+
+### `chebyshev_evaluate(c, x)`
+
+Evaluate a Chebyshev expansion via Clenshaw's algorithm.
+
+### `fourier_points(N, L)`
+
+N equally-spaced points on [0, L).

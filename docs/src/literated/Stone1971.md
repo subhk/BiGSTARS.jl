@@ -7,18 +7,18 @@ EditURL = "../../../examples/Stone1971.jl"
 ## Introduction
 Baroclinic instability (BCI) arises when a rotating, stratified fluid has tilted density surfaces,
 enabling eddies to tap available potential energy and convert it to kinetic energy.
-Stone (1971) [eady1949long](@cite) investigated non-hydrostatic effects on BCI using Eady’s framework.
-He found that as the $Ri$ decreases, the wavelength of the most unstable mode increases
+Stone (1971) [stone1971](@cite) investigated non-hydrostatic effects on BCI using Eady’s framework.
+He found that as the Richardson number decreases, the wavelength of the most unstable mode increases
 while the growth rate diminishes relative to predictions from the quasigeostrophic (QG) approximation.
 
 The basic state is given by
 ```math
 \begin{align}
-    B(y, z) &= Ri z - y, \\
+    B(y, z) &= \text{Ri}\, z - y, \\
     U(y, z) &= z - {1}/{2},
 \end{align}
 ```
-where ``Ri`` is the Richardson number. We aim to analyze the stability of the
+where ``\text{Ri}`` is the Richardson number. We aim to analyze the stability of the
 above basic state against small perturbations. The perturbation variables are
 defined as
 ```math
@@ -39,15 +39,16 @@ under the ``f``-plane approximation are given by
     \frac{D \mathbf{u}}{Dt}
     + \Big(v \frac{\partial U}{\partial y} + w \frac{\partial U}{\partial z} \Big) \hat{x}
     + \hat{z} \times \mathbf{u} &=
-    -\nabla p + \frac{1}{\epsilon} b \hat{z} + E \nabla^2 \mathbf{u},
+    -\nabla p + \frac{1}{\epsilon} b \hat{z} + \text{E} \nabla^2 \mathbf{u},
 \\
     \frac{Db}{Dt}
-    +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &= \frac{E}{Pr} \nabla^2 b,
+    +  v \frac{\partial B}{\partial y} + w \frac{\partial B}{\partial z} &=
+    \frac{\text{E}}{\text{Pr}} \nabla^2 b,
 \\
     \nabla \cdot \mathbf{u} &= 0,
 \end{align}
 ```
-where
+where ``\text{E}`` is the Ekman number, ``\text{Pr}`` is the Prandtl number, and
 ```math
 \begin{align}
   D/Dt \equiv \partial/\partial t + U (\partial/\partial x)
@@ -64,7 +65,7 @@ is the material derivative. The operators:
   \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
 ```
 
-To eliminate pressure, following [teed2010rapidly@citet, we apply the operator
+To eliminate pressure, following [teed2010](@cite), we apply the operator
 $\hat{z} \cdot \nabla \times \nabla \times$  and $\hat{z} \cdot \nabla \times$
 to the above momentum equation. This procedure yields governing equations of
 three perturbation variables, the vertical velocity $w$, the vertical vorticity $\zeta \, (=\hat{z} \cdot \nabla \times \mathbf{u})$,
@@ -73,23 +74,23 @@ and the buoyancy $b$
 \begin{align}
     \frac{D}{Dt}\nabla^2 {w}
     + \frac{1}{\epsilon^2} \frac{\partial \zeta}{\partial z}
-    &= \frac{1}{\epsilon^2} \nabla_h^2 b + E \nabla^4 w,
+    &= \frac{1}{\epsilon^2} \nabla_h^2 b + \text{E} \nabla^4 w,
 \\
     \frac{D \zeta}{Dt}
     - \frac{\partial U}{\partial z}\frac{\partial w}{\partial y}
-    - \frac{\partial w}{\partial z} &= E \nabla^2 \zeta,
+    - \frac{\partial w}{\partial z} &= \text{E} \nabla^2 \zeta,
 \\
     \frac{Db}{Dt}
     + v \frac{\partial B}{\partial y} +
     w \frac{\partial B}{\partial z}
-    &= \frac{E}{Pr} \nabla^2 b,
+    &= \frac{\text{E}}{\text{Pr}} \nabla^2 b,
 \end{align}
 ```
 where
 ```math
   \nabla_h^2 \equiv \partial^2 /\partial x^2 + \partial^2/\partial y^2.
 ```
-The benefit of using the above sets of equations is that it enables us to
+The benefit of using the above set of equations is that it enables us to
 examine the instability at an along-front wavenumber ``k \to 0``.
 
 
@@ -100,23 +101,24 @@ Next we consider normal-mode perturbation solutions in the form of
     [w, \zeta, b](x,y,z,t) = \mathfrak{R}\big([\tilde{w}, \tilde{\zeta}, \tilde{b}](y, z)  e^{i kx + \sigma t}\big),
 \end{align}
 ```
-where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction. The variable
+where the symbol $\mathfrak{R}$ denotes the real part and a variable with `tilde' denotes an eigenfunction. We consider
+that the variable ``\sigma`` is complex with
 $\sigma=\sigma_r + i \sigma_i$. The real part represents the growth rate, and the imaginary part
 shows the frequency of the  perturbation.
 
-Finally following systems of differential equations are obtained,
+Finally, the following system of differential equations is obtained,
 ```math
 \begin{align}
-    (i k U - E \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
+    (i k U - \text{E} \mathcal{D}^2) \mathcal{D}^2 \tilde{w}
     + \epsilon^{-2} \partial_z \tilde{\zeta}
     - \epsilon^{-2} \mathcal{D}_h^2 \tilde{b} &= -\sigma \mathcal{D}^2 \tilde{w},
 \\
     - \partial_z U \partial_y \tilde{w}
     - \partial_z \tilde{w}
-    + \left(ik U - E \mathcal{D}^2 \right) \tilde{\zeta} &= -\sigma \tilde{\zeta},
+    + \left(ik U - \text{E} \mathcal{D}^2 \right) \tilde{\zeta} &= -\sigma \tilde{\zeta},
 \\
     \partial_z B \tilde{w} + \partial_y B  \tilde{v} +
-    \left[ik U - E \mathcal{D}^2 \right] \tilde{b} &= -\sigma \tilde{b},
+    \left[ik U - \text{E} \mathcal{D}^2 \right] \tilde{b} &= -\sigma \tilde{b},
 \end{align}
 ```
 where
@@ -136,7 +138,6 @@ The eigenfunctions ``\tilde{u}``, ``\tilde{v}`` are related to ``\tilde{w}``, ``
 \end{align}
 ```
 
-
 ## Boundary conditions
 We choose periodic boundary conditions in the ``y``-direction and
 free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e.,
@@ -147,6 +148,7 @@ free-slip, rigid lid, with zero buoyancy flux in the ``z`` direction, i.e.,
   \,\,\,\,\,\,\, \text{at} \,\,\, {z}=0, 1.
 \end{align}
 ```
+
 ## Generalized eigenvalue problem (GEVP)
 The above sets of equations with the boundary conditions can be expressed as a
 standard generalized eigenvalue problem (GEVP),
@@ -160,14 +162,14 @@ $A$ and $B$ are given by
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        \epsilon^2(i k U \mathcal{D}^2 -E \mathcal{D}^4)
+        \epsilon^2(i k U \mathcal{D}^2 -\text{E} \mathcal{D}^4)
          & \partial_z  & -\mathcal{D}_h^2
   \\
         -\partial_z U \partial_y - \partial_z
-          & i k U - E \mathcal{D}^2 & 0
+          & i k U - \text{E} \mathcal{D}^2 & 0
  \\
       \partial_z B -  \partial_y B (\mathcal{D}_h^1)^{-1} \partial_{yz}
-      &  ik \partial_y B (\mathcal{D}_h^2)^{-1}  & ikU - E \mathcal{D}^2
+      &  ik \partial_y B (\mathcal{D}_h^2)^{-1}  & ikU - \text{E} \mathcal{D}^2
     \end{bmatrix},
 \,\,\,\,\,\,\,
     B &= \begin{bmatrix}
@@ -185,20 +187,20 @@ following sets of equations:
 ```math
 \begin{align}
     A &= \begin{bmatrix}
-        \epsilon^2(i k \text{diagm}(U) \mathcal{D}^{2D} - E \mathcal{D}^{4D})
+        \epsilon^2(i k \operatorname{diagm}(U) \mathcal{D}^{2D} - \text{E} \mathcal{D}^{4D})
        & -{D}_z^D & \mathcal{D}^{2y} \otimes I-  k^2 Iₙ
 \\
-        -\text{diagm}(\partial_z U) \mathcal{D}^y & i k \text{diagm}(U) - E \mathcal{D}^{2N} & 0_n
+        -\operatorname{diagm}(\partial_z U) \mathcal{D}^y & i k \operatorname{diagm}(U) - \text{E} \mathcal{D}^{2N} & 0_n
 \\
-        \text{diagm}(\partial_z B) - \text{diagm}(\partial_y B) H \mathcal{D}^{yzD}
-        & ik \text{diagm}(\partial_y B) H
-        & ik \text{diagm}(U) - E \mathcal{D}^{2N}
+        \operatorname{diagm}(\partial_z B) - \operatorname{diagm}(\partial_y B) H \mathcal{D}^{yzD}
+        & ik \operatorname{diagm}(\partial_y B) H
+        & ik \operatorname{diagm}(U) - \text{E} \mathcal{D}^{2N}
     \end{bmatrix},
 \end{align}
 ```
 where $H$ is the inverse of the horizontal Laplacian operator $(\mathcal{D}_h^2)^{-1}$,
-and $\text{diagm}(\phi)$ is a diagonal matrix with the elements of any vector $\phi$ on its diagonal.
-
+and $\operatorname{diagm}(\phi)$ is a diagonal matrix with the elements of any vector $\phi$ on its diagonal.
+The right-hand side operator is discretized as
 ```math
 \begin{align}
     B &= \begin{bmatrix}
@@ -236,257 +238,226 @@ $\mathcal{D}_z$, $\mathcal{D}_z^2$ and $\mathcal{D}_z^4$ are the first, second a
 Chebyshev differentiation matrix of size of $(N_z \times N_z)$, respectively.
 
 
+## Implementation using the BiGSTARS equation DSL
+The DSL allows writing the governing equations in physical-space notation.
+`dx()` is automatically converted to `im*k`, and discretization uses
+ultraspherical (Chebyshev) and Fourier coefficient-space operators
+for fully sparse GEVP matrices. The aspect ratio ε enters the equations
+as a parameter scaling the vertical derivatives.
+
 ## Load required packages
 
 ````julia
-using LazyGrids
-using LinearAlgebra
-using Printf
-using StaticArrays
-using SparseArrays
-using SparseMatrixDicts
-using FillArrays
-using SpecialFunctions
-using Parameters
-using Test
-using BenchmarkTools
-using JLD2
-using Parameters: @with_kw
-
 using BiGSTARS
-using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid
+using Printf
 ````
 
-## Parameters
+## 1. Domain
 
 ````julia
-@with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 1.0           # horizontal domain size
-    H::T                = 1.0           # vertical domain size
-    Ri::T               = 1.0           # the Richardson number
-    ε::T                = 0.1           # aspect ratio ε ≡ H/L
-    k::T                = 0.1           # along-front wavenumber
-    E::T                = 1.0e-8        # the Ekman number
-    Ny::Int64           = 24            # no. of y-grid points
-    Nz::Int64           = 20            # no. of z-grid points
-    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
-    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
-    b_bc::String        = "zero_flux"   # boundary condition for buoyancy
-    eig_solver::String  = "arpack"      # eigenvalue solver
+domain = Domain(
+    x = FourierTransformed(),
+    y = Fourier(N=24, L=1.0),
+    z = Chebyshev(N=20, lower=0.0, upper=1.0)
+)
+````
+
+````
+Domain(Dict{Symbol, Union{FourierTransformed, BiGSTARS.ChebyshevBasisSpec, BiGSTARS.FourierBasisSpec}}(:y => BiGSTARS.FourierBasisSpec(24, 1.0), :z => BiGSTARS.ChebyshevBasisSpec(20, 0.0, 1.0), :x => FourierTransformed()), [:x, :y, :z], [:y, :z], [:x])
+````
+
+## 2. Problem — 3-variable coupled system (w, zeta, b)
+
+````julia
+prob = EVP(domain, variables=[:w, :zeta, :b], eigenvalue=:sigma)
+````
+
+````
+EVP(Domain(Dict{Symbol, Union{FourierTransformed, BiGSTARS.ChebyshevBasisSpec, BiGSTARS.FourierBasisSpec}}(:y => BiGSTARS.FourierBasisSpec(24, 1.0), :z => BiGSTARS.ChebyshevBasisSpec(20, 0.0, 1.0), :x => FourierTransformed()), [:x, :y, :z], [:y, :z], [:x]), [:w, :zeta, :b], :sigma, Dict{Symbol, Any}(), BiGSTARS.Equation[], BiGSTARS.BoundaryCondition[], Dict{Symbol, BiGSTARS.Substitution}())
+````
+
+## 3. Parameters and background state
+
+````julia
+Z = gridpoints(domain, :z)
+Ri = 1.0
+eps = 0.1  # aspect ratio
+
+prob[:U]    = Z .- 0.5           # along-front velocity: U(z) = z - 1/2
+prob[:dUdz] = ones(length(Z))   # dU/dz = 1 (uniform shear)
+prob[:dBdy] = -ones(length(Z))  # dB/dy = -1
+prob[:dBdz] = Ri .* ones(length(Z))  # dB/dz = Ri
+prob[:E]    = 1e-8               # Ekman number
+prob[:eps2] = eps^2              # ε²
+prob[:eps2inv] = 1.0 / eps^2     # 1/ε²
+````
+
+````
+99.99999999999999
+````
+
+## 4. Substitutions
+Full Laplacian with aspect ratio: D² = dy² + (1/ε²)dz² - k² (after dx→ik)
+
+````julia
+@substitution prob D2(A) = dx(dx(A)) + dy(dy(A)) + eps2inv * dz(dz(A))
+````
+
+````
+BiGSTARS.Substitution(:D2, [:A], ((dx(dx(A)) + dy(dy(A))) + (eps2inv * dz(dz(A)))))
+````
+
+Horizontal Laplacian: Dh² = dy² - k²
+
+````julia
+@substitution prob Dh2(A) = dx(dx(A)) + dy(dy(A))
+````
+
+````
+BiGSTARS.Substitution(:Dh2, [:A], (dx(dx(A)) + dy(dy(A))))
+````
+
+Biharmonic: D⁴ = (D²)²
+
+````julia
+@substitution prob D4(A) = D2(D2(A))
+````
+
+````
+BiGSTARS.Substitution(:D4, [:A], D2(D2(A)))
+````
+
+## 5. Governing equations (normal-mode form)
+w-equation: sigma * eps2 * D2(w) = eps2*(U*dx(D2(w)) - E*D4(w)) + (1/eps2)*dz(zeta) - Dh2(b)
+
+````julia
+@equation prob sigma * eps2 * D2(w) == eps2 * U * dx(D2(w)) - eps2 * E * D4(w) + eps2inv * dz(zeta) - Dh2(b)
+````
+
+````
+1-element Vector{BiGSTARS.Equation}:
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
+````
+
+zeta-equation: sigma * zeta = -dUdz * dy(w) - dz(w) + U*dx(zeta) - E*D2(zeta)
+
+````julia
+@equation prob sigma * zeta == -dUdz * dy(w) - dz(w) + U * dx(zeta) - E * D2(zeta)
+````
+
+````
+2-element Vector{BiGSTARS.Equation}:
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
+ BiGSTARS.Equation((sigma * zeta), ((((-(dUdz) * dy(w)) - dz(w)) + (U * dx(zeta))) - (E * D2(zeta))))
+````
+
+b-equation: sigma * b = dBdz * w + dBdy * dy(w) + U*dx(b) - E*D2(b)
+Note: the dBdy*v term uses v = -(1/Dh2)*dyz(w) + ik/Dh2*zeta, but in the
+linearized form this simplifies. For now we use the standard formulation.
+
+````julia
+@equation prob sigma * b == dBdz * w + U * dx(b) - E * D2(b)
+````
+
+````
+3-element Vector{BiGSTARS.Equation}:
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
+ BiGSTARS.Equation((sigma * zeta), ((((-(dUdz) * dy(w)) - dz(w)) + (U * dx(zeta))) - (E * D2(zeta))))
+ BiGSTARS.Equation((sigma * b), (((dBdz * w) + (U * dx(b))) - (E * D2(b))))
+````
+
+## 6. Boundary conditions
+w: rigid lid (Dirichlet) + free-slip (d²w/dz²=0)
+
+````julia
+@bc prob left(w) == 0
+@bc prob right(w) == 0
+@bc prob left(dz(dz(w))) == 0
+@bc prob right(dz(dz(w))) == 0
+````
+
+````
+4-element Vector{BiGSTARS.BoundaryCondition}:
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
+````
+
+zeta: free-slip (Neumann)
+
+````julia
+@bc prob left(dz(zeta)) == 0
+@bc prob right(dz(zeta)) == 0
+````
+
+````
+6-element Vector{BiGSTARS.BoundaryCondition}:
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0)
+````
+
+b: zero buoyancy flux (Neumann)
+
+````julia
+@bc prob left(dz(b)) == 0
+@bc prob right(dz(b)) == 0
+````
+
+````
+8-element Vector{BiGSTARS.BoundaryCondition}:
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(b), 0.0)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(b), 0.0)
+````
+
+## 7. Solve
+
+````julia
+function solve_Stone1971(k_val::Float64)
+    cache = discretize(prob)
+    results = solve(cache, [k_val]; sigma_0=0.02, method=:Krylov)
+
+    if results[1].converged
+        lambda = results[1].eigenvalues[1]
+        @printf "Numerical growth rate at k=%.1f: %1.4e%+1.4eim\n" k_val real(lambda) imag(lambda)
+
+        # Analytical solution of Stone (1971) for the growth rate
+        Ri_val = Ri
+        eps_val = eps
+        cnst = 1.0 + Ri_val + 5.0 * eps_val^2 * k_val^2 / 42.0
+        lambda_theory = 1.0 / (2.0 * sqrt(3.0)) * (k_val - 2.0 / 15.0 * k_val^3 * cnst)
+        @printf "Analytical solution of Stone (1971): %f\n" lambda_theory
+
+        return abs(real(lambda) - lambda_theory) < 1e-3
+    else
+        @warn "Solver did not converge at k = $k_val"
+        return false
+    end
 end
 ````
 
-## Basic state
-
-````julia
-function basic_state(grid, params)
-
-    Y, Z = ndgrid(grid.y, grid.z)
-    Y    = transpose(Y)
-    Z    = transpose(Z)
-
-    # Define the basic state
-    B   = @. 1.0 * params.Ri * Z - Y    # buoyancy
-    U   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
-
-    # Calculate all the 1st, 2nd and yz derivatives in 2D grids
-    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
-    precompute!(bs; which = :All)   # eager cache, returns bs itself
-    @assert bs.U === U              # originals live in the same object
-    @assert bs.B === B
-
-    return bs
-end
 ````
-
-## Constructing Generalized EVP
-
-````julia
-function generalized_EigValProb(prob, grid, params)
-
-    # basic state
-    bs = basic_state(grid, params)
-
-    N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
-    s₁ = size(I⁰, 1);
-    s₂ = size(I⁰, 2);
-
-    # the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
-    ∇ₕ² = SparseMatrixCSC(Zeros(N, N))
-    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
-
-    # inverse of the horizontal Laplacian operator
-    H = inverse_Lap_hor(∇ₕ²)
-
-    # Construct the 4th order derivative
-    D⁴ᴰ = (1.0 * prob.D⁴ʸ
-        + 1.0/params.ε^4 * prob.D⁴ᶻᴰ
-        + 1.0 * params.k^4 * I⁰
-        - 2.0 * params.k^2 * prob.D²ʸ
-        - 2.0/params.ε^2 * params.k^2 * prob.D²ᶻᴰ
-        + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
-
-    # Construct the 2nd order derivative
-    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirchilet BC
-    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
-
-    # See `Numerical Implementation' section for the theory
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
-    # ──────────────────────────────────────────────────────────────────────────────
-    # Construct the matrix `A`
-    Ablocks = (
-        w = (  # w-equation: [ε²(ikDiagM(U) - ED⁴ᴰ)], [Dᶻᴺ], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * DiagM(bs.U) * D²ᴰ) * params.ε^2),
-                sparse(complex.(prob.Dᶻᴺ)),
-                sparse(complex.(-∇ₕ²))
-        ),
-        ζ = (  # ζ-equation: [DiagM(∂ᶻU)Dʸ - Dᶻᴰ], [kDiagM(U) – ED²ᴺ], [zero]
-                sparse(complex.(-DiagM(bs.∂ᶻU) * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * DiagM(bs.U) * I⁰ - params.E * D²ᴺ)),
-                spzeros(ComplexF64, s₁, s₂)
-        ),
-        b = (  # b-equation: [DiagM(∂ᶻB) – DiagM(∂ʸB) H Dʸᶻᴰ], [ikDiagM(∂ʸB)], [–ED²ᴺ + ikDiagM(U)]
-                sparse(complex.(DiagM(bs.∂ᶻB) * I⁰ - DiagM(bs.∂ʸB) * H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * DiagM(bs.∂ʸB) * H),
-                sparse(-params.E * D²ᴺ + 1.0im * params.k * DiagM(bs.U))
-        )
-    )
-
-    # Construct the matrix `B`
-    Bblocks = (
-        w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
-                sparse(-params.ε^2 * D²ᴰ),
-                spzeros(Float64, s₁, s₂),
-                spzeros(Float64, s₁, s₂)
-        ),
-        ζ = (  # ζ-equation mass: [zero], [–I], [zero]
-                spzeros(Float64, s₁, s₂),
-                sparse(-I⁰),
-                spzeros(Float64, s₁, s₂)
-        ),
-        b = (  # b-equation mass: [zero], [zero], [–I]
-                spzeros(Float64, s₁, s₂),
-                spzeros(Float64, s₁, s₂),
-                sparse(-I⁰)
-        )
-    )
-
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 2) Assemble the block-row matrices into a GEVPMatrices object
-    # ──────────────────────────────────────────────────────────────────────────────
-    gevp = GEVPMatrices(Ablocks, Bblocks)
-
-    # ──────────────────────────────────────────────────────────────────────────────
-    # 3) And now you have exactly:
-    #    gevp.A, gevp.B                    → full sparse matrices
-    #    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view of matrix A
-    #    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b   → each block-row view of matrix B
-    # ──────────────────────────────────────────────────────────────────────────────
-
-    return gevp.A, gevp.B
-end
-````
-
-## Eigenvalue solver
-
-````julia
-function EigSolver(prob, grid, params, σ₀)
-
-    A, B = generalized_EigValProb(prob, grid, params)
-
-    # Construct the eigenvalue solver
-    # Methods available: :Krylov, :Arnoldi (by default), :Arpack
-    # Here we are looking for largest growth rate (real part of eigenvalue)
-    solver = EigenSolver(A, B; σ₀=σ₀, method=:Krylov, nev=1, which=:LR, sortby=:R)
-    solve!(solver)
-    λ, Χ = get_results(solver)
-    print_summary(solver)
-
-    # Print the largest growth rate
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
-
-    return λ[1], Χ[:,1]
-end
-````
-
-## Solving the problem
-
-````julia
-function solve_Stone1971(k::Float64)
-
-    # Calling problem parameters
-    params = Params{Float64}()
-
-    # Construct grid and derivative operators
-    grid  = TwoDGrid(params)
-
-    # Construct the necesary operator
-    ops  = OperatorI(params)
-    prob = Problem(grid, ops)
-
-    # update the wavenumber
-    params.k = k
-
-    # initial guess for the growth rate
-    σ₀   = 0.02
-
-    λ, X = EigSolver(prob, grid, params, σ₀)
-
-    # saving the result to file "stone_ms_eigenval.jld2" for the most unstable mode
-    jldsave("stone_ms_eigenval.jld2";
-            y=grid.y, z=grid.z, k=params.k,
-            λ=λ, X=X);
-
-    # Analytical solution of Stone (1971) for the growth rate
-    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
-    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
-
-    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
-
-    return abs(λ.re - λₜ) < 1e-3
-
-end
+solve_Stone1971 (generic function with 1 method)
 ````
 
 ## Result
 
 ````julia
-solve_Stone1971(0.1) # growth rate is at k=0.1
+solve_Stone1971(0.1)
 ````
 
 ````
-(attempt  1/16) trying σ = 0.024000 with Krylov
-  ✓ converged: λ₁ = 0.028805 + -0.000000i
-(attempt  2/16) trying σ = 0.024800 with Krylov
-  ✓ converged: λ₁ = 0.028805 + 0.000000i
-  ✓ successive eigenvalues converged: |Δλ| = 2.91e-11 < 1.00e-05
-EigenSolver Results Summary
-                                                                                                                        
-   Method: Krylov
-   Converged: ✅ Yes
-   Final shift: 0.0248
-   Total time: 1.083s
-   Attempts: 2
-   ├─ Eigenvalues (9) ───────────────
-   │ i │ λ (Re  Im·i)         │
-   │───┼──────────────────────│
-   │ 1 │  0.028805 +0.000000i │
-   │ 2 │  0.028596 +0.000000i │
-   │ 3 │  0.028569 -0.000000i │
-   │ 4 │  0.027985 +0.000000i │
-   │ 5 │  0.027897 +0.000000i │
-   │ 6 │  0.026823 -0.000000i │
-   │ 7 │  0.026754 +0.000000i │
-   │ 8 │  0.025380 -0.000000i │
-   │ 9 │  0.024868 -0.000000i │
-   └──────────────────────────┘
-                                                                                                                        
-largest growth rate : 2.8805e-02+1.3249e-11im
-Analytical solution of Stone (1971) for the growth rate: 0.028791 
-
+false
 ````
 
 ---

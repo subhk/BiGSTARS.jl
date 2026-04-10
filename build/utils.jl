@@ -72,13 +72,8 @@ function sort_evals(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
 end
 
 
-"""Accept Symbol for remove_evals as well (convenience)."""
-function remove_evals(λs, χ, lower, higher, which::Symbol)
-    remove_evals(λs, χ, lower, higher, string(which))
-end
-
 function remove_evals(λs, χ, lower, higher, which)
-
+    
     @assert which ∈ ["M", "I", "R"]
 
     if which == "I" # imaginary part

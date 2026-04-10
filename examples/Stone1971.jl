@@ -234,200 +234,106 @@
 # Chebyshev differentiation matrix of size of $(N_z \times N_z)$, respectively.
 #
 #
+# ## Implementation using the BiGSTARS equation DSL
+# The DSL allows writing the governing equations in physical-space notation.
+# `dx()` is automatically converted to `im*k`, and discretization uses
+# ultraspherical (Chebyshev) and Fourier coefficient-space operators
+# for fully sparse GEVP matrices. The aspect ratio ε enters the equations
+# as a parameter scaling the vertical derivatives.
+#
 # ## Load required packages
-using LazyGrids
-using LinearAlgebra
-using Printf
-using SparseArrays
-using JLD2
-using Parameters: @with_kw
-
 using BiGSTARS
-using BiGSTARS: AbstractParams
-using BiGSTARS: Problem, OperatorI, TwoDGrid
+using Printf
 
-# ## Parameters
-@with_kw mutable struct Params{T} <: AbstractParams
-    L::T                = 1.0           # horizontal domain size
-    H::T                = 1.0           # vertical domain size
-    Ri::T               = 1.0           # the Richardson number 
-    ε::T                = 0.1           # aspect ratio ε ≡ H/L
-    k::T                = 0.1           # along-front wavenumber
-    E::T                = 1.0e-8        # the Ekman number 
-    Ny::Int64           = 24            # no. of y-grid points
-    Nz::Int64           = 20            # no. of z-grid points
-    w_bc::String        = "rigid_lid"   # boundary condition for vertical velocity
-    ζ_bc::String        = "free_slip"   # boundary condition for vertical vorticity
-    b_bc::String        = "zero_flux"   # boundary condition for buoyancy
-    eig_solver::String  = "arpack"      # eigenvalue solver
+# ## 1. Domain
+domain = Domain(
+    x = FourierTransformed(),
+    y = Fourier(60, [0, 1]),
+    z = Chebyshev(30, [0, 1])
+)
+
+# ## 2. Problem — 3-variable system (w, zeta, b)
+# The cross-front velocity v and along-front velocity u are derived from w and zeta
+# via the inverse horizontal Laplacian. The DSL handles this automatically.
+prob = EVP(domain, variables=[:w, :zeta, :b], eigenvalue=:sigma)
+
+# ## 3. Parameters and background state
+Y, Z = gridpoints(domain, :y, :z)
+Ri = 1.0
+eps = 0.1  # aspect ratio
+
+prob[:U]    = Z .- 0.5           # along-front velocity: U(z) = z - 1/2
+prob[:dUdz] = ones(length(Z))    # dU/dz = 1 (uniform shear)
+prob[:dBdy] = -ones(length(Z))   # dB/dy = -1
+prob[:dBdz] = Ri .* ones(length(Z))  # dB/dz = Ri
+prob[:E]    = 1e-10              # Ekman number
+prob[:eps2] = eps^2              # ε²
+prob[:eps2inv] = 1.0 / eps^2     # 1/ε²
+
+# ## 4. Substitutions
+@substitution D2(A)  = dx(dx(A)) + dy(dy(A)) + eps2inv * dz(dz(A))
+@substitution Dh2(A) = dx(dx(A)) + dy(dy(A))
+@substitution D4(A)  = D2(D2(A))
+
+# ## 5. Derived variables
+# v and u are the cross-front and along-front velocity components,
+# defined implicitly by:
+#   (dx² + dy²)(v) = -dy(dz(w)) + dx(zeta)
+#   (dx² + dy²)(u) = -dx(dz(w)) - dy(zeta)
+# The DSL computes the inverse operator and substitutes v, u automatically.
+# v = cross-front velocity, defined by: Dh2(v) = -dy(dz(w)) + dx(zeta)
+
+@derive v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)
+
+# ## 6. Governing equations
+# Derived from Ax = σBx where B has -ε²D², -I, -I on the diagonal.
+# Rearranging to σ*(positive mass) = RHS flips all A signs.
+
+# w-equation: σ*ε²*D²(w) = -ε²*U*dx(D²(w)) + ε²*E*D⁴(w) - dz(ζ) + Dh²(b)
+@equation sigma * eps2 * D2(w) = -eps2 * U * dx(D2(w)) + eps2 * E * D4(w) - dz(zeta) + Dh2(b)
+
+# ζ-equation: σ*ζ = ∂zU*dy(w) + dz(w) - U*dx(ζ) + E*D²(ζ)
+@equation sigma * zeta = dUdz * dy(w) + dz(w) - U * dx(zeta) + E * D2(zeta)
+
+# b-equation: σ*b = -∂zB*w - ∂yB*v - U*dx(b) + E*D²(b)
+@equation sigma * b = -dBdz * w - dBdy * v - U * dx(b) + E * D2(b)
+
+# ## 7. Boundary conditions
+# w: rigid lid (Dirichlet) + free-slip (d²w/dz²=0)
+@bc left(w) = 0
+@bc right(w) = 0
+@bc left(dz(dz(w))) = 0
+@bc right(dz(dz(w))) = 0
+
+# zeta: free-slip (Neumann)
+@bc left(dz(zeta)) = 0
+@bc right(dz(zeta)) = 0
+
+# b: zero buoyancy flux (Neumann)
+@bc left(dz(b)) = 0
+@bc right(dz(b)) = 0
+
+# ## 8. Solve
+function solve_Stone1971(k_val::Float64)
+    cache = discretize(prob)
+    results = solve(cache, [k_val]; sigma_0=0.02, method=:Krylov)
+
+    if results[1].converged
+        lambda = results[1].eigenvalues[1]
+        @printf "Numerical growth rate at k=%.1f: %1.4e%+1.4eim\n" k_val real(lambda) imag(lambda)
+
+        Ri_val = Ri
+        eps_val = eps
+        cnst = 1.0 + Ri_val + 5.0 * eps_val^2 * k_val^2 / 42.0
+        lambda_theory = 1.0 / (2.0 * sqrt(3.0)) * (k_val - 2.0 / 15.0 * k_val^3 * cnst)
+        @printf "Analytical solution of Stone (1971): %f\n" lambda_theory
+
+        return abs(real(lambda) - lambda_theory) < 1e-3
+    else
+        @warn "Solver did not converge at k = $k_val"
+        return false
+    end
 end
-nothing #hide
-
-# ## Basic state
-function basic_state(grid, params)
-    
-    Y, Z = ndgrid(grid.y, grid.z)
-    Y    = transpose(Y)
-    Z    = transpose(Z)
-
-    ## Define the basic state
-    B   = @. 1.0 * params.Ri * Z - Y    # buoyancy
-    U   = @. 1.0 * Z - 0.5 * params.H   # along-front velocity
-
-    ## Calculate all the 1st, 2nd and yz derivatives in 2D grids
-    bs = compute_derivatives(U, B, grid.y; grid.Dᶻ, grid.D²ᶻ, gridtype = :All)
-    precompute!(bs; which = :All)   # eager cache, returns bs itself
-    @assert bs.U === U              # originals live in the same object
-    @assert bs.B === B
-
-    return bs
-end
-nothing #hide
-
-# ## Constructing Generalized EVP
-function generalized_EigValProb(prob, grid, params)
-
-    ## basic state
-    bs = basic_state(grid, params)
-
-    N  = params.Ny * params.Nz
-    I⁰ = sparse(Matrix(1.0I, N, N))  # Identity matrix
-    s₁ = size(I⁰, 1); 
-    s₂ = size(I⁰, 2);
-
-    ## the horizontal Laplacian operator:  ∇ₕ² = ∂ʸʸ - k²
-    ∇ₕ² = (1.0 * prob.D²ʸ - 1.0 * params.k^2 * I⁰)
-
-    ## inverse of the horizontal Laplacian operator
-    H = inverse_Lap_hor(∇ₕ²)
-
-    ## Construct the 4th order derivative
-    D⁴ᴰ = (1.0 * prob.D⁴ʸ 
-        + 1.0/params.ε^4 * prob.D⁴ᶻᴰ 
-        + 1.0 * params.k^4 * I⁰ 
-        - 2.0 * params.k^2 * prob.D²ʸ 
-        - 2.0/params.ε^2 * params.k^2 * prob.D²ᶻᴰ
-        + 2.0/params.ε^2 * prob.D²ʸ²ᶻᴰ)
-        
-    ## Construct the 2nd order derivative
-    D²ᴰ = (1.0/params.ε^2 * prob.D²ᶻᴰ + 1.0 * ∇ₕ²) # with Dirichlet BC
-    D²ᴺ = (1.0/params.ε^2 * prob.D²ᶻᴺ + 1.0 * ∇ₕ²) # with Neumann BC
-
-    ## See `Numerical Implementation' section for the theory
-    ## ──────────────────────────────────────────────────────────────────────────────
-    ## 1) Now define your 3×3 block-rows in a NamedTuple of 3-tuples
-    ## ──────────────────────────────────────────────────────────────────────────────
-    ## Construct the matrix `A`
-    Ablocks = (
-        w = (  # w-equation: [ε²(ikDiagM(U) - ED⁴ᴰ)], [Dᶻᴺ], [–∇ₕ²]
-                sparse(complex.(-params.E * D⁴ᴰ + 1.0im * params.k * DiagM(bs.U) * D²ᴰ) * params.ε^2),
-                sparse(complex.(prob.Dᶻᴺ)),
-                sparse(complex.(-∇ₕ²))
-        ),
-        ζ = (  # ζ-equation: [DiagM(∂ᶻU)Dʸ - Dᶻᴰ], [kDiagM(U) – ED²ᴺ], [zero]
-                sparse(complex.(-DiagM(bs.∂ᶻU) * prob.Dʸ - prob.Dᶻᴰ)),
-                sparse(complex.(1.0im *params.k * DiagM(bs.U) * I⁰ - params.E * D²ᴺ)),
-                spzeros(ComplexF64, s₁, s₂)
-        ),
-        b = (  # b-equation: [DiagM(∂ᶻB) – DiagM(∂ʸB) H Dʸᶻᴰ], [ikDiagM(∂ʸB)], [–ED²ᴺ + ikDiagM(U)]
-                sparse(complex.(DiagM(bs.∂ᶻB) * I⁰ - DiagM(bs.∂ʸB) * H * prob.Dʸᶻᴰ)),
-                sparse(1.0im * params.k * DiagM(bs.∂ʸB) * H),
-                sparse(-params.E * D²ᴺ + 1.0im * params.k * DiagM(bs.U))
-        )
-    )
-
-    ## Construct the matrix `B`
-    Bblocks = (
-        w = (  # w-equation mass: [–ε²∂²], [zero], [zero]
-                sparse(-params.ε^2 * D²ᴰ),
-                spzeros(Float64, s₁, s₂),
-                spzeros(Float64, s₁, s₂)
-        ),
-        ζ = (  # ζ-equation mass: [zero], [–I], [zero]
-                spzeros(Float64, s₁, s₂),
-                sparse(-I⁰),
-                spzeros(Float64, s₁, s₂)
-        ),
-        b = (  # b-equation mass: [zero], [zero], [–I]
-                spzeros(Float64, s₁, s₂),
-                spzeros(Float64, s₁, s₂),
-                sparse(-I⁰)
-        )
-    )
-
-    ## ──────────────────────────────────────────────────────────────────────────────
-    ## 2) Assemble the block-row matrices into a GEVPMatrices object
-    ## ──────────────────────────────────────────────────────────────────────────────
-    gevp = GEVPMatrices(Ablocks, Bblocks)
-
-    ## ──────────────────────────────────────────────────────────────────────────────
-    ## 3) And now you have exactly:
-    ##    gevp.A, gevp.B                    → full sparse matrices
-    ##    gevp.As.w, gevp.As.ζ, gevp.As.b   → each block-row view of matrix A
-    ##    gevp.Bs.w, gevp.Bs.ζ, gevp.Bs.b   → each block-row view of matrix B
-    ## ──────────────────────────────────────────────────────────────────────────────
-
-    return gevp.A, gevp.B
-end
-nothing #hide
-
-# ## Eigenvalue solver
-function EigSolver(prob, grid, params, σ₀)
-
-    A, B = generalized_EigValProb(prob, grid, params)
-
-    ## Construct the eigenvalue solver
-    ## Methods available: :Krylov, :Arnoldi (by default), :Arpack
-    ## Here we are looking for largest growth rate (real part of eigenvalue)
-    solver = EigenSolver(A, B; σ₀=σ₀, method=:Krylov, nev=1, which=:LR, sortby=:R)
-    solve!(solver)
-    λ, Χ = get_results(solver)
-    print_summary(solver)
-
-    ## Print the largest growth rate
-    @printf "largest growth rate : %1.4e%+1.4eim\n" real(λ[1]) imag(λ[1])
-
-    return λ[1], Χ[:,1]
-end
-nothing #hide
-
-# ## Solving the problem
-function solve_Stone1971(k::Float64)
-
-    ## Calling problem parameters
-    params = Params{Float64}()
-
-    ## Construct grid and derivative operators
-    grid  = TwoDGrid(params)
-
-    ## Construct the necessary operator
-    ops  = OperatorI(params)
-    prob = Problem(grid, ops)
-
-    ## update the wavenumber
-    params.k = k
-
-    ## initial guess for the growth rate
-    σ₀   = 0.02 
-
-    λ, X = EigSolver(prob, grid, params, σ₀)
-
-    ## saving the result to file "stone_ms_eigenval.jld2" for the most unstable mode
-    jldsave("stone_ms_eigenval.jld2";  
-            y=grid.y, z=grid.z, k=params.k, 
-            λ=λ, X=X);
-
-    ## Analytical solution of Stone (1971) for the growth rate
-    cnst = 1.0 + 1.0 * params.Ri + 5.0 * params.ε^2 * params.k^2 / 42.0
-    λₜ = 1.0 / (2.0 * √3.0) * (params.k - 2.0 / 15.0 * params.k^3 * cnst)
-
-    @printf "Analytical solution of Stone (1971) for the growth rate: %f \n" λₜ
-
-    return abs(λ.re - λₜ) < 1e-3
-
-end
-nothing #hide
 
 # ## Result
-solve_Stone1971(0.1) # growth rate is at k=0.1  
-nothing #hide
+solve_Stone1971(0.1)
