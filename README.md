@@ -1,8 +1,32 @@
 # <img src="./gfd_instability.svg" height="80" width="90">  BiGSTARS.jl 
 
 <!-- description --> 
-  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS ⭐): A linear stability analysis tool for Geophysical flows with Julia. 
-Bi-global stability analysis offers a pragmatic alternative between  1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground: spectral Chebyshev–Fourier discretizations, shift-and-invert eigensolvers, and ready-to-run benchmarks for rotating, stratified flows so you can resolve key instabilities without the need for massive computational resources.
+  **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS): A linear stability analysis tool for geophysical flows with Julia. 
+
+Bi-global stability analysis offers a pragmatic alternative between 1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground with a symbolic equation DSL, ultraspherical spectral discretizations, and shift-and-invert eigensolvers — so you can resolve key instabilities without massive computational resources.
+
+Write your equations — the code does the rest.
+
+```julia
+prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+@substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + dz(dz(A))
+@equation sigma * Lap(psi) = U * dx(Lap(psi)) - E * Lap(Lap(psi))
+@bc left(psi) = 0
+@bc right(psi) = 0
+cache = discretize(prob)
+results = solve(cache, k_values; sigma_0=0.02)
+```
+
+### Key Features
+
+- **Symbolic equation DSL** — Write PDEs with `dx`, `dy`, `dz`; automatic discretization into sparse GEVP matrices
+- **Ultraspherical spectral method** — Fully sparse Chebyshev operators (Olver & Townsend, 2013); Fourier in coefficient space
+- **Generalized BCs** — Dirichlet, Neumann, Robin, higher-order, coupled, and eigenvalue-dependent boundary conditions
+- **Derived variables** (`@derive`) — Eliminate auxiliary fields via inverse operators; reduces system dimension
+- **Wavenumber-separated caching** — Discretize once, assemble cheaply per wavenumber; parallel sweeps with `parallel=true`
+- **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions
+- **Post-processing** (`@compute`) — Evaluate any expression on eigenvectors using the same DSL syntax
+- **Multiple solvers** — Arnoldi, ARPACK, KrylovKit with adaptive shift-and-invert
 
  <!-- Badges -->
  <p align="left">
