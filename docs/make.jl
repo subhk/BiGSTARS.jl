@@ -170,14 +170,18 @@ end
 # )
 
 
-if get(ENV, "GITHUB_EVENT_NAME", "") == "pull_request"
+event_name = get(ENV, "GITHUB_EVENT_NAME", "")
+actor = get(ENV, "GITHUB_ACTOR", "")
+documenter_key = get(ENV, "DOCUMENTER_KEY", "")
+
+if event_name == "pull_request" && !isempty(documenter_key) && actor != "dependabot[bot]"
     deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
                repo_previews = "github.com/subhk/BiGSTARSDocumentation",
                devbranch = "main",
                forcepush = true,
                push_preview = true,
                versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-else
+elseif event_name != "pull_request"
     repo = "github.com/subhk/BiGSTARSDocumentation"
     withenv("GITHUB_REPOSITORY" => repo) do
         deploydocs(; repo,
@@ -185,4 +189,6 @@ else
                      forcepush = true,
                      versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
     end
+else
+    @info "Skipping deploydocs for pull_request because deploy credentials are unavailable."
 end
