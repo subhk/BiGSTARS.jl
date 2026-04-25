@@ -67,6 +67,8 @@ For variables defined via `@derive`, use `reconstruct`:
 v_coeffs = reconstruct(cache, prob, eigvec, k_val, :v)
 ```
 
+For a scalar solve, `k_val` is the same wavenumber used to assemble and solve the matrices. In domains with several transformed directions, `reconstruct` currently uses the scalar value for each transformed direction; use direct expression evaluation only when that matches the assembled problem.
+
 Or get all fields at once:
 
 ```julia

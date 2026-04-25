@@ -8,12 +8,21 @@ Bi-global analysis bridges the gap between 1D stability tools (often too idealiz
 
 - **Symbolic equation DSL** — Write governing equations in physical-space notation (`dx`, `dy`, `dz`) using Julia macros. The package automatically discretizes them into generalized eigenvalue problem (GEVP) matrices.
 - **Ultraspherical spectral method** — Chebyshev directions use the ultraspherical method (Olver & Townsend, 2013) for fully sparse operators. Fourier directions operate in coefficient space with diagonal derivatives.
-- **Wavenumber-separated caching** — Discretization is performed once; only wavenumber-dependent terms are reassembled when looping over wavenumbers.
+- **Wavenumber-separated caching** — Discretize once, then assemble cheaply for each scalar wavenumber or for multiple transformed directions such as `(k_x, k_y)`.
 - **Generalized boundary conditions** — Dirichlet, Neumann, Robin, higher-order, coupled, inhomogeneous, and eigenvalue-dependent (dynamic) BCs.
 - **Derived variables** — Auxiliary variables like cross-front velocity `v` can be defined implicitly via `@derive` and are automatically eliminated using the inverse operator.
 - **Multiple eigenvalue solvers** — Arnoldi, ARPACK, and KrylovKit methods with adaptive shift-and-invert.
 - **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions.
 - **Parallel wavenumber sweeps** — Thread-parallel solves with in-place assembly for zero-allocation loops.
+
+## What To Read First
+
+If you are new to the package, use this path:
+
+1. [Equation DSL](@ref) — define domains, variables, equations, boundary conditions, and derived variables.
+2. [Eigenvalue Solver](@ref) — choose a solver, shift, tolerance, and number of eigenvalues.
+3. [Post-Processing and Visualization](@ref) — reconstruct fields from eigenvectors and convert them to physical space.
+4. [Examples](@ref) — compare your workflow with complete Eady, Stone, and rotating RBC examples.
 
 ## Quick Start
 
@@ -52,8 +61,23 @@ results = solve(cache, k_values; sigma_0=0.02, method=:Krylov)
 results = solve(cache; sigma_0=0.02)
 ```
 
+For domains with more than one `FourierTransformed()` direction, assemble with named wavenumbers:
+
+```julia
+domain = Domain(
+    x = FourierTransformed(),
+    y = FourierTransformed(),
+    z = Chebyshev(40, [0, 1])
+)
+
+cache = discretize(prob)
+A, B = assemble(cache; k_x=1.0, k_y=0.5)
+```
+
+Keyword names are checked. Use either the coordinate name (`x=1.0`) or the explicit wavenumber name (`k_x=1.0`), but do not provide conflicting aliases.
+
 ## Examples
 
-* [Eady example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Eady/) — QG PV baroclinic instability with dynamic BCs
-* [Stone example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/Stone1971/) — Non-hydrostatic Boussinesq with derived variables
-* [rRBC example](https://subhk.github.io/BiGSTARSDocumentation/stable/literated/rRBC/) — Rotating Rayleigh-Benard with constraint equations
+* [Eady example](literated/Eady.md) — QG PV baroclinic instability with dynamic BCs
+* [Stone example](literated/Stone1971.md) — Non-hydrostatic Boussinesq with derived variables
+* [rRBC example](literated/rRBC.md) — Rotating Rayleigh-Benard with constraint equations

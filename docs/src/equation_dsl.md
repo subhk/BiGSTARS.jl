@@ -18,13 +18,27 @@ domain = Domain(
 
 | Type | Constructor forms | Produces |
 |------|------------------|----------|
-| `FourierTransformed()` | `FourierTransformed()` | `im*k` multiplication |
+| `FourierTransformed()` | `FourierTransformed()` | named wavenumber multiplication, e.g. `dx(A) -> im*k_x*A` |
 | Fourier (periodic) | `Fourier(N, [a, b])` or `Fourier(N=..., L=...)` | Diagonal Fourier operator, wavenumbers scaled by `2pi/(b-a)` |
 | Chebyshev (bounded) | `Chebyshev(N, [a, b])` or `Chebyshev(N=..., lower=..., upper=...)` | Sparse ultraspherical operator, derivatives scaled by `2/(b-a)` |
 
 All derivatives are automatically scaled to the physical domain. For example, `dz(psi)` on `Chebyshev(30, [0, 1])` applies the chain rule factor `2/(1-0) = 2` to the reference-domain derivative.
 
-Multiple `FourierTransformed()` directions are allowed for 1D-resolved problems.
+Multiple `FourierTransformed()` directions are allowed. A derivative in each transformed coordinate gets its own wavenumber symbol:
+
+```julia
+domain = Domain(
+    x = FourierTransformed(),
+    y = FourierTransformed(),
+    z = Chebyshev(30, [0, 1])
+)
+
+# Internally:
+# dx(A) -> im*k_x*A
+# dy(A) -> im*k_y*A
+```
+
+This matters for operators such as `dx(dx(A)) + dy(dy(A))`: BiGSTARS keeps the `k_x^2` and `k_y^2` terms separate instead of collapsing them into one total power of `k`.
 
 ### Meshgrid for 2D Fields
 
@@ -161,12 +175,46 @@ results = solve(cache, k_values; sigma_0=0.02, parallel=true)
 results = solve(cache; sigma_0=0.02)
 ```
 
+### Manual Assembly
+
+For a single transformed direction, pass the scalar wavenumber:
+
+```julia
+cache = discretize(prob)
+A, B = assemble(cache, 1.0)
+```
+
+For multiple transformed directions, use keyword assembly. Keyword names must match transformed coordinate names:
+
+```julia
+domain = Domain(
+    x = FourierTransformed(),
+    y = FourierTransformed(),
+    z = Chebyshev(30, [0, 1])
+)
+
+cache = discretize(prob)
+A, B = assemble(cache; k_x=1.0, k_y=0.5)
+
+# Short coordinate aliases are also accepted:
+A, B = assemble(cache; x=1.0, y=0.5)
+```
+
+Unknown keywords are rejected so typos fail loudly:
+
+```julia
+assemble(cache; kx=1.0)  # error: use k_x or x
+```
+
+!!! note
+    `solve(cache, k_values; ...)` is the high-level sweep API for one scalar wavenumber applied to every transformed direction. For genuinely independent `k_x, k_y, ...` scans, call `assemble(cache; k_x=..., k_y=...)` and then use `EigenSolver` directly.
+
 ### Inspecting the Cache
 
 ```julia
 cache = discretize(prob)
 println(cache)  # shows size, k-powers, sparsity
-A, B = assemble(cache, 1.0)  # inspect assembled matrices at a specific k
+A, B = assemble(cache, 1.0)  # single transformed direction
 ```
 
 ## Post-Processing with `@compute`

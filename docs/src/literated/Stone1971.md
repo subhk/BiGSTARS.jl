@@ -257,37 +257,47 @@ using Printf
 ````julia
 domain = Domain(
     x = FourierTransformed(),
-    y = Fourier(N=24, L=1.0),
-    z = Chebyshev(N=20, lower=0.0, upper=1.0)
+    y = Fourier(60, [0, 1]),
+    z = Chebyshev(30, [0, 1])
 )
 ````
 
 ````
-Domain(Dict{Symbol, Union{FourierTransformed, BiGSTARS.ChebyshevBasisSpec, BiGSTARS.FourierBasisSpec}}(:y => BiGSTARS.FourierBasisSpec(24, 1.0), :z => BiGSTARS.ChebyshevBasisSpec(20, 0.0, 1.0), :x => FourierTransformed()), [:x, :y, :z], [:y, :z], [:x])
+Domain(x=FourierTransformed(), y=Fourier(N=60, [0.0,1.0]), z=Chebyshev(N=30, [0.0,1.0]))
 ````
 
-## 2. Problem — 3-variable coupled system (w, zeta, b)
+## 2. Problem — 3-variable system (w, zeta, b)
+The cross-front velocity v and along-front velocity u are derived from w and zeta
+via the inverse horizontal Laplacian. The DSL handles this automatically.
 
 ````julia
 prob = EVP(domain, variables=[:w, :zeta, :b], eigenvalue=:sigma)
 ````
 
 ````
-EVP(Domain(Dict{Symbol, Union{FourierTransformed, BiGSTARS.ChebyshevBasisSpec, BiGSTARS.FourierBasisSpec}}(:y => BiGSTARS.FourierBasisSpec(24, 1.0), :z => BiGSTARS.ChebyshevBasisSpec(20, 0.0, 1.0), :x => FourierTransformed()), [:x, :y, :z], [:y, :z], [:x]), [:w, :zeta, :b], :sigma, Dict{Symbol, Any}(), BiGSTARS.Equation[], BiGSTARS.BoundaryCondition[], Dict{Symbol, BiGSTARS.Substitution}())
+EVP Problem
+  Domain: Domain(x=FourierTransformed(), y=Fourier(N=60, [0.0,1.0]), z=Chebyshev(N=30, [0.0,1.0]))
+  Variables: [:w, :zeta, :b]
+  Eigenvalue: sigma
+  Parameters: 
+  Equations: 0
+  BCs: 0 (0 dynamic)
+  Substitutions: 
+
 ````
 
 ## 3. Parameters and background state
 
 ````julia
-Z = gridpoints(domain, :z)
+Y, Z = gridpoints(domain, :y, :z)
 Ri = 1.0
 eps = 0.1  # aspect ratio
 
 prob[:U]    = Z .- 0.5           # along-front velocity: U(z) = z - 1/2
-prob[:dUdz] = ones(length(Z))   # dU/dz = 1 (uniform shear)
-prob[:dBdy] = -ones(length(Z))  # dB/dy = -1
+prob[:dUdz] = ones(length(Z))    # dU/dz = 1 (uniform shear)
+prob[:dBdy] = -ones(length(Z))   # dB/dy = -1
 prob[:dBdz] = Ri .* ones(length(Z))  # dB/dz = Ri
-prob[:E]    = 1e-8               # Ekman number
+prob[:E]    = 1e-10              # Ekman number
 prob[:eps2] = eps^2              # ε²
 prob[:eps2inv] = 1.0 / eps^2     # 1/ε²
 ````
@@ -297,130 +307,128 @@ prob[:eps2inv] = 1.0 / eps^2     # 1/ε²
 ````
 
 ## 4. Substitutions
-Full Laplacian with aspect ratio: D² = dy² + (1/ε²)dz² - k² (after dx→ik)
 
 ````julia
-@substitution prob D2(A) = dx(dx(A)) + dy(dy(A)) + eps2inv * dz(dz(A))
-````
-
-````
-BiGSTARS.Substitution(:D2, [:A], ((dx(dx(A)) + dy(dy(A))) + (eps2inv * dz(dz(A)))))
-````
-
-Horizontal Laplacian: Dh² = dy² - k²
-
-````julia
-@substitution prob Dh2(A) = dx(dx(A)) + dy(dy(A))
-````
-
-````
-BiGSTARS.Substitution(:Dh2, [:A], (dx(dx(A)) + dy(dy(A))))
-````
-
-Biharmonic: D⁴ = (D²)²
-
-````julia
-@substitution prob D4(A) = D2(D2(A))
+@substitution D2(A)  = dx(dx(A)) + dy(dy(A)) + eps2inv * dz(dz(A))
+@substitution Dh2(A) = dx(dx(A)) + dy(dy(A))
+@substitution D4(A)  = D2(D2(A))
 ````
 
 ````
 BiGSTARS.Substitution(:D4, [:A], D2(D2(A)))
 ````
 
-## 5. Governing equations (normal-mode form)
-w-equation: sigma * eps2 * D2(w) = eps2*(U*dx(D2(w)) - E*D4(w)) + (1/eps2)*dz(zeta) - Dh2(b)
+## 5. Derived variables
+v and u are the cross-front and along-front velocity components,
+defined implicitly by:
+  (dx² + dy²)(v) = -dy(dz(w)) + dx(zeta)
+  (dx² + dy²)(u) = -dx(dz(w)) - dy(zeta)
+The DSL computes the inverse operator and substitutes v, u automatically.
+v = cross-front velocity, defined by: Dh2(v) = -dy(dz(w)) + dx(zeta)
 
 ````julia
-@equation prob sigma * eps2 * D2(w) == eps2 * U * dx(D2(w)) - eps2 * E * D4(w) + eps2inv * dz(zeta) - Dh2(b)
+@derive v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)
+````
+
+````
+BiGSTARS.DerivedVariable(:v, :_derive_v, (-(dy(dz(w))) + dx(zeta)), BiGSTARS.BoundaryCondition[])
+````
+
+## 6. Governing equations
+Derived from Ax = σBx where B has -ε²D², -I, -I on the diagonal.
+Rearranging to σ*(positive mass) = RHS flips all A signs.
+
+w-equation: σ*ε²*D²(w) = -ε²*U*dx(D²(w)) + ε²*E*D⁴(w) - dz(ζ) + Dh²(b)
+
+````julia
+@equation sigma * eps2 * D2(w) = -eps2 * U * dx(D2(w)) + eps2 * E * D4(w) - dz(zeta) + Dh2(b)
 ````
 
 ````
 1-element Vector{BiGSTARS.Equation}:
- BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((-(eps2) * U) * dx(D2(w))) + ((eps2 * E) * D4(w))) - dz(zeta)) + Dh2(b)))
 ````
 
-zeta-equation: sigma * zeta = -dUdz * dy(w) - dz(w) + U*dx(zeta) - E*D2(zeta)
+ζ-equation: σ*ζ = ∂zU*dy(w) + dz(w) - U*dx(ζ) + E*D²(ζ)
 
 ````julia
-@equation prob sigma * zeta == -dUdz * dy(w) - dz(w) + U * dx(zeta) - E * D2(zeta)
+@equation sigma * zeta = dUdz * dy(w) + dz(w) - U * dx(zeta) + E * D2(zeta)
 ````
 
 ````
 2-element Vector{BiGSTARS.Equation}:
- BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
- BiGSTARS.Equation((sigma * zeta), ((((-(dUdz) * dy(w)) - dz(w)) + (U * dx(zeta))) - (E * D2(zeta))))
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((-(eps2) * U) * dx(D2(w))) + ((eps2 * E) * D4(w))) - dz(zeta)) + Dh2(b)))
+ BiGSTARS.Equation((sigma * zeta), ((((dUdz * dy(w)) + dz(w)) - (U * dx(zeta))) + (E * D2(zeta))))
 ````
 
-b-equation: sigma * b = dBdz * w + dBdy * dy(w) + U*dx(b) - E*D2(b)
-Note: the dBdy*v term uses v = -(1/Dh2)*dyz(w) + ik/Dh2*zeta, but in the
-linearized form this simplifies. For now we use the standard formulation.
+b-equation: σ*b = -∂zB*w - ∂yB*v - U*dx(b) + E*D²(b)
 
 ````julia
-@equation prob sigma * b == dBdz * w + U * dx(b) - E * D2(b)
+@equation sigma * b = -dBdz * w - dBdy * v - U * dx(b) + E * D2(b)
 ````
 
 ````
 3-element Vector{BiGSTARS.Equation}:
- BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((eps2 * U) * dx(D2(w))) - ((eps2 * E) * D4(w))) + (eps2inv * dz(zeta))) - Dh2(b)))
- BiGSTARS.Equation((sigma * zeta), ((((-(dUdz) * dy(w)) - dz(w)) + (U * dx(zeta))) - (E * D2(zeta))))
- BiGSTARS.Equation((sigma * b), (((dBdz * w) + (U * dx(b))) - (E * D2(b))))
+ BiGSTARS.Equation(((sigma * eps2) * D2(w)), (((((-(eps2) * U) * dx(D2(w))) + ((eps2 * E) * D4(w))) - dz(zeta)) + Dh2(b)))
+ BiGSTARS.Equation((sigma * zeta), ((((dUdz * dy(w)) + dz(w)) - (U * dx(zeta))) + (E * D2(zeta))))
+ BiGSTARS.Equation((sigma * b), ((((-(dBdz) * w) - (dBdy * v)) - (U * dx(b))) + (E * D2(b))))
 ````
 
-## 6. Boundary conditions
+## 7. Boundary conditions
 w: rigid lid (Dirichlet) + free-slip (d²w/dz²=0)
 
 ````julia
-@bc prob left(w) == 0
-@bc prob right(w) == 0
-@bc prob left(dz(dz(w))) == 0
-@bc prob right(dz(dz(w))) == 0
+@bc left(w) = 0
+@bc right(w) = 0
+@bc left(dz(dz(w))) = 0
+@bc right(dz(dz(w))) = 0
 ````
 
 ````
 4-element Vector{BiGSTARS.BoundaryCondition}:
- BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0, false)
 ````
 
 zeta: free-slip (Neumann)
 
 ````julia
-@bc prob left(dz(zeta)) == 0
-@bc prob right(dz(zeta)) == 0
+@bc left(dz(zeta)) = 0
+@bc right(dz(zeta)) = 0
 ````
 
 ````
 6-element Vector{BiGSTARS.BoundaryCondition}:
- BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0, false)
 ````
 
 b: zero buoyancy flux (Neumann)
 
 ````julia
-@bc prob left(dz(b)) == 0
-@bc prob right(dz(b)) == 0
+@bc left(dz(b)) = 0
+@bc right(dz(b)) = 0
 ````
 
 ````
 8-element Vector{BiGSTARS.BoundaryCondition}:
- BiGSTARS.BoundaryCondition(:left, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, w, 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0)
- BiGSTARS.BoundaryCondition(:left, :z, dz(b), 0.0)
- BiGSTARS.BoundaryCondition(:right, :z, dz(b), 0.0)
+ BiGSTARS.BoundaryCondition(:left, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, w, 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(dz(w)), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(dz(w)), 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(zeta), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(zeta), 0.0, false)
+ BiGSTARS.BoundaryCondition(:left, :z, dz(b), 0.0, false)
+ BiGSTARS.BoundaryCondition(:right, :z, dz(b), 0.0, false)
 ````
 
-## 7. Solve
+## 8. Solve
 
 ````julia
 function solve_Stone1971(k_val::Float64)
@@ -431,7 +439,6 @@ function solve_Stone1971(k_val::Float64)
         lambda = results[1].eigenvalues[1]
         @printf "Numerical growth rate at k=%.1f: %1.4e%+1.4eim\n" k_val real(lambda) imag(lambda)
 
-        # Analytical solution of Stone (1971) for the growth rate
         Ri_val = Ri
         eps_val = eps
         cnst = 1.0 + Ri_val + 5.0 * eps_val^2 * k_val^2 / 42.0
@@ -457,7 +464,7 @@ solve_Stone1971(0.1)
 ````
 
 ````
-false
+true
 ````
 
 ---

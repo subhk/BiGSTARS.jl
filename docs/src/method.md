@@ -15,6 +15,22 @@ It implements three different solver methods with automatic shift selection and 
 - **Arpack Method** ([Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl)) 
 - **Krylov Method** ([KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl))
 
+Most users do not need to construct solver objects manually. The usual workflow is:
+
+```julia
+cache = discretize(prob)
+results = solve(cache, range(0.1, 5.0, length=50); sigma_0=0.02, method=:Krylov)
+```
+
+Use `EigenSolver` directly when you already have assembled matrices or need a custom scan over independent wavenumbers:
+
+```julia
+A, B = assemble(cache; k_x=1.0, k_y=0.5)
+solver = EigenSolver(A, B; σ₀=0.02, method=:Krylov, nev=3, tol=1e-10)
+solve!(solver; verbose=false)
+λ, Χ = get_results(solver)
+```
+
 ## Core Components
 
 ### Data Structures
@@ -146,7 +162,7 @@ results = compare_methods!(solver; methods=[:Arnoldi, :Krylov], verbose=true)
 ### Krylov Method
 - **Best for:** Modern problems, flexible interface
 - **Strengths:** Clean interface, good for research
-- **Key parameters:** `which`, `maxiter`, `krylovdim`
+- **Key parameters:** `which`, `nev`, `tol`, `maxiter`, `krylovdim`
 
 ## Shift-and-Invert Transformation
 
@@ -174,12 +190,13 @@ end
 
 ## Adaptive Shift Selection
 
-The solver automatically tries multiple shift values if the initial shift fails:
+The solver tries the requested shift first. If that attempt fails, it tries additional shifts around `σ₀`:
 
-1. **Generate shift attempts:** Creates upward and downward shifts from σ₀
-2. **Progressive increments:** Uses geometric progression with factor `incre`
-3. **Convergence checking:** Verifies successive eigenvalues differ by less than `ϵ`
-4. **Fallback strategy:** Continues until convergence or maximum attempts reached
+1. **Original shift first:** Attempts `σ₀` before any perturbation.
+2. **Generate fallback shifts:** Creates upward and downward shifts from σ₀.
+3. **Progressive increments:** Uses geometric progression with factor `incre`.
+4. **Convergence checking:** Verifies successive eigenvalues differ by less than `ϵ`.
+5. **Fallback strategy:** Continues until convergence or maximum attempts reached.
 
 ```julia
 # Shift generation example
