@@ -49,12 +49,10 @@ examples = [
 for example in examples
   withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
     example_filepath = joinpath(EXAMPLES_DIR, example)
-    withenv("JULIA_DEBUG" => "Literate") do
-      Literate.markdown(example_filepath, 
-                        OUTPUT_DIR;
-                        flavor = Literate.DocumenterFlavor(), 
-                        execute = true)
-    end
+    Literate.markdown(example_filepath,
+                      OUTPUT_DIR;
+                      flavor = Literate.DocumenterFlavor(),
+                      execute = true)
   end
 end
 

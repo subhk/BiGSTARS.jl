@@ -19,10 +19,10 @@ Bi-global analysis bridges the gap between 1D stability tools (often too idealiz
 
 If you are new to the package, use this path:
 
-1. [Equation DSL](@ref) — define domains, variables, equations, boundary conditions, and derived variables.
-2. [Eigenvalue Solver](@ref) — choose a solver, shift, tolerance, and number of eigenvalues.
-3. [Post-Processing and Visualization](@ref) — reconstruct fields from eigenvectors and convert them to physical space.
-4. [Examples](@ref) — compare your workflow with complete Eady, Stone, and rotating RBC examples.
+1. [Equation DSL](equation_dsl.md) — define domains, variables, equations, boundary conditions, and derived variables.
+2. [Eigenvalue Solver](method.md) — choose a solver, shift, tolerance, and number of eigenvalues.
+3. [Post-Processing and Visualization](visualization.md) — reconstruct fields from eigenvectors and convert them to physical space.
+4. [Examples](literated/Eady.md) — compare your workflow with complete Eady, Stone, and rotating RBC examples.
 
 ## Quick Start
 
