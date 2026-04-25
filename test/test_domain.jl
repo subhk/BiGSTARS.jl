@@ -32,6 +32,7 @@ using BiGSTARS: FourierBasisSpec, ChebyshevBasisSpec, get_diff_operator,
         )
 
         zpts = gridpoints(domain, :z)
+        @inferred gridpoints(domain, :z)
         @test length(zpts) == 10
         @test zpts[1] ≈ 1.0   # Chebyshev descending
         @test zpts[end] ≈ 0.0
@@ -76,6 +77,9 @@ using BiGSTARS: FourierBasisSpec, ChebyshevBasisSpec, get_diff_operator,
         D1 = get_diff_operator(domain, :z, 1)
         @test size(D1) == (16, 16)
         @test D1 isa SparseMatrixCSC
+
+        D0 = get_diff_operator(domain, :z, 0)
+        @test D0 ≈ sparse(1.0I, 16, 16)
 
         D2 = get_diff_operator(domain, :z, 2)
         @test size(D2) == (16, 16)

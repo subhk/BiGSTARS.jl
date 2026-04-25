@@ -12,22 +12,87 @@ struct DerivedVarCache
     op_k0::SparseMatrixCSC{ComplexF64, Int}
     # Coefficient of k² in the operator (from dx(dx(...)) → -k² * I)
     op_k2_coeff::ComplexF64
+    # Per-wavenumber operator components for multi-FourierTransformed domains.
+    op_k_components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}
     # BCs for the inversion (boundary bordering)
     bcs::Vector{BoundaryCondition}
-    # Pre-discretized: coeff_mat * (...) for each (eq_idx, rhs_var_idx, rhs_k_power, rhs_mat)
-    terms::Vector{Tuple{Int, Int, Int, SparseMatrixCSC{ComplexF64, Int}, SparseMatrixCSC{ComplexF64, Int}}}
-    # (eq_idx, var_idx, rhs_k_power, coeff_matrix, rhs_matrix)
+    # (eq_idx, var_idx, rhs_k_powers, coeff_matrix, rhs_matrix)
+    terms::Vector{Tuple{Int, Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}, SparseMatrixCSC{ComplexF64, Int}}}
 end
 
 """Cache of pre-discretized sparse matrix components, separated by k-power."""
 struct DiscretizationCache
     A_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}
     B_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}
+    A_kcomponents::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}
+    B_kcomponents::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}
     derived_caches::Dict{Symbol, DerivedVarCache}
     N_total::Int
     N_per_var::Int
     N_vars::Int
     domain::Domain
+end
+
+function DiscretizationCache(A_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
+                             B_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
+                             derived_caches::Dict{Symbol, DerivedVarCache},
+                             N_total::Int, N_per_var::Int, N_vars::Int,
+                             domain::Domain)
+    A_kcomponents = _legacy_components_to_k(A_components, domain)
+    B_kcomponents = _legacy_components_to_k(B_components, domain)
+    return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents,
+                               derived_caches, N_total, N_per_var, N_vars, domain)
+end
+
+function _legacy_components_to_k(components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
+                                 domain::Domain)
+    result = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
+    for (p, mat) in components
+        result[_legacy_k_key(p, domain)] = mat
+    end
+    return result
+end
+
+function _legacy_k_key(power::Int, domain::Domain)::KPowerKey
+    if power == 0
+        return ()
+    elseif length(domain.transformed_dims) == 1
+        return (Symbol(:k_, domain.transformed_dims[1]) => power,)
+    else
+        return (:_total_k => power,)
+    end
+end
+
+_total_k_power(key::KPowerKey) = sum(last, key; init=0)
+
+function _k_coeff(key::KPowerKey, k_vals::Dict{Symbol, Float64})
+    coeff = 1.0
+    for (name, power) in key
+        coeff *= get(k_vals, name, 0.0)^power
+    end
+    return coeff
+end
+
+function _add_component!(components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}},
+                         key::KPowerKey,
+                         block::SparseMatrixCSC{ComplexF64, Int})
+    if haskey(components, key)
+        components[key] = components[key] + block
+    else
+        components[key] = block
+    end
+    return components
+end
+
+function _add_legacy_component!(components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
+                                power::Int,
+                                block::SparseMatrixCSC{ComplexF64, Int})
+    if haskey(components, power)
+        components[power] = components[power] + block
+    else
+        components[power] = block
+    end
+    return components
 end
 
 function Base.show(io::IO, c::DiscretizationCache)
@@ -143,7 +208,7 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
         val = prob.parameters[expr.name]
         if val isa Number
             return ComplexF64(val) .* _full_conversion(domain, highest_cheb_order)
-        elseif val isa AbstractMatrix && size(val, 1) == N_per_var
+        elseif val isa AbstractMatrix && size(val) == (N_per_var, N_per_var)
             # Square matrix parameter: use directly as a pre-computed operator.
             return ComplexF64.(val)
         else
@@ -288,7 +353,7 @@ function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int)
         fourier_dim = _find_fourier_dim(domain)
         if val isa Number
             return ComplexF64(val) * sparse(I, N_per_var, N_per_var)
-        elseif val isa AbstractMatrix && size(val, 1) == N_per_var
+        elseif val isa AbstractMatrix && size(val) == (N_per_var, N_per_var)
             return ComplexF64.(val)
         else
             f_vec = vec(val)
@@ -451,6 +516,44 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
             dm = mod(m1 - m2, N_y)
             block = Mz_blocks[dm + 1]
             # Only add non-negligible blocks
+            if nnz(block) > 0
+                rs = m1 * N_z + 1
+                cs = m2 * N_z + 1
+                M_full[rs:rs+N_z-1, cs:cs+N_z-1] = block
+            end
+        end
+    end
+
+    return M_full
+end
+
+"""
+Build the full 2D multiplication operator from mixed Fourier-Chebyshev
+coefficient data. Unlike `_build_2d_field_multiply`, `c_vec` is already in
+coefficient space with z coefficients varying fastest.
+"""
+function _build_2d_coeff_multiply(c_vec::AbstractVector, domain::Domain,
+                                  cheb_dim::Symbol, fourier_dim::Symbol)
+    spec_z = domain.coords[cheb_dim]
+    spec_y = domain.coords[fourier_dim]
+    N_z = spec_z.N
+    N_y = spec_y.N
+    N_total = N_y * N_z
+
+    length(c_vec) == N_total ||
+        throw(DimensionMismatch("Coefficient vector has length $(length(c_vec)), expected $N_total"))
+
+    coeffs = reshape(ComplexF64.(c_vec), N_z, N_y)
+    Mz_blocks = Vector{SparseMatrixCSC{ComplexF64, Int}}(undef, N_y)
+    for dm in 0:N_y-1
+        Mz_blocks[dm + 1] = _complex_multiplication_operator(coeffs[:, dm + 1], N_z)
+    end
+
+    M_full = spzeros(ComplexF64, N_total, N_total)
+    for m1 in 0:N_y-1
+        for m2 in 0:N_y-1
+            dm = mod(m1 - m2, N_y)
+            block = Mz_blocks[dm + 1]
             if nnz(block) > 0
                 rs = m1 * N_z + 1
                 cs = m2 * N_z + 1
@@ -774,7 +877,20 @@ function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob
             cheb_dim = _find_chebyshev_dim(domain)
             fourier_dim = _find_fourier_dim(domain)
             f_vec = vec(val)
-            if !isnothing(cheb_dim)
+            if !isnothing(cheb_dim) && !isnothing(fourier_dim)
+                N_z = domain.coords[cheb_dim].N
+                N_y = domain.coords[fourier_dim].N
+                if length(f_vec) == N_z
+                    c = chebyshev_coefficients(Float64.(f_vec))
+                    M_1d = ComplexF64.(multiplication_operator(c, N_z))
+                    return _lift_to_2d(M_1d, cheb_dim, domain)
+                elseif length(f_vec) == N_y * N_z
+                    return _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
+                else
+                    error("Field parameter :$(expr.name) has length $(length(f_vec)), " *
+                          "expected $N_z (1D) or $(N_y*N_z) (2D)")
+                end
+            elseif !isnothing(cheb_dim)
                 spec = domain.coords[cheb_dim]
                 c = chebyshev_coefficients(Float64.(f_vec))
                 M_1d = ComplexF64.(multiplication_operator(c, spec.N))
@@ -812,8 +928,8 @@ function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::
             S_full = _full_conversion(prob.domain, eq_order)
 
             for rhs_term in rhs_additive
-                rhs_kp, rhs_reduced = extract_k_power(rhs_term)
-                total_kp = kt.k_power + rhs_kp
+                rhs_k_powers, rhs_reduced = extract_k_powers(rhs_term)
+                total_k_powers = _merge_k_powers(kt.k_powers, rhs_k_powers)
 
                 # Build rhs operator in T basis: use _discretize_operator which
                 # handles all derivatives and stays in T basis (no S conversion).
@@ -824,7 +940,7 @@ function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::
                 coeff_with_S = S_full * coeff_mat
 
                 push!(derived_caches[dname].terms,
-                      (eq_idx, real_var_idx, total_kp, coeff_with_S, rhs_mat))
+                      (eq_idx, real_var_idx, total_k_powers, coeff_with_S, rhs_mat))
             end
             return
         end
@@ -892,7 +1008,7 @@ end
 Build BC rows for the full system.
 
 Returns `(bc_info, rhs_values)` where `bc_info` is a vector of tuples:
-`(row_idx, k_power, a_row, b_row)` — the A-side row, B-side row, and their k-power.
+`(row_idx, k_powers, a_row, b_row)` — the A-side row, B-side row, and their k powers.
 
 For **algebraic BCs** (no eigenvalue): A row = boundary evaluation, B row = zeros, k_power = 0.
 For **dynamic BCs** (eigenvalue-dependent): the expression is split like an equation —
@@ -907,8 +1023,8 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
     N_y = isnothing(fourier_dim) ? 1 : domain.coords[fourier_dim].N
     @assert N_y * N_z == N_per_var "Grid mismatch: N_y=$N_y * N_z=$N_z != N_per_var=$N_per_var"
 
-    # Collect: (row_idx, k_power, a_row_vec, b_row_vec)
-    bc_info = Tuple{Int, Int, Vector{ComplexF64}, Vector{ComplexF64}}[]
+    # Collect: (row_idx, k_powers, a_row_vec, b_row_vec)
+    bc_info = Tuple{Int, KPowerKey, Vector{ComplexF64}, Vector{ComplexF64}}[]
     rhs_values = Float64[]
     bc_count = Dict{Symbol, Int}()
 
@@ -932,15 +1048,22 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
         if !bc.is_dynamic
             # Algebraic BC: A row = boundary eval, B row = zeros, k_power = 0
             bc_row_1d = zeros(ComplexF64, N_z)
-            _build_bc_row_1d!(bc_row_1d, bc.expr, bc.side, bc.coord, prob)
+            _build_bc_row_1d!(bc_row_1d, bc.expr, bc.side, bc.coord, prob;
+                              target_var=primary_var)
 
             for m in 0:N_y-1
                 row_idx = var_block_start + m * N_z + (N_z - count + 1)
                 a_row = zeros(ComplexF64, N_total)
-                col_start = var_block_start + m * N_z + 1
-                a_row[col_start:col_start+N_z-1] = bc_row_1d
+                for (col_var_idx, col_var) in enumerate(prob.variables)
+                    col_row_1d = col_var == primary_var ? bc_row_1d : zeros(ComplexF64, N_z)
+                    col_var == primary_var ||
+                        _build_bc_row_1d!(col_row_1d, bc.expr, bc.side, bc.coord, prob;
+                                          target_var=col_var)
+                    col_start = (col_var_idx - 1) * N_per_var + m * N_z + 1
+                    a_row[col_start:col_start+N_z-1] = col_row_1d
+                end
 
-                push!(bc_info, (row_idx, 0, a_row, zeros(ComplexF64, N_total)))
+                push!(bc_info, (row_idx, (), a_row, zeros(ComplexF64, N_total)))
                 push!(rhs_values, Float64(real(bc.rhs)))
             end
         else
@@ -956,19 +1079,19 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
             # For each term: is it eigenvalue-dependent?
             # sigma * f(psi) → strip sigma, f(psi) goes to B
             # g(psi)         → goes to A
-            a_terms_by_k = Dict{Int, Vector{ExprNode}}()
-            b_terms_by_k = Dict{Int, Vector{ExprNode}}()
+            a_terms_by_k = Dict{KPowerKey, Vector{ExprNode}}()
+            b_terms_by_k = Dict{KPowerKey, Vector{ExprNode}}()
 
             for t in all_terms
                 if _contains_eigenvalue(t, prob.eigenvalue)
                     # Strip eigenvalue from this term
                     inner = _strip_eigenvalue_from_term(t, prob.eigenvalue)
-                    k_power, reduced = extract_k_power(inner)
-                    terms_list = get!(b_terms_by_k, k_power, ExprNode[])
+                    k_powers, reduced = extract_k_powers(inner)
+                    terms_list = get!(b_terms_by_k, k_powers, ExprNode[])
                     push!(terms_list, reduced)
                 else
-                    k_power, reduced = extract_k_power(t)
-                    terms_list = get!(a_terms_by_k, k_power, ExprNode[])
+                    k_powers, reduced = extract_k_powers(t)
+                    terms_list = get!(a_terms_by_k, k_powers, ExprNode[])
                     push!(terms_list, reduced)
                 end
             end
@@ -976,8 +1099,6 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
             # Build 1D boundary rows for each k-power component
             for m in 0:N_y-1
                 row_idx = var_block_start + m * N_z + (N_z - count + 1)
-                col_start = var_block_start + m * N_z + 1
-
                 # Collect all k-powers from both A and B sides
                 all_k_powers = union(keys(a_terms_by_k), keys(b_terms_by_k))
 
@@ -987,20 +1108,28 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
 
                     # A-side terms for this k-power
                     if haskey(a_terms_by_k, kp)
-                        a_1d = zeros(ComplexF64, N_z)
-                        for term in a_terms_by_k[kp]
-                            _build_bc_row_1d!(a_1d, term, bc.side, bc.coord, prob)
+                        for (col_var_idx, col_var) in enumerate(prob.variables)
+                            a_1d = zeros(ComplexF64, N_z)
+                            for term in a_terms_by_k[kp]
+                                _build_bc_row_1d!(a_1d, term, bc.side, bc.coord, prob;
+                                                  target_var=col_var)
+                            end
+                            col_start = (col_var_idx - 1) * N_per_var + m * N_z + 1
+                            a_row[col_start:col_start+N_z-1] = a_1d
                         end
-                        a_row[col_start:col_start+N_z-1] = a_1d
                     end
 
                     # B-side terms for this k-power
                     if haskey(b_terms_by_k, kp)
-                        b_1d = zeros(ComplexF64, N_z)
-                        for term in b_terms_by_k[kp]
-                            _build_bc_row_1d!(b_1d, term, bc.side, bc.coord, prob)
+                        for (col_var_idx, col_var) in enumerate(prob.variables)
+                            b_1d = zeros(ComplexF64, N_z)
+                            for term in b_terms_by_k[kp]
+                                _build_bc_row_1d!(b_1d, term, bc.side, bc.coord, prob;
+                                                  target_var=col_var)
+                            end
+                            col_start = (col_var_idx - 1) * N_per_var + m * N_z + 1
+                            b_row[col_start:col_start+N_z-1] = b_1d
                         end
-                        b_row[col_start:col_start+N_z-1] = b_1d
                     end
 
                     push!(bc_info, (row_idx, kp, a_row, b_row))
@@ -1053,11 +1182,15 @@ Field parameters are evaluated at the boundary point to become scalar multiplier
 """
 function _build_bc_row_1d!(row_vec::AbstractVector, expr::ExprNode,
                            side::Symbol, coord::Symbol, prob::EVP;
-                           scale::ComplexF64=ComplexF64(1.0))
+                           scale::ComplexF64=ComplexF64(1.0),
+                           target_var::Union{Symbol,Nothing}=nothing)
     spec = prob.domain.coords[coord]
     N = spec.N
 
     if expr isa VarNode
+        if target_var !== nothing && expr.name != target_var
+            return
+        end
         bc_row = chebyshev_boundary_row(side, 0, N; a=spec.lower, b=spec.upper)
         row_vec .+= scale .* bc_row
 
@@ -1076,20 +1209,28 @@ function _build_bc_row_1d!(row_vec::AbstractVector, expr::ExprNode,
         inner = unwrap_chained_derivs_any(expr, coord)
 
         if inner isa VarNode
+            if target_var !== nothing && inner.name != target_var
+                return
+            end
             bc_row = chebyshev_boundary_row(side, deriv_order, N; a=spec.lower, b=spec.upper)
             row_vec .+= scale .* bc_row
         else
             distributed = _distribute_deriv(inner, coord, deriv_order)
-            _build_bc_row_1d!(row_vec, distributed, side, coord, prob; scale=scale)
+            _build_bc_row_1d!(row_vec, distributed, side, coord, prob;
+                              scale=scale, target_var=target_var)
         end
 
     elseif expr isa BinaryOpNode && expr.op == :+
-        _build_bc_row_1d!(row_vec, expr.left, side, coord, prob; scale=scale)
-        _build_bc_row_1d!(row_vec, expr.right, side, coord, prob; scale=scale)
+        _build_bc_row_1d!(row_vec, expr.left, side, coord, prob;
+                          scale=scale, target_var=target_var)
+        _build_bc_row_1d!(row_vec, expr.right, side, coord, prob;
+                          scale=scale, target_var=target_var)
 
     elseif expr isa BinaryOpNode && expr.op == :-
-        _build_bc_row_1d!(row_vec, expr.left, side, coord, prob; scale=scale)
-        _build_bc_row_1d!(row_vec, expr.right, side, coord, prob; scale=-scale)
+        _build_bc_row_1d!(row_vec, expr.left, side, coord, prob;
+                          scale=scale, target_var=target_var)
+        _build_bc_row_1d!(row_vec, expr.right, side, coord, prob;
+                          scale=-scale, target_var=target_var)
 
     elseif expr isa BinaryOpNode && expr.op == :*
         # Try to resolve either side as a scalar (const, scalar param, or field at boundary)
@@ -1097,16 +1238,19 @@ function _build_bc_row_1d!(row_vec::AbstractVector, expr::ExprNode,
         rv = _try_bc_scalar(expr.right, side, coord, prob)
 
         if !isnothing(lv)
-            _build_bc_row_1d!(row_vec, expr.right, side, coord, prob; scale=scale * lv)
+            _build_bc_row_1d!(row_vec, expr.right, side, coord, prob;
+                              scale=scale * lv, target_var=target_var)
         elseif !isnothing(rv)
-            _build_bc_row_1d!(row_vec, expr.left, side, coord, prob; scale=scale * rv)
+            _build_bc_row_1d!(row_vec, expr.left, side, coord, prob;
+                              scale=scale * rv, target_var=target_var)
         else
             error("BC multiplication must involve a scalar or field parameter: " *
                   "got $(expr.left) * $(expr.right)")
         end
 
     elseif expr isa UnaryOpNode && expr.op == :-
-        _build_bc_row_1d!(row_vec, expr.expr, side, coord, prob; scale=-scale)
+        _build_bc_row_1d!(row_vec, expr.expr, side, coord, prob;
+                          scale=-scale, target_var=target_var)
 
     else
         error("Unsupported expression in BC: $(typeof(expr))")
@@ -1232,6 +1376,8 @@ function discretize(prob::EVP)
 
     A_components = Dict{Int, SparseMatrixCSC{ComplexF64, Int}}()
     B_components = Dict{Int, SparseMatrixCSC{ComplexF64, Int}}()
+    A_kcomponents = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
+    B_kcomponents = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
 
     # Compute per-equation highest Chebyshev derivative order.
     # Each equation lives in its own C^(p) basis where p is the max z-derivative
@@ -1278,12 +1424,17 @@ function discretize(prob::EVP)
 
         op_k0 = spzeros(ComplexF64, N_per_var, N_per_var)
         op_k2_coeff = ComplexF64(0.0)
+        op_k_components = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
 
         for kt in op_terms
             mat = _discretize_operator(kt.expr, :_dummy_, prob, N_per_var)
-            if kt.k_power == 0
+            if isempty(kt.k_powers)
                 op_k0 = op_k0 + mat
-            elseif kt.k_power == 2
+            else
+                _add_component!(op_k_components, kt.k_powers, mat)
+            end
+
+            if kt.k_power == 2
                 # The k² term is typically a scalar times identity (from dx(dx(v)) → -k²*v)
                 # Extract the scalar coefficient
                 diag_val = mat[1, 1]
@@ -1293,8 +1444,8 @@ function discretize(prob::EVP)
 
         H_k0 = _sparse_block_inverse(op_k0, prob.domain; bcs=dvar.bcs)
         derived_H_k0[dname] = H_k0
-        derived_caches[dname] = DerivedVarCache(op_k0, op_k2_coeff, dvar.bcs,
-            Tuple{Int, Int, Int, SparseMatrixCSC{ComplexF64, Int}, SparseMatrixCSC{ComplexF64, Int}}[])
+        derived_caches[dname] = DerivedVarCache(op_k0, op_k2_coeff, op_k_components, dvar.bcs,
+            Tuple{Int, Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}, SparseMatrixCSC{ComplexF64, Int}}[])
     end
 
     for (eq_idx, eq) in enumerate(prob.equations)
@@ -1321,11 +1472,8 @@ function discretize(prob::EVP)
             var_idx = find_target_variable(kt.expr, prob.variables)
             block = place_in_block(mat, eq_idx, var_idx, N_vars, N_per_var)
 
-            if haskey(A_components, kt.k_power)
-                A_components[kt.k_power] = A_components[kt.k_power] + block
-            else
-                A_components[kt.k_power] = block
-            end
+            _add_legacy_component!(A_components, kt.k_power, block)
+            _add_component!(A_kcomponents, kt.k_powers, block)
         end
 
         # LHS: eigenvalue side → B matrix (also needs k-separation)
@@ -1341,11 +1489,8 @@ function discretize(prob::EVP)
                 mat = discretize_expr(kt.expr, prob, N_per_var, eq_order)
                 b_block = place_in_block(mat, eq_idx, lhs_var_idx, N_vars, N_per_var)
 
-                if haskey(B_components, kt.k_power)
-                    B_components[kt.k_power] = B_components[kt.k_power] + b_block
-                else
-                    B_components[kt.k_power] = b_block
-                end
+                _add_legacy_component!(B_components, kt.k_power, b_block)
+                _add_component!(B_kcomponents, kt.k_powers, b_block)
             end
         end
         # If no eigenvalue on LHS → constraint equation, B rows stay zero
@@ -1371,37 +1516,56 @@ function discretize(prob::EVP)
             A_components[p][row_idx, :] .= zero(ComplexF64)
         end
     end
+    for p in keys(A_kcomponents)
+        for row_idx in bc_row_indices
+            A_kcomponents[p][row_idx, :] .= zero(ComplexF64)
+        end
+    end
     for p in keys(B_components)
         for row_idx in bc_row_indices
             B_components[p][row_idx, :] .= zero(ComplexF64)
         end
     end
+    for p in keys(B_kcomponents)
+        for row_idx in bc_row_indices
+            B_kcomponents[p][row_idx, :] .= zero(ComplexF64)
+        end
+    end
 
     # Then write BC rows into the correct k-power components
     for (row_idx, kp, a_row, b_row) in bc_info
+        total_kp = _total_k_power(kp)
         # Ensure this k-power component exists
-        if !haskey(A_components, kp)
-            A_components[kp] = spzeros(ComplexF64, N_total, N_total)
+        if !haskey(A_components, total_kp)
+            A_components[total_kp] = spzeros(ComplexF64, N_total, N_total)
         end
-        if !haskey(B_components, kp)
-            B_components[kp] = spzeros(ComplexF64, N_total, N_total)
+        if !haskey(A_kcomponents, kp)
+            A_kcomponents[kp] = spzeros(ComplexF64, N_total, N_total)
+        end
+        if !haskey(B_components, total_kp)
+            B_components[total_kp] = spzeros(ComplexF64, N_total, N_total)
+        end
+        if !haskey(B_kcomponents, kp)
+            B_kcomponents[kp] = spzeros(ComplexF64, N_total, N_total)
         end
 
         # Write A row
         for (j, v) in enumerate(a_row)
             if v != 0.0
-                A_components[kp][row_idx, j] += ComplexF64(v)
+                A_components[total_kp][row_idx, j] += ComplexF64(v)
+                A_kcomponents[kp][row_idx, j] += ComplexF64(v)
             end
         end
         # Write B row
         for (j, v) in enumerate(b_row)
             if v != 0.0
-                B_components[kp][row_idx, j] += ComplexF64(v)
+                B_components[total_kp][row_idx, j] += ComplexF64(v)
+                B_kcomponents[kp][row_idx, j] += ComplexF64(v)
             end
         end
     end
 
-    return DiscretizationCache(A_components, B_components, derived_caches,
+    return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents, derived_caches,
                                N_total, N_per_var, N_vars, prob.domain)
 end
 
@@ -1463,22 +1627,36 @@ Assemble the full A and B matrices for a given wavenumber k (allocating).
 A(k) = Σ_p k^p * A_p + derived variable contributions with H(k).
 """
 function assemble(cache::DiscretizationCache, k::Float64)
+    k_vals = Dict{Symbol, Float64}()
+    if isempty(cache.domain.transformed_dims)
+        k_vals[:_total_k] = k
+    else
+        for dim in cache.domain.transformed_dims
+            k_vals[Symbol(:k_, dim)] = k
+        end
+    end
+    return _assemble(cache, k_vals)
+end
+
+function _assemble(cache::DiscretizationCache, k_vals::Dict{Symbol, Float64})
     N = cache.N_total
     A = spzeros(ComplexF64, N, N)
-    for (p, Ap) in cache.A_components
-        if p == 0
+    for (kp, Ap) in cache.A_kcomponents
+        coeff = _k_coeff(kp, k_vals)
+        if coeff == 1.0
             A = A + Ap
         else
-            A = A + k^p * Ap
+            A = A + coeff * Ap
         end
     end
 
     B = spzeros(ComplexF64, N, N)
-    for (p, Bp) in cache.B_components
-        if p == 0
+    for (kp, Bp) in cache.B_kcomponents
+        coeff = _k_coeff(kp, k_vals)
+        if coeff == 1.0
             B = B + Bp
         else
-            B = B + k^p * Bp
+            B = B + coeff * Bp
         end
     end
 
@@ -1488,16 +1666,17 @@ function assemble(cache::DiscretizationCache, k::Float64)
 
         # Build H(k) = (op_k0 + k² * coeff * I)^{-1}
         op_k = dc.op_k0
-        if abs(dc.op_k2_coeff) > 1e-14
-            op_k = op_k + (k^2 * dc.op_k2_coeff) *
-                   sparse(ComplexF64(1.0) * I, cache.N_per_var, cache.N_per_var)
+        for (kp, mat) in dc.op_k_components
+            coeff = _k_coeff(kp, k_vals)
+            coeff == 0.0 && continue
+            op_k = op_k + coeff * mat
         end
         H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 
         for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
             combined = coeff_mat * H_k * rhs_mat
             block = place_in_block(combined, eq_idx, var_idx, cache.N_vars, cache.N_per_var)
-            A = A + k^total_kp * block
+            A = A + _k_coeff(total_kp, k_vals) * block
         end
     end
 
@@ -1521,7 +1700,12 @@ function assemble(cache::DiscretizationCache; kwargs...)
     # Build a dict of wavenumber name → value
     k_vals = Dict{Symbol, Float64}()
     for (name, val) in kwargs
-        k_vals[name] = Float64(val)
+        name_sym = Symbol(name)
+        if name_sym in cache.domain.transformed_dims
+            k_vals[Symbol(:k_, name_sym)] = Float64(val)
+        else
+            k_vals[name_sym] = Float64(val)
+        end
     end
 
     # For single FourierTransformed direction, delegate to the simple version
@@ -1532,14 +1716,7 @@ function assemble(cache::DiscretizationCache; kwargs...)
         return assemble(cache, k_val)
     end
 
-    # Multi-wavenumber: k-power components use combined power of all wavenumbers
-    # For now, this is only supported when each k-power component was generated
-    # from a single wavenumber direction. General multi-k requires tracking
-    # per-direction powers separately.
-    # Simple case: sum all wavenumber values as a single effective k
-    # TODO: implement per-direction k-power tracking for full multi-k support
-    k_total = sum(values(k_vals))
-    return assemble(cache, k_total)
+    return _assemble(cache, k_vals)
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1577,10 +1754,19 @@ end
     assemble!(ws, cache, k)
 
 Assemble A and B into the pre-allocated workspace `ws` for wavenumber `k`.
-Overwrites `ws.A` and `ws.B` in-place — zero allocation.
+Overwrites `ws.A` and `ws.B` in-place. Derived-variable terms still allocate
+while rebuilding their k-dependent inverse operators.
 """
 function assemble!(ws::AssemblyWorkspace, cache::DiscretizationCache, k::Float64)
     N = cache.N_total
+    k_vals = Dict{Symbol, Float64}()
+    if isempty(cache.domain.transformed_dims)
+        k_vals[:_total_k] = k
+    else
+        for dim in cache.domain.transformed_dims
+            k_vals[Symbol(:k_, dim)] = k
+        end
+    end
 
     # Zero out
     fill!(ws.A, zero(ComplexF64))
@@ -1615,16 +1801,17 @@ function assemble!(ws::AssemblyWorkspace, cache::DiscretizationCache, k::Float64
         isempty(dc.terms) && continue
 
         op_k = dc.op_k0
-        if abs(dc.op_k2_coeff) > 1e-14
-            op_k = op_k + (k^2 * dc.op_k2_coeff) *
-                   sparse(ComplexF64(1.0) * I, cache.N_per_var, cache.N_per_var)
+        for (kp, mat) in dc.op_k_components
+            coeff = _k_coeff(kp, k_vals)
+            coeff == 0.0 && continue
+            op_k = op_k + coeff * mat
         end
         H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 
         for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
             combined = coeff_mat * H_k * rhs_mat
             block = place_in_block(combined, eq_idx, var_idx, cache.N_vars, cache.N_per_var)
-            kp_coeff = k^total_kp
+            kp_coeff = _k_coeff(total_kp, k_vals)
             block_sp = kp_coeff * block
             brows = rowvals(block_sp)
             bvals = nonzeros(block_sp)

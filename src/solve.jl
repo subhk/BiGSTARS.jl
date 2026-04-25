@@ -8,9 +8,9 @@
 Solve the eigenvalue problem for each wavenumber in `k_values`.
 Returns a `Vector{SolverResults}`.
 
-Uses **in-place assembly** to avoid repeated matrix allocation. When `parallel=true`,
-one pre-allocated workspace per thread is created — peak memory is
-`N_threads x (A + B + temp)` regardless of how many wavenumbers are solved.
+Uses **in-place assembly** to reuse the main dense matrix workspace. When
+`parallel=true`, one pre-allocated workspace per thread is created. Problems
+with derived variables still allocate per wavenumber while rebuilding `H(k)`.
 
 ## Keyword arguments
 
@@ -81,11 +81,11 @@ function solve(cache::DiscretizationCache, k_values::AbstractVector;
     return results
 end
 
-"""Solve a single wavenumber using pre-allocated workspace (zero allocation in hot path)."""
+"""Solve a single wavenumber using the pre-allocated main matrix workspace."""
 function _solve_inplace(ws::AssemblyWorkspace, cache::DiscretizationCache,
                         k_val::Float64, sigma_0::Float64, method::Symbol,
                         verbose::Bool, failed_result::SolverResults; kwargs...)
-    # In-place assembly — overwrites ws.A and ws.B, no allocation
+    # In-place assembly reuses ws.A and ws.B for the main system matrices.
     assemble!(ws, cache, k_val)
 
     # EigenSolver accepts AbstractMatrix, so dense matrices work fine

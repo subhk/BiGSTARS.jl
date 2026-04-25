@@ -2,10 +2,17 @@
 #  Wavenumber separation: tag, extract k-power, split expression trees        #
 #══════════════════════════════════════════════════════════════════════════════#
 
+const KPowerKey = Tuple{Vararg{Pair{Symbol, Int}}}
+
 """A term in the equation with a known power of k."""
 struct KTerm
     k_power::Int
+    k_powers::KPowerKey
     expr::ExprNode
+
+    KTerm(k_power::Int, expr::ExprNode) = new(k_power, (), expr)
+    KTerm(k_powers::KPowerKey, expr::ExprNode) =
+        new(sum(last, k_powers; init=0), k_powers, expr)
 end
 
 """Check if an expression tree depends on wavenumber k."""
@@ -51,6 +58,22 @@ function extract_k_power(expr::ExprNode)
     return _extract_k(expr)
 end
 
+"""Like `extract_k_power`, but preserves powers for each wavenumber symbol."""
+function extract_k_powers(expr::ExprNode)
+    return _extract_k_powers(expr)
+end
+
+function _merge_k_powers(a::KPowerKey, b::KPowerKey)
+    powers = Dict{Symbol, Int}()
+    for (name, p) in a
+        powers[name] = get(powers, name, 0) + p
+    end
+    for (name, p) in b
+        powers[name] = get(powers, name, 0) + p
+    end
+    return Tuple(name => powers[name] for name in sort(collect(keys(powers))) if powers[name] != 0)
+end
+
 """
 Extract wavenumber power from a multiplicative term.
 
@@ -88,6 +111,38 @@ function _extract_k(expr::ExprNode)
         return p, DerivNode(r, expr.coord)
     else
         return 0, expr
+    end
+end
+
+function _extract_k_powers(expr::ExprNode)
+    if expr isa WavenumberNode
+        return (expr.name => 1,), ConstNode(1.0)
+    elseif expr isa ConstNode && (expr.value === im || expr.value == im)
+        # im is part of derivative lowering; keep it in the matrix coefficient.
+        return (), expr
+    elseif expr isa BinaryOpNode && expr.op == :*
+        lp, lr = _extract_k_powers(expr.left)
+        rp, rr = _extract_k_powers(expr.right)
+        powers = _merge_k_powers(lp, rp)
+
+        if lr isa ConstNode && lr.value == 1.0
+            reduced = rr
+        elseif rr isa ConstNode && rr.value == 1.0
+            reduced = lr
+        elseif lr isa ConstNode && rr isa ConstNode
+            reduced = ConstNode(lr.value * rr.value)
+        else
+            reduced = BinaryOpNode(:*, lr, rr)
+        end
+        return powers, reduced
+    elseif expr isa UnaryOpNode
+        powers, reduced = _extract_k_powers(expr.expr)
+        return powers, UnaryOpNode(expr.op, reduced)
+    elseif expr isa DerivNode
+        powers, reduced = _extract_k_powers(expr.expr)
+        return powers, DerivNode(reduced, expr.coord)
+    else
+        return (), expr
     end
 end
 
@@ -162,8 +217,8 @@ function separate_by_k_power(expr::ExprNode)
     terms = separate_additive_terms(distributed)
     k_terms = KTerm[]
     for t in terms
-        power, reduced = extract_k_power(t)
-        push!(k_terms, KTerm(power, reduced))
+        powers, reduced = extract_k_powers(t)
+        push!(k_terms, KTerm(powers, reduced))
     end
     return k_terms
 end

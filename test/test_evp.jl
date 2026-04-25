@@ -2,7 +2,8 @@ using Test
 using BiGSTARS: ExprNode, VarNode, ParamNode, ConstNode, EigenvalueNode,
     WavenumberNode, DerivNode, BinaryOpNode, SubstitutionNode,
     Substitution, Equation, BoundaryCondition,
-    add_equation!, add_bc!, add_substitution!, first_chebyshev_coord
+    add_equation!, add_bc!, add_substitution!, add_derived!, add_derived_bc!,
+    first_chebyshev_coord
 
 @testset "EVP Problem Type" begin
 
@@ -86,6 +87,16 @@ using BiGSTARS: ExprNode, VarNode, ParamNode, ConstNode, EigenvalueNode,
         )
         prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
         @test first_chebyshev_coord(prob) == :z
+    end
+
+    @testset "derived BC preserves derivative order" begin
+        domain = Domain(z = Chebyshev(N=10, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+
+        add_derived!(prob, :v, :Op, VarNode(:u))
+        add_derived_bc!(prob, :v, :left, :z, 2, 0.0)
+
+        @test BiGSTARS.count_bc_deriv_order(prob.derived_vars[:v].bcs[1].expr) == 2
     end
 
 end

@@ -130,9 +130,12 @@ function add_derived_bc!(prob::EVP, var_name::Symbol, side::Symbol, coord::Symbo
                          deriv_order::Int, rhs::Float64=0.0)
     haskey(prob.derived_vars, var_name) ||
         error("No derived variable :$var_name. Call @derive before @derive_bc.")
-    bc = BoundaryCondition(side, coord,
-         deriv_order == 0 ? VarNode(var_name) : DerivNode(VarNode(var_name), coord),
-         rhs, false)
+    deriv_order >= 0 || throw(ArgumentError("Derivative order must be non-negative"))
+    expr::ExprNode = VarNode(var_name)
+    for _ in 1:deriv_order
+        expr = DerivNode(expr, coord)
+    end
+    bc = BoundaryCondition(side, coord, expr, rhs, false)
     push!(prob.derived_vars[var_name].bcs, bc)
 end
 

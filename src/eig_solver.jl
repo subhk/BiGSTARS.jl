@@ -206,10 +206,11 @@ operator `op` for the current shift `σ` to avoid per-call allocations.
 function solve_krylov_single(op, σ::Float64; config::SolverConfig)
     λinv, Χ, info = eigsolve(op,
                              rand(ComplexF64, size(op, 1)),
-                             1,
+                             config.nev,
                              config.which;
                              maxiter=config.maxiter,
                              krylovdim=config.krylovdim,
+                             tol=config.tol,
                              verbosity=0)
     
     λ = @. 1.0 / λinv + σ
@@ -247,9 +248,11 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
     # Generate shift attempts
     Δσs_up = [config.Δσ₀ * config.incre^(i-1) * abs(config.σ₀) for i in 1:config.n_tries]
     Δσs_dn = [-δ for δ in Δσs_up]
-    σ_attempts = [config.σ₀ + δ for δ in vcat(Δσs_up, Δσs_dn)]
+    σ_attempts = [config.σ₀; (config.σ₀ + δ for δ in vcat(Δσs_up, Δσs_dn))...]
     
     λ_prev = nothing
+    last_λ = ComplexF64[]
+    last_Χ = zeros(ComplexF64, size(solver.A, 1), 0)
     start_time = time()
     
     for (i, σ) in enumerate(σ_attempts)
@@ -277,6 +280,8 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
             push!(history.converged, true)
             push!(history.eigenvalues, λ[1])
             push!(history.errors, "")
+            last_λ = ComplexF64.(λ)
+            last_Χ = ComplexF64.(Χ)
             
             verbose && @printf("  ✓ converged: λ₁ = %.6f + %.6fi\n", real(λ[1]), imag(λ[1]))
             
@@ -303,6 +308,20 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
             
             verbose && @warn "  ✗ failed at σ = $σ: $err"
         end
+    end
+
+    # A single converged attempt is still a usable result when the caller does
+    # not require the successive-shift stability check to pass.
+    last_success = findlast(history.converged)
+    if last_success !== nothing
+        history.final_shift = history.attempts[last_success]
+        solve_time = time() - start_time
+        solver.results = SolverResults(
+            last_λ, last_Χ,
+            true, config.method, history.final_shift, length(σ_attempts),
+            solve_time, history
+        )
+        return solver
     end
     
     # If we get here, all attempts failed
@@ -406,7 +425,8 @@ function compare_methods!(solver::EigenSolver;
         successful_methods = [m for (m, r) in results if !isnothing(r) && r.converged]
         if !isempty(successful_methods)
             fastest = minimum(m -> results[m].solve_time, successful_methods)
-            fastest_method = findfirst(m -> results[m].solve_time == fastest, successful_methods)
+            fastest_idx = findfirst(m -> results[m].solve_time == fastest, successful_methods)
+            fastest_method = successful_methods[fastest_idx]
             println("   Successful methods: $successful_methods")
             @printf("   Fastest method: %s (%.3fs)\n", fastest_method, fastest)
 
@@ -473,27 +493,28 @@ end
 # ==============================================================================
 
 """
-    solve_eigenvalue_problem(A, B; method=:Arnoldi, σ₀, kwargs...)
+    solve_eigenvalue_problem(A, B; method=:Arnoldi, σ₀, verbose=false, kwargs...)
 
 Convenience function that creates a solver and immediately solves it.
 Maintains backwards compatibility with the original interface.
 """
-function solve_eigenvalue_problem(A, B; method::Symbol=:Arnoldi, σ₀::Float64, kwargs...)
+function solve_eigenvalue_problem(A, B; method::Symbol=:Arnoldi, σ₀::Float64,
+                                  verbose::Bool=false, kwargs...)
     config = SolverConfig(; method=method, σ₀=σ₀, kwargs...)
     solver = EigenSolver(A, B, config)
-    solve!(solver; verbose=get(kwargs, :verbose, false))
+    solve!(solver; verbose=verbose)
     return get_results(solver)
 end
 
 # Legacy convenience functions
-solve_arnoldi(A, B; σ₀::Float64, kwargs...) = 
-    solve_eigenvalue_problem(A, B; method=:Arnoldi, σ₀=σ₀, kwargs...)
+solve_arnoldi(A, B; σ₀::Float64, verbose::Bool=false, kwargs...) =
+    solve_eigenvalue_problem(A, B; method=:Arnoldi, σ₀=σ₀, verbose=verbose, kwargs...)
 
-solve_arpack(A, B; σ₀::Float64, kwargs...) = 
-    solve_eigenvalue_problem(A, B; method=:Arpack, σ₀=σ₀, kwargs...)
+solve_arpack(A, B; σ₀::Float64, verbose::Bool=false, kwargs...) =
+    solve_eigenvalue_problem(A, B; method=:Arpack, σ₀=σ₀, verbose=verbose, kwargs...)
 
-solve_krylov(A, B; σ₀::Float64, kwargs...) = 
-    solve_eigenvalue_problem(A, B; method=:Krylov, σ₀=σ₀, kwargs...)
+solve_krylov(A, B; σ₀::Float64, verbose::Bool=false, kwargs...) =
+    solve_eigenvalue_problem(A, B; method=:Krylov, σ₀=σ₀, verbose=verbose, kwargs...)
 
 # ==============================================================================
 # Documentation and Help

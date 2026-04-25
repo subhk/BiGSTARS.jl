@@ -1,6 +1,7 @@
 using Test
 using BiGSTARS: WavenumberNode, VarNode, ConstNode, DerivNode, BinaryOpNode,
-    is_k_dependent, separate_additive_terms, extract_k_power, separate_by_k_power
+    is_k_dependent, separate_additive_terms, extract_k_power, extract_k_powers,
+    separate_by_k_power
 
 @testset "Wavenumber Separation" begin
 
@@ -50,6 +51,18 @@ using BiGSTARS: WavenumberNode, VarNode, ConstNode, DerivNode, BinaryOpNode,
         @test power == 1
     end
 
+    @testset "extract_k_powers preserves wavenumber names" begin
+        psi = VarNode(:psi)
+        kx = WavenumberNode(:k_x)
+        ky = WavenumberNode(:k_y)
+
+        expr = BinaryOpNode(:*, kx, BinaryOpNode(:*, ky, BinaryOpNode(:*, kx, psi)))
+        powers, reduced = extract_k_powers(expr)
+
+        @test powers == (:k_x => 2, :k_y => 1)
+        @test reduced == psi
+    end
+
     @testset "separate_by_k_power" begin
         psi = VarNode(:psi)
         k = WavenumberNode(:k_x)
@@ -65,6 +78,21 @@ using BiGSTARS: WavenumberNode, VarNode, ConstNode, DerivNode, BinaryOpNode,
         powers = [kt.k_power for kt in k_terms]
         @test 0 in powers
         @test 1 in powers
+    end
+
+    @testset "separate_by_k_power keeps per-direction powers" begin
+        psi = VarNode(:psi)
+        kx = WavenumberNode(:k_x)
+        ky = WavenumberNode(:k_y)
+
+        expr = BinaryOpNode(:+,
+            BinaryOpNode(:*, kx, BinaryOpNode(:*, kx, psi)),
+            BinaryOpNode(:*, ky, BinaryOpNode(:*, ky, psi))
+        )
+
+        k_terms = separate_by_k_power(expr)
+        @test (:k_x => 2,) in [kt.k_powers for kt in k_terms]
+        @test (:k_y => 2,) in [kt.k_powers for kt in k_terms]
     end
 
 end

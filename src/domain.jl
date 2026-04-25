@@ -101,19 +101,23 @@ end
 Return physical-space grid points for the requested resolved dimensions.
 Returns a single vector for one dim, a tuple for multiple.
 """
-function gridpoints(domain::Domain, dims::Symbol...)
-    points = []
-    for dim in dims
-        spec = domain.coords[dim]
-        if spec isa FourierBasisSpec
-            push!(points, fourier_points(spec.N, spec.L) .+ spec.lower)
-        elseif spec isa ChebyshevBasisSpec
-            push!(points, chebyshev_points(spec.N, spec.lower, spec.upper))
-        else
-            error("Cannot get grid points for FourierTransformed direction :$dim")
-        end
+function _gridpoints_one(domain::Domain, dim::Symbol)
+    spec = domain.coords[dim]
+    if spec isa FourierBasisSpec
+        return fourier_points(spec.N, spec.L) .+ spec.lower
+    elseif spec isa ChebyshevBasisSpec
+        return chebyshev_points(spec.N, spec.lower, spec.upper)
+    else
+        error("Cannot get grid points for FourierTransformed direction :$dim")
     end
-    return length(points) == 1 ? points[1] : Tuple(points)
+end
+
+function gridpoints(domain::Domain, dim::Symbol)
+    return _gridpoints_one(domain, dim)
+end
+
+function gridpoints(domain::Domain, dims::Symbol...)
+    return map(dim -> _gridpoints_one(domain, dim), dims)
 end
 
 """
@@ -148,11 +152,13 @@ Get the 1D spectral differentiation operator for a resolved dimension.
 Includes domain scaling for Chebyshev directions.
 """
 function get_diff_operator(domain::Domain, dim::Symbol, order::Int)
+    @assert order >= 0 "Derivative order must be non-negative"
     spec = domain.coords[dim]
     if spec isa FourierBasisSpec
         return fourier_diff_operator(spec.N, spec.L, order)
     elseif spec isa ChebyshevBasisSpec
         N = spec.N
+        order == 0 && return sparse(1.0I, N, N)
         scale = 2.0 / (spec.upper - spec.lower)
         # Chain: D_{order-1} * ... * D_1 * D_0, each scaled
         D = scale * differentiation_operator(0, N)

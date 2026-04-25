@@ -98,6 +98,26 @@ using BiGSTARS: VarNode, DerivNode, BinaryOpNode, ConstNode, ParamNode,
 
         # Both variables add the same eval row → 2× the row
         @test row_vec ≈ 2.0 .* eval_row
+
+        psi_row = zeros(ComplexF64, N)
+        b_row = zeros(ComplexF64, N)
+        BiGSTARS._build_bc_row_1d!(psi_row, coupled_expr, :left, :z, prob; target_var=:psi)
+        BiGSTARS._build_bc_row_1d!(b_row, coupled_expr, :left, :z, prob; target_var=:b)
+        @test psi_row ≈ eval_row
+        @test b_row ≈ eval_row
+    end
+
+    @testset "Coupled BC placement spans variable blocks" begin
+        N = 4
+        domain = Domain(z = Chebyshev(N=N, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi, :b], eigenvalue=:sigma)
+        coupled_expr = BinaryOpNode(:+, VarNode(:psi), VarNode(:b))
+
+        BiGSTARS.add_bc!(prob, :left, :z, coupled_expr, 0.0)
+        bc_info, _ = BiGSTARS.build_bc_rows(prob, N, 2N)
+
+        eval_row = ComplexF64.(chebyshev_boundary_row(:left, 0, N))
+        @test bc_info[1][3] ≈ [eval_row; eval_row]
     end
 
     @testset "Coupled BC with derivatives: left(dz(psi) - Ri*b) (1D row)" begin

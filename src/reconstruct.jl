@@ -145,6 +145,14 @@ function _evaluate_expr(expr::ExprNode, prob::EVP, cache::DiscretizationCache,
                 return lv .* _evaluate_expr(expr.right, prob, cache, eigvec, k)
             elseif !isnothing(rv)
                 return rv .* _evaluate_expr(expr.left, prob, cache, eigvec, k)
+            elseif _is_field_param(expr.left, prob)
+                right_vec = _evaluate_expr(expr.right, prob, cache, eigvec, k)
+                M = _field_param_operator(expr.left::ParamNode, prob, domain, N_per_var)
+                return M * right_vec
+            elseif _is_field_param(expr.right, prob)
+                left_vec = _evaluate_expr(expr.left, prob, cache, eigvec, k)
+                M = _field_param_operator(expr.right::ParamNode, prob, domain, N_per_var)
+                return M * left_vec
             else
                 # Field * field: multiplication in coefficient space
                 left_vec = _evaluate_expr(expr.left, prob, cache, eigvec, k)
@@ -154,10 +162,9 @@ function _evaluate_expr(expr::ExprNode, prob::EVP, cache::DiscretizationCache,
                 if !isnothing(cheb_dim)
                     fourier_dim = _find_fourier_dim(domain)
                     if !isnothing(fourier_dim)
-                        M = _build_2d_field_multiply(left_vec, domain, cheb_dim, fourier_dim, 0)
+                        M = _build_2d_coeff_multiply(left_vec, domain, cheb_dim, fourier_dim)
                     else
-                        c = chebyshev_coefficients(real.(left_vec))
-                        M = ComplexF64.(multiplication_operator(c, length(left_vec)))
+                        M = _complex_multiplication_operator(ComplexF64.(left_vec), length(left_vec))
                     end
                     return M * right_vec
                 else
@@ -178,6 +185,31 @@ function _evaluate_expr(expr::ExprNode, prob::EVP, cache::DiscretizationCache,
     end
 
     error("Cannot evaluate expression: $(typeof(expr))")
+end
+
+function _is_field_param(expr::ExprNode, prob::EVP)
+    return expr isa ParamNode &&
+           haskey(prob.parameters, expr.name) &&
+           !(prob.parameters[expr.name] isa Number)
+end
+
+function _field_param_operator(param::ParamNode, prob::EVP, domain::Domain, N_per_var::Int)
+    val = prob.parameters[param.name]
+    if val isa AbstractMatrix && size(val) == (N_per_var, N_per_var)
+        return ComplexF64.(val)
+    end
+
+    f_vec = vec(val)
+    cheb_dim = _find_chebyshev_dim(domain)
+    fourier_dim = _find_fourier_dim(domain)
+    if !isnothing(cheb_dim) && !isnothing(fourier_dim)
+        return _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
+    elseif !isnothing(cheb_dim)
+        c = chebyshev_coefficients(Float64.(f_vec))
+        return ComplexF64.(multiplication_operator(c, length(f_vec)))
+    else
+        return fourier_multiply_operator(fft(f_vec) / length(f_vec), length(f_vec))
+    end
 end
 
 """
@@ -208,12 +240,21 @@ function reconstruct(cache::DiscretizationCache, prob::EVP,
     dc = cache.derived_caches[field_name]
     N_per_var = cache.N_per_var
     N_vars = cache.N_vars
+    k_vals = Dict{Symbol, Float64}()
+    if isempty(cache.domain.transformed_dims)
+        k_vals[:_total_k] = k
+    else
+        for dim in cache.domain.transformed_dims
+            k_vals[Symbol(:k_, dim)] = k
+        end
+    end
 
     # Build H(k) for this wavenumber
     op_k = dc.op_k0
-    if abs(dc.op_k2_coeff) > 1e-14
-        op_k = op_k + (k^2 * dc.op_k2_coeff) *
-               sparse(ComplexF64(1.0) * I, N_per_var, N_per_var)
+    for (kp, mat) in dc.op_k_components
+        coeff = _k_coeff(kp, k_vals)
+        coeff == 0.0 && continue
+        op_k = op_k + coeff * mat
     end
     H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 

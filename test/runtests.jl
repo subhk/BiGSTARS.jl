@@ -7,6 +7,7 @@ using FFTW
 @testset "BiGSTARS.jl" begin
     include("test_ultraspherical.jl")
     include("test_fourier_coeff.jl")
+    include("test_eig_solver.jl")
     include("test_transforms.jl")
     include("test_domain.jl")
     include("test_expr.jl")

@@ -3,7 +3,8 @@ using SparseArrays
 using LinearAlgebra
 using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_operator,
     total_grid_size, discretize, assemble, allocate_workspace, assemble!,
-    DiscretizationCache, AssemblyWorkspace
+    DiscretizationCache, AssemblyWorkspace, ParamNode, VarNode, BinaryOpNode,
+    DerivedVarCache
 
 @testset "Discretize and Assemble" begin
 
@@ -112,6 +113,101 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
 
         @test length(real_pos) >= 1
         @test abs(real_pos[1] - (π / 2)^2) / (π / 2)^2 < 0.01
+    end
+
+    @testset "@compute-style field parameter multiplication" begin
+        N = 8
+        domain = Domain(z = Chebyshev(N=N, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        prob[:U] = ones(N)
+
+        cache = DiscretizationCache(
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Symbol,DerivedVarCache}(),
+            N, N, 1, domain
+        )
+
+        expr = BinaryOpNode(:*, ParamNode(:U), VarNode(:u))
+        @test BiGSTARS._evaluate_expr(expr, prob, cache, ones(ComplexF64, N), 0.0) ≈ ones(ComplexF64, N)
+    end
+
+    @testset "@compute-style coefficient field multiplication" begin
+        N = 8
+        domain = Domain(z = Chebyshev(N=N, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        cache = DiscretizationCache(
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Symbol,DerivedVarCache}(),
+            N, N, 1, domain
+        )
+
+        coeffs = zeros(ComplexF64, N)
+        coeffs[1] = 1
+        coeffs[3] = 0.5
+        expr = BinaryOpNode(:*, VarNode(:u), VarNode(:u))
+        result = BiGSTARS._evaluate_expr(expr, prob, cache, coeffs, 0.0)
+        expected = BiGSTARS._complex_multiplication_operator(coeffs, N) * coeffs
+        @test result ≈ expected
+    end
+
+    @testset "@compute-style 2D coefficient field multiplication" begin
+        N_z = 4
+        N_y = 4
+        domain = Domain(y = Fourier(N=N_y, L=2π), z = Chebyshev(N=N_z, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        cache = DiscretizationCache(
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{Symbol,DerivedVarCache}(),
+            N_z * N_y, N_z * N_y, 1, domain
+        )
+
+        coeffs = zeros(ComplexF64, N_z * N_y)
+        coeffs[1] = 1
+        coeffs[N_z + 2] = 0.25
+        expr = BinaryOpNode(:*, VarNode(:u), VarNode(:u))
+        result = BiGSTARS._evaluate_expr(expr, prob, cache, coeffs, 0.0)
+        expected = BiGSTARS._build_2d_coeff_multiply(coeffs, domain, :z, :y) * coeffs
+        @test result ≈ expected
+    end
+
+    @testset "2D field parameter in T-basis operator discretization" begin
+        N_z = 4
+        N_y = 4
+        domain = Domain(y = Fourier(N=N_y, L=2π), z = Chebyshev(N=N_z, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        prob[:U] = ones(N_z * N_y)
+
+        M = BiGSTARS._discretize_operator(ParamNode(:U), nothing, prob, N_z * N_y)
+        @test size(M) == (N_z * N_y, N_z * N_y)
+        @test M * ones(ComplexF64, N_z * N_y) ≈ ones(ComplexF64, N_z * N_y)
+    end
+
+    @testset "multiple transformed direction assembly uses per-direction powers" begin
+        domain = Domain(
+            x = FourierTransformed(),
+            y = FourierTransformed(),
+            z = Chebyshev(N=32, lower=-1.0, upper=1.0)
+        )
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+
+        @equation prob sigma * u == -dx(dx(u)) - dy(dy(u)) - dz(dz(u))
+        @bc prob left(u) == 0
+        @bc prob right(u) == 0
+
+        cache = discretize(prob)
+        @test haskey(cache.A_kcomponents, (:k_x => 2,))
+        @test haskey(cache.A_kcomponents, (:k_y => 2,))
+
+        A, B = assemble(cache; k_x=1.0, k_y=0.5)
+        lambdas = eigvals(Matrix(A), Matrix(B))
+        real_pos = sort(filter(l -> isfinite(l) && abs(imag(l)) < 1e-6 && real(l) > 0.1, lambdas) .|> real)
+
+        expected = 1.0^2 + 0.5^2 + (π / 2)^2
+        @test length(real_pos) >= 1
+        @test abs(real_pos[1] - expected) / expected < 0.01
     end
 
     @testset "Negative scalar parameter" begin
