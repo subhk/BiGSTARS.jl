@@ -208,6 +208,8 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         expected = 1.0^2 + 0.5^2 + (π / 2)^2
         @test length(real_pos) >= 1
         @test abs(real_pos[1] - expected) / expected < 0.01
+        @test_throws ErrorException assemble(cache; kx=1.0, k_y=0.5)
+        @test_throws ErrorException assemble(cache; x=1.0, k_x=2.0, k_y=0.5)
     end
 
     @testset "Negative scalar parameter" begin

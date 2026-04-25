@@ -264,11 +264,11 @@ function reconstruct(cache::DiscretizationCache, prob::EVP,
     rhs_distributed = distribute_products(rhs_lowered)
     rhs_additive = separate_additive_terms(rhs_distributed)
 
-    # Accumulate: result = H(k) * Σ (k^p * rhs_op * var_coeffs)
+    # Accumulate: result = H(k) * Σ (prod(k_i^p_i) * rhs_op * var_coeffs)
     rhs_vec = zeros(ComplexF64, N_per_var)
 
     for rhs_term in rhs_additive
-        rhs_kp, rhs_reduced = extract_k_power(rhs_term)
+        rhs_k_powers, rhs_reduced = extract_k_powers(rhs_term)
         rhs_mat = _discretize_operator(rhs_reduced, nothing, prob, N_per_var)
         var_idx = find_target_variable(rhs_reduced, prob.variables)
 
@@ -276,7 +276,7 @@ function reconstruct(cache::DiscretizationCache, prob::EVP,
         var_start = (var_idx - 1) * N_per_var + 1
         var_coeffs = eigvec[var_start:var_start+N_per_var-1]
 
-        rhs_vec .+= k^rhs_kp .* (rhs_mat * var_coeffs)
+        rhs_vec .+= _k_coeff(rhs_k_powers, k_vals) .* (rhs_mat * var_coeffs)
     end
 
     return H_k * rhs_vec

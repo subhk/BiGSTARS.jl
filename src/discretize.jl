@@ -73,6 +73,41 @@ function _k_coeff(key::KPowerKey, k_vals::Dict{Symbol, Float64})
     return coeff
 end
 
+function _normalize_k_values(domain::Domain, kwargs)
+    transformed = domain.transformed_dims
+    valid_dim_names = Set(transformed)
+    valid_k_names = Set(Symbol(:k_, dim) for dim in transformed)
+    k_vals = Dict{Symbol, Float64}()
+
+    for (name, val) in kwargs
+        name_sym = Symbol(name)
+        val_float = Float64(val)
+        if name_sym in valid_dim_names
+            k_name = Symbol(:k_, name_sym)
+            if haskey(k_vals, k_name) && k_vals[k_name] != val_float
+                error("Conflicting values provided for wavenumber :$k_name")
+            end
+            k_vals[k_name] = val_float
+        elseif name_sym in valid_k_names
+            if haskey(k_vals, name_sym) && k_vals[name_sym] != val_float
+                error("Conflicting values provided for wavenumber :$name_sym")
+            end
+            k_vals[name_sym] = val_float
+        else
+            expected = String[]
+            for dim in transformed
+                push!(expected, string(dim))
+                push!(expected, string(:k_, dim))
+            end
+            expected_msg = isempty(expected) ? "none; this domain has no FourierTransformed coordinates" :
+                           join(expected, ", ")
+            error("Unknown wavenumber keyword :$name_sym. Expected one of: $expected_msg")
+        end
+    end
+
+    return k_vals
+end
+
 function _add_component!(components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}},
                          key::KPowerKey,
                          block::SparseMatrixCSC{ComplexF64, Int})
@@ -1697,22 +1732,13 @@ A, B = assemble(cache; k_x=1.0, k_y=0.5)
 ```
 """
 function assemble(cache::DiscretizationCache; kwargs...)
-    # Build a dict of wavenumber name → value
-    k_vals = Dict{Symbol, Float64}()
-    for (name, val) in kwargs
-        name_sym = Symbol(name)
-        if name_sym in cache.domain.transformed_dims
-            k_vals[Symbol(:k_, name_sym)] = Float64(val)
-        else
-            k_vals[name_sym] = Float64(val)
-        end
-    end
+    k_vals = _normalize_k_values(cache.domain, kwargs)
 
     # For single FourierTransformed direction, delegate to the simple version
     transformed = cache.domain.transformed_dims
     if length(transformed) == 1 && length(k_vals) <= 1
         k_name = Symbol(:k_, transformed[1])
-        k_val = get(k_vals, k_name, get(k_vals, transformed[1], 0.0))
+        k_val = get(k_vals, k_name, 0.0)
         return assemble(cache, k_val)
     end
 
