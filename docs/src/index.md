@@ -1,28 +1,67 @@
 # BiGSTARS.jl Documentation
 
+```@raw html
+<div class="bigstars-hero">
+  <div class="bigstars-eyebrow">Bi-global stability analysis in Julia</div>
+  <h1>Sparse spectral eigenvalue problems from readable equations.</h1>
+  <p>
+    BiGSTARS.jl turns physical-space notation such as <code>dx</code>, <code>dy</code>, and <code>dz</code>
+    into sparse generalized eigenvalue matrices for rotating, stratified, and geophysical flows.
+  </p>
+  <div class="bigstars-actions">
+    <a class="bigstars-button primary" href="equation_dsl.html">Start with the DSL</a>
+    <a class="bigstars-button secondary" href="literated/Eady.html">Open an example</a>
+  </div>
+</div>
+```
+
 ## Overview
 
-`BiGSTARS.jl` — a Julia toolkit for bi-global linear-stability analysis of geophysical flows, featuring a symbolic equation DSL and fully sparse coefficient-space spectral methods.
+Bi-global analysis bridges the gap between 1D stability tools (often too idealized) and fully 3D tri-global solvers (often too costly). BiGSTARS.jl offers a practical middle ground for rotating, stratified flows.
 
-Bi-global analysis bridges the gap between 1D stability tools (often too idealized) and fully 3D tri-global solvers (often too costly). BiGSTARS.jl offers a practical middle ground for rotating, stratified flows with:
-
-- **Symbolic equation DSL** — Write governing equations in physical-space notation (`dx`, `dy`, `dz`) using Julia macros. The package automatically discretizes them into generalized eigenvalue problem (GEVP) matrices.
-- **Ultraspherical spectral method** — Chebyshev directions use the ultraspherical method (Olver & Townsend, 2013) for fully sparse operators. Fourier directions operate in coefficient space with diagonal derivatives.
-- **Wavenumber-separated caching** — Discretize once, then assemble cheaply for each scalar wavenumber or for multiple transformed directions such as `(k_x, k_y)`.
-- **Generalized boundary conditions** — Dirichlet, Neumann, Robin, higher-order, coupled, inhomogeneous, and eigenvalue-dependent (dynamic) BCs.
-- **Derived variables** — Auxiliary variables like cross-front velocity `v` can be defined implicitly via `@derive` and are automatically eliminated using the inverse operator.
-- **Multiple eigenvalue solvers** — Arnoldi, ARPACK, and KrylovKit methods with adaptive shift-and-invert.
-- **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions.
-- **Parallel wavenumber sweeps** — Thread-parallel solves with in-place assembly for zero-allocation loops.
+```@raw html
+<div class="bigstars-card-grid">
+  <div class="bigstars-card">
+    <strong>Equation DSL</strong>
+    <p>Write governing equations directly with <code>dx</code>, <code>dy</code>, <code>dz</code>, substitutions, and boundary-condition macros.</p>
+  </div>
+  <div class="bigstars-card">
+    <strong>Sparse spectral operators</strong>
+    <p>Chebyshev directions use ultraspherical operators; Fourier directions stay diagonal in coefficient space.</p>
+  </div>
+  <div class="bigstars-card">
+    <strong>Wavenumber caching</strong>
+    <p>Discretize once, then assemble quickly for scalar wavenumbers or named directions such as <code>k_x</code> and <code>k_y</code>.</p>
+  </div>
+  <div class="bigstars-card">
+    <strong>Solver workflow</strong>
+    <p>Use Arnoldi, ARPACK, or KrylovKit with adaptive shift-and-invert and thread-parallel wavenumber sweeps.</p>
+  </div>
+</div>
+```
 
 ## What To Read First
 
-If you are new to the package, use this path:
-
-1. [Equation DSL](equation_dsl.md) — define domains, variables, equations, boundary conditions, and derived variables.
-2. [Eigenvalue Solver](method.md) — choose a solver, shift, tolerance, and number of eigenvalues.
-3. [Post-Processing and Visualization](visualization.md) — reconstruct fields from eigenvectors and convert them to physical space.
-4. [Examples](literated/Eady.md) — compare your workflow with complete Eady, Stone, and rotating RBC examples.
+```@raw html
+<div class="bigstars-path">
+  <div class="bigstars-step">
+    <a href="equation_dsl.html">Equation DSL</a>
+    <p>Define domains, variables, equations, boundary conditions, and derived variables.</p>
+  </div>
+  <div class="bigstars-step">
+    <a href="method.html">Eigenvalue Solver</a>
+    <p>Choose a solver, shift, tolerance, and number of eigenvalues.</p>
+  </div>
+  <div class="bigstars-step">
+    <a href="visualization.html">Post-processing</a>
+    <p>Reconstruct fields from eigenvectors and convert them to physical space.</p>
+  </div>
+  <div class="bigstars-step">
+    <a href="literated/Eady.html">Examples</a>
+    <p>Compare your workflow with complete Eady, Stone, and rotating RBC examples.</p>
+  </div>
+</div>
+```
 
 ## Quick Start
 

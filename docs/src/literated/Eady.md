@@ -343,7 +343,7 @@ growth_rates = solve_eady(cache, k_values, Ri)
 
 ````
 1-element Vector{Float64}:
- 0.028829034537729645
+ 0.02882903442149731
 ````
 
 ---

@@ -75,7 +75,8 @@ format = Documenter.HTML(
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold      = 250 * 1024^2,   # 100 MiB
     size_threshold_warn =  20 * 1024^2,    #  20 MiB warning
-    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable"
+    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable",
+    assets         = ["assets/bigstars.css"]
 )
 
 
