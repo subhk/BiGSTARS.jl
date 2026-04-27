@@ -50,6 +50,14 @@ function resolve_symbol(prob::EVP, name::Symbol)
     end
 end
 
+function resolve_substitution_symbol(prob::EVP, name::Symbol)
+    if name == prob.eigenvalue || name in prob.variables || haskey(prob.derived_vars, name)
+        return resolve_symbol(prob, name)
+    else
+        return ParamNode(name)
+    end
+end
+
 # ──────────────────────────────────────────────────────────────────────────────
 #  AST → ExprNode parsing (for equations)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -117,14 +125,18 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 
 """Parse a substitution body. Argument names become VarNode placeholders."""
-function parse_substitution_body(ex, arg_names::Vector)
+function parse_substitution_body(ex, arg_names::Vector, prob_ref=nothing)
+    prob_runtime = prob_ref isa Symbol ? esc(prob_ref) : prob_ref
+
     if ex isa Number
         return :(ConstNode($ex))
     elseif ex isa Symbol
         if ex in arg_names
             return :(VarNode($(QuoteNode(ex))))
-        else
+        elseif isnothing(prob_runtime)
             return :(ParamNode($(QuoteNode(ex))))
+        else
+            return :(resolve_substitution_symbol($prob_runtime, $(QuoteNode(ex))))
         end
     elseif ex isa Expr && ex.head == :call
         func = ex.args[1]
@@ -133,23 +145,23 @@ function parse_substitution_body(ex, arg_names::Vector)
         # Derivative
         if length(func_str) == 2 && func_str[1] == 'd' && length(ex.args) == 2
             coord = Symbol(func_str[2])
-            inner = parse_substitution_body(ex.args[2], arg_names)
+            inner = parse_substitution_body(ex.args[2], arg_names, prob_ref)
             return :(DerivNode($inner, $(QuoteNode(coord))))
         end
 
         # Arithmetic
         if func in (:+, :-, :*)
             if length(ex.args) == 2
-                inner = parse_substitution_body(ex.args[2], arg_names)
+                inner = parse_substitution_body(ex.args[2], arg_names, prob_ref)
                 return :(UnaryOpNode($(QuoteNode(func)), $inner))
             elseif length(ex.args) == 3
-                left = parse_substitution_body(ex.args[2], arg_names)
-                right = parse_substitution_body(ex.args[3], arg_names)
+                left = parse_substitution_body(ex.args[2], arg_names, prob_ref)
+                right = parse_substitution_body(ex.args[3], arg_names, prob_ref)
                 return :(BinaryOpNode($(QuoteNode(func)), $left, $right))
             else
-                result = parse_substitution_body(ex.args[2], arg_names)
+                result = parse_substitution_body(ex.args[2], arg_names, prob_ref)
                 for i in 3:length(ex.args)
-                    next = parse_substitution_body(ex.args[i], arg_names)
+                    next = parse_substitution_body(ex.args[i], arg_names, prob_ref)
                     result = :(BinaryOpNode($(QuoteNode(func)), $result, $next))
                 end
                 return result
@@ -157,7 +169,7 @@ function parse_substitution_body(ex, arg_names::Vector)
         end
 
         # Substitution call in body (nested substitutions)
-        args_parsed = [parse_substitution_body(a, arg_names) for a in ex.args[2:end]]
+        args_parsed = [parse_substitution_body(a, arg_names, prob_ref) for a in ex.args[2:end]]
         return :(SubstitutionNode($(QuoteNode(func)), ExprNode[$(args_parsed...)]))
     end
     # Handle begin...end blocks (Julia may wrap RHS of `=` in a block)
@@ -165,7 +177,7 @@ function parse_substitution_body(ex, arg_names::Vector)
         # Filter out LineNumberNodes, recurse on the remaining expression
         exprs = filter(a -> !(a isa LineNumberNode), ex.args)
         if length(exprs) == 1
-            return parse_substitution_body(exprs[1], arg_names)
+            return parse_substitution_body(exprs[1], arg_names, prob_ref)
         end
     end
     error("Cannot parse substitution body: $ex")
@@ -183,9 +195,11 @@ Define a substitution template. `prob` is optional — uses the active EVP if om
 """
 macro substitution(args...)
     if length(args) == 1
+        prob_ref = :(_get_active_prob())
         prob_expr = :(_get_active_prob())
         expr = args[1]
     elseif length(args) == 2 && args[1] isa Symbol
+        prob_ref = args[1]
         prob_expr = esc(args[1])
         expr = args[2]
     else
@@ -200,7 +214,7 @@ macro substitution(args...)
     name = lhs.args[1]
     arg_names = [a for a in lhs.args[2:end]]
 
-    body_ast = parse_substitution_body(rhs_expr, arg_names)
+    body_ast = parse_substitution_body(rhs_expr, arg_names, prob_ref)
 
     return quote
         add_substitution!($prob_expr, $(QuoteNode(name)),
