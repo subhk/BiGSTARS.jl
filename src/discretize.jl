@@ -982,32 +982,43 @@ function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::
     end
 end
 
+function _replace_var(expr::ExprNode, from::Symbol, to::Symbol)
+    if expr isa VarNode
+        return expr.name == from ? VarNode(to) : expr
+    elseif expr isa DerivNode
+        return DerivNode(_replace_var(expr.expr, from, to), expr.coord)
+    elseif expr isa BinaryOpNode
+        return BinaryOpNode(expr.op,
+                            _replace_var(expr.left, from, to),
+                            _replace_var(expr.right, from, to))
+    elseif expr isa UnaryOpNode
+        return UnaryOpNode(expr.op, _replace_var(expr.expr, from, to))
+    elseif expr isa SubstitutionNode
+        return SubstitutionNode(expr.name,
+                                ExprNode[_replace_var(arg, from, to) for arg in expr.args])
+    end
+    return expr
+end
+
 """
-Extract the coefficient operator of a variable in a multiplicative term.
+Extract the coefficient operator of a derived variable from a linear term.
 Works in **T basis** — no S conversion included. The caller applies S once.
-E.g., from `dBdy * v`, extracts M_dBdy in T basis.
+
+This accepts differentiated operators such as `dz(B0 * v)` by replacing the
+derived variable with a dummy and discretizing the whole linear operator.
 """
 function _extract_coefficient_of_var(expr::ExprNode, var_name::Symbol,
                                       prob::EVP, N_per_var::Int, eq_order::Int)
-    if expr isa VarNode && expr.name == var_name
-        # v itself — coefficient is identity in T basis
-        return _full_identity(prob.domain)
-    elseif expr isa BinaryOpNode && expr.op == :*
-        left_has = var_name in collect_var_names(expr.left)
-        right_has = var_name in collect_var_names(expr.right)
-        if left_has && !right_has
-            left_coeff = _extract_coefficient_of_var(expr.left, var_name, prob, N_per_var, eq_order)
-            right_mat = discretize_expr_in_T(expr.right, prob, N_per_var)
-            return right_mat * left_coeff
-        elseif right_has && !left_has
-            left_mat = discretize_expr_in_T(expr.left, prob, N_per_var)
-            right_coeff = _extract_coefficient_of_var(expr.right, var_name, prob, N_per_var, eq_order)
-            return left_mat * right_coeff
-        end
-    elseif expr isa UnaryOpNode && expr.op == :-
-        return -_extract_coefficient_of_var(expr.expr, var_name, prob, N_per_var, eq_order)
-    end
-    error("Cannot extract coefficient of $var_name from expression: $expr")
+    vars = collect_var_names(expr)
+    var_name in vars || error("Expression does not contain $var_name: $expr")
+
+    others = filter(!=(var_name), vars)
+    isempty(others) ||
+        error("Derived-variable term for $var_name also contains variables $others: $expr")
+
+    dummy = :_derived_coeff_dummy
+    op_expr = _replace_var(expr, var_name, dummy)
+    return _discretize_operator(op_expr, dummy, prob, N_per_var)
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
