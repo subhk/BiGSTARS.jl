@@ -173,6 +173,31 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test result ≈ expected
     end
 
+    @testset "2D block Toeplitz assembly matches sparse block reference" begin
+        N_z = 3
+        N_y = 4
+        blocks = [
+            sparse(ComplexF64[1 0 2; 0 3 0; 4 0 5]),
+            sparse(ComplexF64[0 6 0; 7 0 0; 0 0 8]),
+            spzeros(ComplexF64, N_z, N_z),
+            sparse(ComplexF64[9 0 0; 0 10 0; 11 0 0]),
+        ]
+
+        reference = spzeros(ComplexF64, N_z * N_y, N_z * N_y)
+        for m1 in 0:N_y-1
+            for m2 in 0:N_y-1
+                dm = mod(m1 - m2, N_y)
+                rs = m1 * N_z + 1
+                cs = m2 * N_z + 1
+                reference[rs:rs+N_z-1, cs:cs+N_z-1] = blocks[dm + 1]
+            end
+        end
+
+        actual = BiGSTARS._assemble_2d_block_toeplitz(blocks, N_z, N_y)
+        @test actual isa SparseMatrixCSC{ComplexF64, Int}
+        @test actual == reference
+    end
+
     @testset "2D field parameter in T-basis operator discretization" begin
         N_z = 4
         N_y = 4
@@ -183,6 +208,23 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         M = BiGSTARS._discretize_operator(ParamNode(:U), nothing, prob, N_z * N_y)
         @test size(M) == (N_z * N_y, N_z * N_y)
         @test M * ones(ComplexF64, N_z * N_y) ≈ ones(ComplexF64, N_z * N_y)
+    end
+
+    @testset "field multiplication context reuses unscaled T operators" begin
+        N_z = 4
+        N_y = 4
+        domain = Domain(y = Fourier(N=N_y, L=2π), z = Chebyshev(N=N_z, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        prob[:U] = [sin(y) + z^2 for z in gridpoints(domain, :z), y in gridpoints(domain, :y)]
+
+        ctx = BiGSTARS.DiscretizationContext()
+        M1 = BiGSTARS._field_multiply_T(ParamNode(:U), ComplexF64(1.0), prob, :z, ctx)
+        M2 = BiGSTARS._field_multiply_T(ParamNode(:U), ComplexF64(1.0), prob, :z, ctx)
+
+        @test M1 === M2
+        @test length(ctx.field_t_cache) == 1
+        @test ctx.field_t_misses == 1
+        @test ctx.field_t_hits == 1
     end
 
     @testset "1D field parameter in 2D keeps sparse eltype concrete" begin

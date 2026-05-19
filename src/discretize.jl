@@ -33,6 +33,23 @@ struct DiscretizationCache
     domain::Domain
 end
 
+const FieldMultiplyCacheKey = Tuple{Symbol, Symbol, Union{Nothing, Symbol}}
+
+"""Scratch cache used while building one `DiscretizationCache`."""
+mutable struct DiscretizationContext
+    field_t_cache::Dict{FieldMultiplyCacheKey, SparseMatrixCSC{ComplexF64, Int}}
+    field_t_hits::Int
+    field_t_misses::Int
+end
+
+function DiscretizationContext()
+    return DiscretizationContext(
+        Dict{FieldMultiplyCacheKey, SparseMatrixCSC{ComplexF64, Int}}(),
+        0,
+        0,
+    )
+end
+
 function DiscretizationCache(A_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
                              B_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
                              derived_caches::Dict{Symbol, DerivedVarCache},
@@ -232,7 +249,8 @@ function _try_scalar(expr::ExprNode, prob::EVP)::Union{ComplexF64, Nothing}
     return nothing
 end
 
-function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb_order::Int)
+function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb_order::Int,
+                         ctx::Union{Nothing, DiscretizationContext}=nothing)
     domain = prob.domain
 
     if expr isa VarNode
@@ -247,40 +265,7 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
             # Square matrix parameter: use directly as a pre-computed operator.
             return ComplexF64.(val)
         else
-            # Field parameter: scalar field on the grid
-            cheb_dim = _find_chebyshev_dim(domain)
-            fourier_dim = _find_fourier_dim(domain)
-            f_vec = vec(val)
-
-            if !isnothing(cheb_dim) && !isnothing(fourier_dim)
-                N_z = domain.coords[cheb_dim].N
-                N_y = domain.coords[fourier_dim].N
-                S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-
-                if length(f_vec) == N_z
-                    # 1D z-only field: lift via Kronecker product
-                    c = chebyshev_coefficients(Float64.(f_vec))
-                    M_1d = ComplexF64.(multiplication_operator(c, N_z))
-                    return _lift_to_2d(S_1d * M_1d, cheb_dim, domain)
-
-                elseif length(f_vec) == N_y * N_z
-                    # 2D field f(y,z): build full block multiplication operator
-                    return _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, highest_cheb_order)
-                else
-                    error("Field parameter :$(expr.name) has length $(length(f_vec)), " *
-                          "expected $N_z (1D) or $(N_y*N_z) (2D)")
-                end
-
-            elseif !isnothing(cheb_dim)
-                # 1D Chebyshev-only domain
-                N_z = domain.coords[cheb_dim].N
-                c = chebyshev_coefficients(Float64.(f_vec))
-                M_1d = ComplexF64.(multiplication_operator(c, N_z))
-                S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-                return S_1d * M_1d
-            else
-                return ComplexF64.(spdiagm(0 => f_vec))
-            end
+            return _converted_field_multiply(expr, prob, N_per_var, highest_cheb_order, ctx)
         end
 
     elseif expr isa ConstNode
@@ -311,12 +296,12 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
             D_full = _lift_to_2d(op_1d, coord, domain)
 
             # Inner expression in T basis (no conversion)
-            inner_mat_T = discretize_expr_in_T(inner_expr, prob, N_per_var)
+            inner_mat_T = discretize_expr_in_T(inner_expr, prob, N_per_var, ctx)
 
             return D_full * inner_mat_T
 
         elseif spec isa FourierBasisSpec
-            inner_mat = discretize_expr(expr.expr, prob, N_per_var, highest_cheb_order)
+            inner_mat = discretize_expr(expr.expr, prob, N_per_var, highest_cheb_order, ctx)
             D_1d = fourier_diff_operator(spec.N, spec.L, 1)
             D_full = _lift_to_2d(D_1d, coord, domain)
             return D_full * inner_mat
@@ -326,20 +311,20 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
     elseif expr isa BinaryOpNode
         if expr.op == :+
-            return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order) +
-                   discretize_expr(expr.right, prob, N_per_var, highest_cheb_order)
+            return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) +
+                   discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
         elseif expr.op == :-
-            return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order) -
-                   discretize_expr(expr.right, prob, N_per_var, highest_cheb_order)
+            return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) -
+                   discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
         elseif expr.op == :*
             lv = _try_scalar(expr.left, prob)
             rv = _try_scalar(expr.right, prob)
             if !isnothing(lv) && !isnothing(rv)
                 return (lv * rv) .* _full_conversion(domain, highest_cheb_order)
             elseif !isnothing(lv)
-                return lv .* discretize_expr(expr.right, prob, N_per_var, highest_cheb_order)
+                return lv .* discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
             elseif !isnothing(rv)
-                return rv .* discretize_expr(expr.left, prob, N_per_var, highest_cheb_order)
+                return rv .* discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
             else
                 # Field parameter × operator: S * M_f * S^{-1} * G
                 cheb_dim = _find_chebyshev_dim(domain)
@@ -348,24 +333,24 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
                 if !isnothing(left_fp) && !isnothing(cheb_dim)
                     param, sc = left_fp
-                    M_f = _field_multiply_T(param, sc, prob, cheb_dim)
-                    G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order)
+                    M_f = _field_multiply_T(param, sc, prob, cheb_dim, ctx)
+                    G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
                     return _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var)
                 elseif !isnothing(right_fp) && !isnothing(cheb_dim)
                     param, sc = right_fp
-                    M_f = _field_multiply_T(param, sc, prob, cheb_dim)
-                    G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order)
+                    M_f = _field_multiply_T(param, sc, prob, cheb_dim, ctx)
+                    G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
                     return _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var)
                 else
-                    return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order) *
-                           discretize_expr(expr.right, prob, N_per_var, highest_cheb_order)
+                    return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) *
+                           discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
                 end
             end
         end
 
     elseif expr isa UnaryOpNode
         if expr.op == :-
-            return -discretize_expr(expr.expr, prob, N_per_var, highest_cheb_order)
+            return -discretize_expr(expr.expr, prob, N_per_var, highest_cheb_order, ctx)
         end
     end
 
@@ -376,7 +361,8 @@ end
 Discretize expression in the T basis (no conversion to C^(p)).
 Used as input to derivative operators.
 """
-function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int)
+function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int,
+                              ctx::Union{Nothing, DiscretizationContext}=nothing)
     domain = prob.domain
 
     if expr isa VarNode
@@ -385,31 +371,13 @@ function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int)
     elseif expr isa ParamNode
         val = prob.parameters[expr.name]
         cheb_dim = _find_chebyshev_dim(domain)
-        fourier_dim = _find_fourier_dim(domain)
         if val isa Number
             return ComplexF64(val) * sparse(I, N_per_var, N_per_var)
         elseif val isa AbstractMatrix && size(val) == (N_per_var, N_per_var)
             return ComplexF64.(val)
         else
-            f_vec = vec(val)
-            if !isnothing(cheb_dim) && !isnothing(fourier_dim)
-                N_z = domain.coords[cheb_dim].N
-                N_y = domain.coords[fourier_dim].N
-                if length(f_vec) == N_z
-                    c = chebyshev_coefficients(Float64.(f_vec))
-                    M_1d = ComplexF64.(multiplication_operator(c, N_z))
-                    return _lift_to_2d(M_1d, cheb_dim, domain)
-                elseif length(f_vec) == N_y * N_z
-                    # 2D field in T basis (no conversion)
-                    return _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
-                end
-            elseif !isnothing(cheb_dim)
-                c = chebyshev_coefficients(Float64.(f_vec))
-                M_1d = ComplexF64.(multiplication_operator(c, domain.coords[cheb_dim].N))
-                return _lift_to_2d(M_1d, cheb_dim, domain)
-            else
-                return ComplexF64.(spdiagm(0 => f_vec))
-            end
+            isnothing(cheb_dim) && return ComplexF64.(spdiagm(0 => vec(val)))
+            return _field_multiply_T_lifted(expr, prob, N_per_var, cheb_dim, ctx)
         end
 
     elseif expr isa ConstNode
@@ -417,25 +385,25 @@ function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int)
 
     elseif expr isa BinaryOpNode
         if expr.op == :*
-            return discretize_expr_in_T(expr.left, prob, N_per_var) *
-                   discretize_expr_in_T(expr.right, prob, N_per_var)
+            return discretize_expr_in_T(expr.left, prob, N_per_var, ctx) *
+                   discretize_expr_in_T(expr.right, prob, N_per_var, ctx)
         elseif expr.op == :+
-            return discretize_expr_in_T(expr.left, prob, N_per_var) +
-                   discretize_expr_in_T(expr.right, prob, N_per_var)
+            return discretize_expr_in_T(expr.left, prob, N_per_var, ctx) +
+                   discretize_expr_in_T(expr.right, prob, N_per_var, ctx)
         elseif expr.op == :-
-            return discretize_expr_in_T(expr.left, prob, N_per_var) -
-                   discretize_expr_in_T(expr.right, prob, N_per_var)
+            return discretize_expr_in_T(expr.left, prob, N_per_var, ctx) -
+                   discretize_expr_in_T(expr.right, prob, N_per_var, ctx)
         end
 
     elseif expr isa UnaryOpNode && expr.op == :-
-        return -discretize_expr_in_T(expr.expr, prob, N_per_var)
+        return -discretize_expr_in_T(expr.expr, prob, N_per_var, ctx)
 
     elseif expr isa DerivNode
         coord = expr.coord
         spec = domain.coords[coord]
         if spec isa FourierBasisSpec
             # Fourier derivatives: diagonal operator in coefficient space
-            inner_mat = discretize_expr_in_T(expr.expr, prob, N_per_var)
+            inner_mat = discretize_expr_in_T(expr.expr, prob, N_per_var, ctx)
             D_1d = fourier_diff_operator(spec.N, spec.L, 1)
             D_full = _lift_to_2d(D_1d, coord, domain)
             return D_full * inner_mat
@@ -461,7 +429,7 @@ function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int)
             op_1d = S_inv_1d * D_chain_1d
             D_full = _lift_to_2d(op_1d, coord, domain)
 
-            inner_T = discretize_expr_in_T(inner, prob, N_per_var)
+            inner_T = discretize_expr_in_T(inner, prob, N_per_var, ctx)
             return D_full * inner_T
         else
             error("Cannot differentiate in FourierTransformed direction in T basis")
@@ -514,7 +482,6 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
     spec_y = domain.coords[fourier_dim]
     N_z = spec_z.N
     N_y = spec_y.N
-    N_total = N_y * N_z
 
     S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
 
@@ -542,24 +509,7 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
         Mz_blocks[dm + 1] = S_1d * M_z
     end
 
-    # Assemble the full block-Toeplitz matrix
-    # M_f[block(m1, m2)] = Mz_blocks[(m1 - m2) mod N_y + 1]
-    # Block (m1, m2) occupies rows (m1*N_z+1 : (m1+1)*N_z) and cols (m2*N_z+1 : (m2+1)*N_z)
-    M_full = spzeros(ComplexF64, N_total, N_total)
-    for m1 in 0:N_y-1
-        for m2 in 0:N_y-1
-            dm = mod(m1 - m2, N_y)
-            block = Mz_blocks[dm + 1]
-            # Only add non-negligible blocks
-            if nnz(block) > 0
-                rs = m1 * N_z + 1
-                cs = m2 * N_z + 1
-                M_full[rs:rs+N_z-1, cs:cs+N_z-1] = block
-            end
-        end
-    end
-
-    return M_full
+    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
 end
 
 """
@@ -584,20 +534,49 @@ function _build_2d_coeff_multiply(c_vec::AbstractVector, domain::Domain,
         Mz_blocks[dm + 1] = _complex_multiplication_operator(coeffs[:, dm + 1], N_z)
     end
 
-    M_full = spzeros(ComplexF64, N_total, N_total)
+    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
+end
+
+function _assemble_2d_block_toeplitz(Mz_blocks::AbstractVector{<:SparseMatrixCSC{ComplexF64, Int}},
+                                     N_z::Int, N_y::Int)
+    length(Mz_blocks) == N_y ||
+        throw(DimensionMismatch("Expected $N_y Fourier blocks, got $(length(Mz_blocks))"))
+
+    N_total = N_z * N_y
+    estimated_nnz = N_y * sum(nnz, Mz_blocks)
+    rows = Int[]
+    cols = Int[]
+    vals = ComplexF64[]
+    sizehint!(rows, estimated_nnz)
+    sizehint!(cols, estimated_nnz)
+    sizehint!(vals, estimated_nnz)
+
+    # Assemble the full block-Toeplitz matrix:
+    # M_f[block(m1, m2)] = Mz_blocks[(m1 - m2) mod N_y + 1].
     for m1 in 0:N_y-1
         for m2 in 0:N_y-1
             dm = mod(m1 - m2, N_y)
             block = Mz_blocks[dm + 1]
-            if nnz(block) > 0
-                rs = m1 * N_z + 1
-                cs = m2 * N_z + 1
-                M_full[rs:rs+N_z-1, cs:cs+N_z-1] = block
+            size(block) == (N_z, N_z) ||
+                throw(DimensionMismatch("Block $(dm + 1) has size $(size(block)), expected ($N_z, $N_z)"))
+            nnz(block) == 0 && continue
+
+            row_offset = m1 * N_z
+            col_offset = m2 * N_z
+            block_rows = rowvals(block)
+            block_vals = nonzeros(block)
+            for block_col in 1:N_z
+                full_col = col_offset + block_col
+                for idx in nzrange(block, block_col)
+                    push!(rows, row_offset + block_rows[idx])
+                    push!(cols, full_col)
+                    push!(vals, block_vals[idx])
+                end
             end
         end
     end
 
-    return M_full
+    return sparse(rows, cols, vals, N_total, N_total)
 end
 
 """
@@ -711,20 +690,68 @@ function _extract_field_param(expr::ExprNode, prob::EVP)
 end
 
 """Build T-basis multiplication operator for a field parameter with scaling. Returns 1D (N_z) or full 2D (N_per_var)."""
-function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_dim::Symbol)
+function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_dim::Symbol,
+                           ctx::Union{Nothing, DiscretizationContext}=nothing)
     domain = prob.domain
     spec = domain.coords[cheb_dim]
+    N_z = spec.N
     f_vec = vec(prob.parameters[param.name])
     fourier_dim = _find_fourier_dim(domain)
 
-    if !isnothing(fourier_dim) && length(f_vec) == spec.N * domain.coords[fourier_dim].N
-        # 2D field: return full N_per_var × N_per_var operator (no conversion — T basis)
-        return scale * _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
-    else
-        # 1D field: return N_z × N_z operator
-        c = chebyshev_coefficients(Float64.(f_vec))
-        return scale * ComplexF64.(multiplication_operator(c, spec.N))
+    key = (param.name, cheb_dim, fourier_dim)
+    if !isnothing(ctx) && haskey(ctx.field_t_cache, key)
+        ctx.field_t_hits += 1
+        M = ctx.field_t_cache[key]
+        return scale == ComplexF64(1.0) ? M : scale * M
     end
+
+    M = if !isnothing(fourier_dim)
+        N_y = domain.coords[fourier_dim].N
+        if length(f_vec) == N_y * N_z
+            _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
+        elseif length(f_vec) == N_z
+            c = chebyshev_coefficients(Float64.(f_vec))
+            ComplexF64.(multiplication_operator(c, N_z))
+        else
+            error("Field parameter :$(param.name) has length $(length(f_vec)), " *
+                  "expected $N_z (1D) or $(N_y*N_z) (2D)")
+        end
+    else
+        length(f_vec) == N_z ||
+            error("Field parameter :$(param.name) has length $(length(f_vec)), expected $N_z")
+        c = chebyshev_coefficients(Float64.(f_vec))
+        ComplexF64.(multiplication_operator(c, N_z))
+    end
+
+    if !isnothing(ctx)
+        ctx.field_t_misses += 1
+        ctx.field_t_cache[key] = M
+    end
+
+    return scale == ComplexF64(1.0) ? M : scale * M
+end
+
+function _converted_field_multiply(param::ParamNode, prob::EVP, N_per_var::Int,
+                                   highest_cheb_order::Int,
+                                   ctx::Union{Nothing, DiscretizationContext})
+    domain = prob.domain
+    cheb_dim = _find_chebyshev_dim(domain)
+    isnothing(cheb_dim) && return ComplexF64.(spdiagm(0 => vec(prob.parameters[param.name])))
+
+    M_t = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
+    if size(M_t, 1) == N_per_var
+        return highest_cheb_order == 0 ? M_t : _full_conversion(domain, highest_cheb_order) * M_t
+    else
+        S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
+        return _lift_to_2d(S_1d * M_t, cheb_dim, domain)
+    end
+end
+
+function _field_multiply_T_lifted(param::ParamNode, prob::EVP, N_per_var::Int,
+                                  cheb_dim::Symbol,
+                                  ctx::Union{Nothing, DiscretizationContext})
+    M_t = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
+    return size(M_t, 1) == N_per_var ? M_t : _lift_to_2d(M_t, cheb_dim, prob.domain)
 end
 
 """
@@ -859,7 +886,9 @@ end
 Discretize an operator expression (like Dh2) applied to a dummy variable.
 Returns the operator matrix (N_per_var × N_per_var) in C^(0) = T basis.
 """
-function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob::EVP, N_per_var::Int)
+function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob::EVP,
+                              N_per_var::Int,
+                              ctx::Union{Nothing, DiscretizationContext}=nothing)
     domain = prob.domain
     if expr isa VarNode && (isnothing(dummy) || expr.name == dummy)
         return _full_identity(domain)
@@ -880,29 +909,29 @@ function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob
             S_inv_1d = sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
             D_T_1d = S_inv_1d * D_chain_1d  # T→T derivative operator
             D_full = _lift_to_2d(D_T_1d, coord, domain)
-            return D_full * _discretize_operator(inner, dummy, prob, N_per_var)
+            return D_full * _discretize_operator(inner, dummy, prob, N_per_var, ctx)
         elseif spec isa FourierBasisSpec
-            inner_mat = _discretize_operator(expr.expr, dummy, prob, N_per_var)
+            inner_mat = _discretize_operator(expr.expr, dummy, prob, N_per_var, ctx)
             D_1d = fourier_diff_operator(spec.N, spec.L, 1)
             return _lift_to_2d(D_1d, coord, domain) * inner_mat
         end
     elseif expr isa BinaryOpNode && expr.op == :+
-        return _discretize_operator(expr.left, dummy, prob, N_per_var) +
-               _discretize_operator(expr.right, dummy, prob, N_per_var)
+        return _discretize_operator(expr.left, dummy, prob, N_per_var, ctx) +
+               _discretize_operator(expr.right, dummy, prob, N_per_var, ctx)
     elseif expr isa BinaryOpNode && expr.op == :-
-        return _discretize_operator(expr.left, dummy, prob, N_per_var) -
-               _discretize_operator(expr.right, dummy, prob, N_per_var)
+        return _discretize_operator(expr.left, dummy, prob, N_per_var, ctx) -
+               _discretize_operator(expr.right, dummy, prob, N_per_var, ctx)
     elseif expr isa BinaryOpNode && expr.op == :*
         sv = _try_scalar(expr.left, prob)
         if !isnothing(sv)
-            return sv .* _discretize_operator(expr.right, dummy, prob, N_per_var)
+            return sv .* _discretize_operator(expr.right, dummy, prob, N_per_var, ctx)
         end
         sv = _try_scalar(expr.right, prob)
         if !isnothing(sv)
-            return sv .* _discretize_operator(expr.left, dummy, prob, N_per_var)
+            return sv .* _discretize_operator(expr.left, dummy, prob, N_per_var, ctx)
         end
-        return _discretize_operator(expr.left, dummy, prob, N_per_var) *
-               _discretize_operator(expr.right, dummy, prob, N_per_var)
+        return _discretize_operator(expr.left, dummy, prob, N_per_var, ctx) *
+               _discretize_operator(expr.right, dummy, prob, N_per_var, ctx)
     elseif expr isa ParamNode
         val = prob.parameters[expr.name]
         if val isa Number
@@ -910,29 +939,8 @@ function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob
         else
             # Field param: build T-basis multiplication operator
             cheb_dim = _find_chebyshev_dim(domain)
-            fourier_dim = _find_fourier_dim(domain)
-            f_vec = vec(val)
-            if !isnothing(cheb_dim) && !isnothing(fourier_dim)
-                N_z = domain.coords[cheb_dim].N
-                N_y = domain.coords[fourier_dim].N
-                if length(f_vec) == N_z
-                    c = chebyshev_coefficients(Float64.(f_vec))
-                    M_1d = ComplexF64.(multiplication_operator(c, N_z))
-                    return _lift_to_2d(M_1d, cheb_dim, domain)
-                elseif length(f_vec) == N_y * N_z
-                    return _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
-                else
-                    error("Field parameter :$(expr.name) has length $(length(f_vec)), " *
-                          "expected $N_z (1D) or $(N_y*N_z) (2D)")
-                end
-            elseif !isnothing(cheb_dim)
-                spec = domain.coords[cheb_dim]
-                c = chebyshev_coefficients(Float64.(f_vec))
-                M_1d = ComplexF64.(multiplication_operator(c, spec.N))
-                return _lift_to_2d(M_1d, cheb_dim, domain)
-            else
-                return ComplexF64.(spdiagm(0 => f_vec))
-            end
+            isnothing(cheb_dim) && return ComplexF64.(spdiagm(0 => vec(val)))
+            return _field_multiply_T_lifted(expr, prob, N_per_var, cheb_dim, ctx)
         end
     elseif expr isa ConstNode
         return ComplexF64(expr.value) * _full_identity(domain)
@@ -948,10 +956,11 @@ Store pre-discretized matrices for a derived variable term.
 These are applied per-k during assembly when H(k) is computed.
 """
 function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::Int,
-                              prob::EVP, N_per_var::Int, N_vars::Int)
+                              prob::EVP, N_per_var::Int, N_vars::Int,
+                              ctx::Union{Nothing, DiscretizationContext}=nothing)
     for (dname, dvar) in prob.derived_vars
         if dname in collect_var_names(kt.expr)
-            coeff_mat = _extract_coefficient_of_var(kt.expr, dname, prob, N_per_var, eq_order)
+            coeff_mat = _extract_coefficient_of_var(kt.expr, dname, prob, N_per_var, eq_order, ctx)
 
             rhs_expanded = expand_substitutions(dvar.rhs, prob.substitutions)
             rhs_lowered = lower_derivatives(rhs_expanded, prob.domain)
@@ -968,7 +977,7 @@ function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::
 
                 # Build rhs operator in T basis: use _discretize_operator which
                 # handles all derivatives and stays in T basis (no S conversion).
-                rhs_mat = _discretize_operator(rhs_reduced, nothing, prob, N_per_var)
+                rhs_mat = _discretize_operator(rhs_reduced, nothing, prob, N_per_var, ctx)
                 real_var_idx = find_target_variable(rhs_reduced, prob.variables)
 
                 # Chain: S * coeff_T * H * rhs_T = T → T → T → T → C^(p) ✓
@@ -1008,7 +1017,8 @@ This accepts differentiated operators such as `dz(B0 * v)` by replacing the
 derived variable with a dummy and discretizing the whole linear operator.
 """
 function _extract_coefficient_of_var(expr::ExprNode, var_name::Symbol,
-                                      prob::EVP, N_per_var::Int, eq_order::Int)
+                                      prob::EVP, N_per_var::Int, eq_order::Int,
+                                      ctx::Union{Nothing, DiscretizationContext}=nothing)
     vars = collect_var_names(expr)
     var_name in vars || error("Expression does not contain $var_name: $expr")
 
@@ -1018,7 +1028,7 @@ function _extract_coefficient_of_var(expr::ExprNode, var_name::Symbol,
 
     dummy = :_derived_coeff_dummy
     op_expr = _replace_var(expr, var_name, dummy)
-    return _discretize_operator(op_expr, dummy, prob, N_per_var)
+    return _discretize_operator(op_expr, dummy, prob, N_per_var, ctx)
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1424,6 +1434,7 @@ function discretize(prob::EVP)
     B_components = Dict{Int, SparseMatrixCSC{ComplexF64, Int}}()
     A_kcomponents = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
     B_kcomponents = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
+    ctx = DiscretizationContext()
 
     # Compute per-equation highest Chebyshev derivative order.
     # Each equation lives in its own C^(p) basis where p is the max z-derivative
@@ -1473,7 +1484,7 @@ function discretize(prob::EVP)
         op_k_components = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
 
         for kt in op_terms
-            mat = _discretize_operator(kt.expr, :_dummy_, prob, N_per_var)
+            mat = _discretize_operator(kt.expr, :_dummy_, prob, N_per_var, ctx)
             if isempty(kt.k_powers)
                 op_k0 = op_k0 + mat
             else
@@ -1510,11 +1521,11 @@ function discretize(prob::EVP)
             if !isempty(derived_targets)
                 # Store pre-discretized matrices for per-k H assembly
                 _store_derived_term!(derived_caches, kt, eq_idx, eq_order,
-                                    prob, N_per_var, N_vars)
+                                    prob, N_per_var, N_vars, ctx)
                 continue
             end
 
-            mat = discretize_expr(kt.expr, prob, N_per_var, eq_order)
+            mat = discretize_expr(kt.expr, prob, N_per_var, eq_order, ctx)
             var_idx = find_target_variable(kt.expr, prob.variables)
             block = place_in_block(mat, eq_idx, var_idx, N_vars, N_per_var)
 
@@ -1532,7 +1543,7 @@ function discretize(prob::EVP)
             lhs_terms = separate_by_k_power(lhs_inner)
 
             for kt in lhs_terms
-                mat = discretize_expr(kt.expr, prob, N_per_var, eq_order)
+                mat = discretize_expr(kt.expr, prob, N_per_var, eq_order, ctx)
                 b_block = place_in_block(mat, eq_idx, lhs_var_idx, N_vars, N_per_var)
 
                 _add_legacy_component!(B_components, kt.k_power, b_block)
