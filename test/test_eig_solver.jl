@@ -12,4 +12,14 @@ using LinearAlgebra
         @test length(λ) == 1
         @test size(Χ, 1) == 4
     end
+
+    @testset "EigenSolver preserves concrete matrix storage types" begin
+        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0]))
+        B = Matrix{ComplexF64}(I, 4, 4)
+
+        solver = EigenSolver(A, B; σ₀=2.5)
+
+        @test fieldtype(typeof(solver), :A) === typeof(A)
+        @test fieldtype(typeof(solver), :B) === typeof(B)
+    end
 end

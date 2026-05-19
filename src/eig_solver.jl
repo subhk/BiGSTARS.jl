@@ -95,18 +95,18 @@ Main solver object for generalized eigenvalue problems Ax = λBx.
 - `config::SolverConfig`: Solver configuration
 - `results::Union{SolverResults, Nothing}`: Latest results (if available)
 """
-mutable struct EigenSolver
-    A::AbstractMatrix
-    B::AbstractMatrix
+mutable struct EigenSolver{TA<:AbstractMatrix,TB<:AbstractMatrix}
+    A::TA
+    B::TB
     config::SolverConfig
     results::Union{SolverResults, Nothing}
     
-    function EigenSolver(A, B, config::SolverConfig)
+    function EigenSolver(A::TA, B::TB, config::SolverConfig) where {TA<:AbstractMatrix,TB<:AbstractMatrix}
         # Validate inputs
         size(A) == size(B) || throw(DimensionMismatch("Matrices A and B must have the same size"))
         size(A, 1) == size(A, 2) || throw(ArgumentError("Matrices must be square"))
         
-        new(A, B, config, nothing)
+        new{TA,TB}(A, B, config, nothing)
     end
 end
 

@@ -185,6 +185,20 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test M * ones(ComplexF64, N_z * N_y) ≈ ones(ComplexF64, N_z * N_y)
     end
 
+    @testset "1D field parameter in 2D keeps sparse eltype concrete" begin
+        N_z = 8
+        N_y = 8
+        domain = Domain(y = Fourier(N=N_y, L=2π), z = Chebyshev(N=N_z, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        prob[:U] = gridpoints(domain, :z) .- 0.5
+
+        M = BiGSTARS._field_multiply_T(ParamNode(:U), ComplexF64(1.0), prob, :z)
+        @test M isa SparseMatrixCSC{ComplexF64, Int}
+
+        lifted = BiGSTARS._lift_to_2d(M, :z, domain)
+        @test lifted isa SparseMatrixCSC{ComplexF64, Int}
+    end
+
     @testset "multiple transformed direction assembly uses per-direction powers" begin
         domain = Domain(
             x = FourierTransformed(),
@@ -282,6 +296,9 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
             @test ws.A ≈ Matrix(A_alloc)
             @test ws.B ≈ Matrix(B_alloc)
         end
+
+        assemble!(ws, cache, 1.0)
+        @test @allocated(assemble!(ws, cache, 1.25)) == 0
     end
 
     @testset "Mixed BCs: Dirichlet + Neumann" begin

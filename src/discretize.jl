@@ -719,11 +719,11 @@ function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_
 
     if !isnothing(fourier_dim) && length(f_vec) == spec.N * domain.coords[fourier_dim].N
         # 2D field: return full N_per_var × N_per_var operator (no conversion — T basis)
-        return scale .* _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
+        return scale * _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
     else
         # 1D field: return N_z × N_z operator
         c = chebyshev_coefficients(Float64.(f_vec))
-        return scale .* ComplexF64.(multiplication_operator(c, spec.N))
+        return scale * ComplexF64.(multiplication_operator(c, spec.N))
     end
 end
 
@@ -1796,14 +1796,6 @@ while rebuilding their k-dependent inverse operators.
 """
 function assemble!(ws::AssemblyWorkspace, cache::DiscretizationCache, k::Float64)
     N = cache.N_total
-    k_vals = Dict{Symbol, Float64}()
-    if isempty(cache.domain.transformed_dims)
-        k_vals[:_total_k] = k
-    else
-        for dim in cache.domain.transformed_dims
-            k_vals[Symbol(:k_, dim)] = k
-        end
-    end
 
     # Zero out
     fill!(ws.A, zero(ComplexF64))
@@ -1834,27 +1826,38 @@ function assemble!(ws::AssemblyWorkspace, cache::DiscretizationCache, k::Float64
     end
 
     # Add derived variable contributions with H(k)
-    for (dname, dc) in cache.derived_caches
-        isempty(dc.terms) && continue
-
-        op_k = dc.op_k0
-        for (kp, mat) in dc.op_k_components
-            coeff = _k_coeff(kp, k_vals)
-            coeff == 0.0 && continue
-            op_k = op_k + coeff * mat
+    if !isempty(cache.derived_caches)
+        k_vals = Dict{Symbol, Float64}()
+        if isempty(cache.domain.transformed_dims)
+            k_vals[:_total_k] = k
+        else
+            for dim in cache.domain.transformed_dims
+                k_vals[Symbol(:k_, dim)] = k
+            end
         end
-        H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 
-        for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
-            combined = coeff_mat * H_k * rhs_mat
-            block = place_in_block(combined, eq_idx, var_idx, cache.N_vars, cache.N_per_var)
-            kp_coeff = _k_coeff(total_kp, k_vals)
-            block_sp = kp_coeff * block
-            brows = rowvals(block_sp)
-            bvals = nonzeros(block_sp)
-            for col in 1:N
-                for idx in nzrange(block_sp, col)
-                    ws.A[brows[idx], col] += bvals[idx]
+        for (dname, dc) in cache.derived_caches
+            isempty(dc.terms) && continue
+
+            op_k = dc.op_k0
+            for (kp, mat) in dc.op_k_components
+                coeff = _k_coeff(kp, k_vals)
+                coeff == 0.0 && continue
+                op_k = op_k + coeff * mat
+            end
+            H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
+
+            for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
+                combined = coeff_mat * H_k * rhs_mat
+                block = place_in_block(combined, eq_idx, var_idx, cache.N_vars, cache.N_per_var)
+                kp_coeff = _k_coeff(total_kp, k_vals)
+                block_sp = kp_coeff * block
+                brows = rowvals(block_sp)
+                bvals = nonzeros(block_sp)
+                for col in 1:N
+                    for idx in nzrange(block_sp, col)
+                        ws.A[brows[idx], col] += bvals[idx]
+                    end
                 end
             end
         end
