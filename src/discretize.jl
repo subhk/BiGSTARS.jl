@@ -34,12 +34,17 @@ struct DiscretizationCache
 end
 
 const FieldMultiplyCacheKey = Tuple{Symbol, Symbol, Union{Nothing, Symbol}}
+const FieldOpCacheKey = Tuple{Symbol, Int}  # (field_name, cheb_order)
 
 """Scratch cache used while building one `DiscretizationCache`."""
 mutable struct DiscretizationContext
     field_t_cache::Dict{FieldMultiplyCacheKey, SparseMatrixCSC{ComplexF64, Int}}
     field_t_hits::Int
     field_t_misses::Int
+    s_full_cache::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}      # S_full per cheb_order
+    s_inv_full_cache::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}  # S_inv_full (N_per_var) per cheb_order
+    sinv_1d_cache::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}     # S_inv_1d (N_z) per cheb_order
+    s_mf_sinv_cache::Dict{FieldOpCacheKey, SparseMatrixCSC{ComplexF64, Int}}  # S*M_f*S_inv per (field, order)
 end
 
 function DiscretizationContext()
@@ -47,6 +52,10 @@ function DiscretizationContext()
         Dict{FieldMultiplyCacheKey, SparseMatrixCSC{ComplexF64, Int}}(),
         0,
         0,
+        Dict{Int, SparseMatrixCSC{ComplexF64, Int}}(),
+        Dict{Int, SparseMatrixCSC{ComplexF64, Int}}(),
+        Dict{Int, SparseMatrixCSC{ComplexF64, Int}}(),
+        Dict{FieldOpCacheKey, SparseMatrixCSC{ComplexF64, Int}}(),
     )
 end
 
@@ -255,12 +264,12 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
     if expr isa VarNode
         # Identity converted to C^(highest_cheb_order), lifted to full grid
-        return _full_conversion(domain, highest_cheb_order)
+        return _full_conversion(domain, highest_cheb_order, ctx)
 
     elseif expr isa ParamNode
         val = prob.parameters[expr.name]
         if val isa Number
-            return ComplexF64(val) .* _full_conversion(domain, highest_cheb_order)
+            return ComplexF64(val) .* _full_conversion(domain, highest_cheb_order, ctx)
         elseif val isa AbstractMatrix && size(val) == (N_per_var, N_per_var)
             # Square matrix parameter: use directly as a pre-computed operator.
             return ComplexF64.(val)
@@ -269,7 +278,7 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
         end
 
     elseif expr isa ConstNode
-        return ComplexF64(expr.value) .* _full_conversion(domain, highest_cheb_order)
+        return ComplexF64(expr.value) .* _full_conversion(domain, highest_cheb_order, ctx)
 
     elseif expr isa DerivNode
         coord = expr.coord
@@ -320,7 +329,7 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
             lv = _try_scalar(expr.left, prob)
             rv = _try_scalar(expr.right, prob)
             if !isnothing(lv) && !isnothing(rv)
-                return (lv * rv) .* _full_conversion(domain, highest_cheb_order)
+                return (lv * rv) .* _full_conversion(domain, highest_cheb_order, ctx)
             elseif !isnothing(lv)
                 return lv .* discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
             elseif !isnothing(rv)
@@ -333,14 +342,16 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
                 if !isnothing(left_fp) && !isnothing(cheb_dim)
                     param, sc = left_fp
-                    M_f = _field_multiply_T(param, sc, prob, cheb_dim, ctx)
+                    M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
-                    return _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var)
+                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name)
+                    return sc == ComplexF64(1.0) ? result : sc .* result
                 elseif !isnothing(right_fp) && !isnothing(cheb_dim)
                     param, sc = right_fp
-                    M_f = _field_multiply_T(param, sc, prob, cheb_dim, ctx)
+                    M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
-                    return _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var)
+                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name)
+                    return sc == ComplexF64(1.0) ? result : sc .* result
                 else
                     return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) *
                            discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
@@ -652,13 +663,21 @@ function _full_identity(domain::Domain)
 end
 
 """Conversion operator S_{0→p} lifted to the full resolved grid."""
-function _full_conversion(domain::Domain, highest_cheb_order::Int)
-    cheb_dim = _find_chebyshev_dim(domain)
-    if isnothing(cheb_dim)
-        return _full_identity(domain)
+function _full_conversion(domain::Domain, highest_cheb_order::Int,
+                          ctx::Union{Nothing, DiscretizationContext}=nothing)
+    if !isnothing(ctx)
+        cached = get(ctx.s_full_cache, highest_cheb_order, nothing)
+        !isnothing(cached) && return cached
     end
-    S = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-    return _lift_to_2d(S, cheb_dim, domain)
+    cheb_dim = _find_chebyshev_dim(domain)
+    result = if isnothing(cheb_dim)
+        _full_identity(domain)
+    else
+        S = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
+        _lift_to_2d(S, cheb_dim, domain)
+    end
+    isnothing(ctx) || (ctx.s_full_cache[highest_cheb_order] = result)
+    return result
 end
 
 """
@@ -740,7 +759,7 @@ function _converted_field_multiply(param::ParamNode, prob::EVP, N_per_var::Int,
 
     M_t = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
     if size(M_t, 1) == N_per_var
-        return highest_cheb_order == 0 ? M_t : _full_conversion(domain, highest_cheb_order) * M_t
+        return highest_cheb_order == 0 ? M_t : _full_conversion(domain, highest_cheb_order, ctx) * M_t
     else
         S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
         return _lift_to_2d(S_1d * M_t, cheb_dim, domain)
@@ -764,21 +783,38 @@ G is the full-grid operator (N_per_var × N_per_var).
 S^{-1} converts C^(h) output back to T basis, M_f multiplies, then S converts back.
 All 1D operators are lifted to full grid via Kronecker products.
 """
-function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var)
+function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var,
+                                ctx::Union{Nothing, DiscretizationContext}=nothing,
+                                field_name::Union{Symbol, Nothing}=nothing)
     spec = domain.coords[cheb_dim]
     N_z = spec.N
 
     if size(M_f, 1) == N_per_var
-        # 2D field: M_f is already N_per_var × N_per_var (in T basis from _build_2d_field_multiply)
-        # Need to apply conversion: S * M_f * S^{-1} * G
-        # where S = I_y ⊗ S_z (block-diagonal conversion)
-        S_full = _full_conversion(domain, highest_cheb_order)
-        S_inv_full = _full_conversion_inv(domain, highest_cheb_order)
-        return S_full * M_f * S_inv_full * G
+        # 2D field: S * M_f * S^{-1} * G.
+        # Cache S * M_f * S^{-1} per (field_name, cheb_order) — same product reused across equations.
+        S_M_Sinv = if !isnothing(ctx) && !isnothing(field_name)
+            key = (field_name, highest_cheb_order)
+            get!(ctx.s_mf_sinv_cache, key) do
+                S_full     = _full_conversion(domain, highest_cheb_order, ctx)
+                S_inv_full = _full_conversion_inv(domain, highest_cheb_order, ctx)
+                S_full * M_f * S_inv_full
+            end
+        else
+            S_full     = _full_conversion(domain, highest_cheb_order, ctx)
+            S_inv_full = _full_conversion_inv(domain, highest_cheb_order, ctx)
+            S_full * M_f * S_inv_full
+        end
+        return S_M_Sinv * G
     else
         # 1D field: M_f is N_z × N_z, lift to full grid
         S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-        S_inv_1d = sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+        S_inv_1d = if !isnothing(ctx)
+            get!(ctx.sinv_1d_cache, highest_cheb_order) do
+                sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+            end
+        else
+            sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+        end
         op_1d = S_1d * M_f * S_inv_1d
         op_full = _lift_to_2d(op_1d, cheb_dim, domain)
         return op_full * G
@@ -786,16 +822,31 @@ function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_p
 end
 
 """Inverse of the full conversion operator (I_y ⊗ S_z^{-1})."""
-function _full_conversion_inv(domain::Domain, highest_cheb_order::Int)
+function _full_conversion_inv(domain::Domain, highest_cheb_order::Int,
+                               ctx::Union{Nothing, DiscretizationContext}=nothing)
+    if !isnothing(ctx)
+        cached = get(ctx.s_inv_full_cache, highest_cheb_order, nothing)
+        !isnothing(cached) && return cached
+    end
     cheb_dim = _find_chebyshev_dim(domain)
     if isnothing(cheb_dim)
-        return _full_identity(domain)
+        result = _full_identity(domain)
+        isnothing(ctx) || (ctx.s_inv_full_cache[highest_cheb_order] = result)
+        return result
     end
     spec = domain.coords[cheb_dim]
     N_z = spec.N
     S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-    S_inv_1d = sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
-    return _lift_to_2d(S_inv_1d, cheb_dim, domain)
+    S_inv_1d = if !isnothing(ctx)
+        get!(ctx.sinv_1d_cache, highest_cheb_order) do
+            sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+        end
+    else
+        sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+    end
+    result = _lift_to_2d(S_inv_1d, cheb_dim, domain)
+    isnothing(ctx) || (ctx.s_inv_full_cache[highest_cheb_order] = result)
+    return result
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -969,7 +1020,7 @@ function _store_derived_term!(derived_caches, kt::KTerm, eq_idx::Int, eq_order::
 
             # All pieces in T basis: coeff_T, H, rhs_T.
             # Apply S_{0→eq_order} once at the end for C^(eq_order) output.
-            S_full = _full_conversion(prob.domain, eq_order)
+            S_full = _full_conversion(prob.domain, eq_order, ctx)
 
             for rhs_term in rhs_additive
                 rhs_k_powers, rhs_reduced = extract_k_powers(rhs_term)
