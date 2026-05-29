@@ -325,8 +325,11 @@ using Test
             @bc p right(u) == 0
             discretize(p)
         end
-        smallest(c) = (A, B = assemble(c, 1.0);
-                       sort(filter(e -> isfinite(e) && real(e) > 1e-3, eigvals(Matrix(A), Matrix(B))), by=abs)[1])
+        function smallest(c)
+            A, B = assemble(c, 1.0)
+            ev = eigvals(Matrix(A), Matrix(B))
+            sort(filter(e -> isfinite(e) && real(e) > 1e-3, ev), by=abs)[1]
+        end
 
         A, _ = assemble(mk(64), 1.0)
         @test issparse(A)
