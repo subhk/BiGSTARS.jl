@@ -364,4 +364,28 @@ using Test
         @test got == vec[1:Np]
     end
 
+    @testset "@compute / @compute_setup macros" begin
+        domain = Domain(x=FourierTransformed(), y=Fourier(8, [0.0, 1.0]), z=Chebyshev(8, [0.0, 1.0]))
+        prob = EVP(domain, variables=[:w, :zeta], eigenvalue=:sigma)
+        Y, Z = meshgrid(domain, :y, :z)
+        prob[:U] = vec(@. tanh(Z) * cos(2π * Y))
+        @equation prob sigma * w == -dz(dz(w)) - dy(dy(w))
+        @equation prob sigma * zeta == dz(w)
+        @bc prob left(w) == 0
+        @bc prob right(w) == 0
+        @bc prob left(dz(zeta)) == 0
+        @bc prob right(dz(zeta)) == 0
+        cache = discretize(prob)
+        ev = rand(ComplexF64, cache.N_total)
+        Np = cache.N_per_var
+
+        @compute_setup cache ev 0.5
+        @compute a = dz(w) + dx(zeta)     # Chebyshev + FourierTransformed derivatives, binary +
+        @compute b = U * w                # field parameter × variable
+        @compute c = -dy(w)               # unary negation + Fourier derivative
+        @test length(a) == Np
+        @test length(b) == Np
+        @test length(c) == Np
+    end
+
 end
