@@ -271,4 +271,25 @@ using Test
         end
     end
 
+    @testset "Derived variables are augmented by default" begin
+        domain = Domain(z=Chebyshev(N=16, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * psi == v
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+
+        # Default (no kwarg) now augments → v is a real variable block.
+        cache = discretize(prob)
+        @test cache.derived_var_order == [:v]
+        @test cache.N_vars == 2
+
+        # Opt-out restores the legacy eliminate-via-inverse path.
+        cache_legacy = discretize(prob; augment_derived=false)
+        @test isempty(cache_legacy.derived_var_order)
+        @test cache_legacy.N_vars == 1
+    end
+
 end

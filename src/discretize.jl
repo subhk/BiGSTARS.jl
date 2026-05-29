@@ -1560,12 +1560,20 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 
 """
-    discretize(prob::EVP) -> DiscretizationCache
+    discretize(prob::EVP; augment_derived=true) -> DiscretizationCache
 
 Validate the problem, expand substitutions, lower derivatives, separate by k-power,
 and build sparse matrix components. Returns a cache for fast wavenumber assembly.
+
+Derived variables (`@derive`) are **augmented** into the system by default: each
+becomes a regular unknown governed by its defining equation `Op(v) = rhs`, which
+keeps the assembled operator sparse (no dense `Op⁻¹`) and handles operators whose
+inverse the legacy path cannot form. Pass `augment_derived=false` to use the legacy
+path that eliminates derived variables via an explicit operator inverse (a smaller
+but denser system). The augmented form is a singular-`B` descriptor system; `solve`
+filters the resulting infinite/spurious modes, but shift-target the physical region.
 """
-function discretize(prob::EVP; augment_derived::Bool=false)
+function discretize(prob::EVP; augment_derived::Bool=true)
     validate_problem(prob)
 
     # Augmented (descriptor) form: rewrite derived variables into regular
