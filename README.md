@@ -30,12 +30,6 @@ results = solve(cache, k_values; sigma_0=0.02)
 - **Post-processing** (`@compute`) — Evaluate any expression on eigenvectors using the same DSL syntax
 - **Multiple solvers** — Arnoldi, ARPACK, KrylovKit with adaptive shift-and-invert
 
- <!-- Badges -->
- <p align="left">
-    <a href="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml">
-        <img alt="CI Status" src="https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg">
-    </a>
-</p>
 
 ## Docs
 <!-- Badges -->
