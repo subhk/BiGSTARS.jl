@@ -2,7 +2,7 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using BiGSTARS: conversion_operator, differentiation_operator, multiplication_operator,
-    chebyshev_points, chebyshev_coefficients
+    chebyshev_points, chebyshev_coefficients, ultraspherical_multiplication_operator
 
 @testset "Ultraspherical Operators" begin
 
@@ -337,6 +337,40 @@ using BiGSTARS: conversion_operator, differentiation_operator, multiplication_op
         for k in 7:N
             @test abs(coeffs[k]) < 1e-11
         end
+    end
+
+    #──────────────────────────────────────────────────────────────────────────#
+    #  Banded ultraspherical multiplication operator (Olver–Townsend)           #
+    #──────────────────────────────────────────────────────────────────────────#
+    @testset "ultraspherical_multiplication_operator" begin
+        N = 40
+        x = chebyshev_points(N)
+        fp = @. 1 + 2x + 3x^2        # degree-2 field
+        gp = @. 2 - x + x^3          # degree-3 test function
+        a  = chebyshev_coefficients(fp)
+        fgT_expected = chebyshev_coefficients(fp .* gp)   # exact: deg 5 < N
+
+        for λ in (1, 2, 3)
+            # conversion chain S_{0→λ}: T (= C^0) -> C^λ
+            S = sparse(1.0I, N, N)
+            for p in 0:λ-1
+                S = conversion_operator(p, N) * S
+            end
+
+            M = ultraspherical_multiplication_operator(a, N, λ)
+            @test M isa SparseMatrixCSC
+
+            # multiply g (in C^λ) by f, convert back to T, compare to (f·g) coeffs
+            resT = S \ (M * (S * chebyshev_coefficients(gp)))
+            @test maximum(abs.(resT .- fgT_expected)) < 1e-10   # exact multiplication
+
+            # banded: bandwidth ≈ degree(f)=2, nnz ≪ dense (N² = 1600)
+            @test nnz(M) ≤ 8 * N
+        end
+
+        # constant field → scaled identity
+        Mc = ultraspherical_multiplication_operator([3.0], N, 2)
+        @test Mc ≈ 3.0 * sparse(1.0I, N, N)
     end
 
 end  # @testset "Ultraspherical Operators"

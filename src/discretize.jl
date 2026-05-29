@@ -344,13 +344,15 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
                     param, sc = left_fp
                     M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
-                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name)
+                    c_f = _field_1d_cheb_coeffs(param, prob, cheb_dim)
+                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name, c_f)
                     return sc == ComplexF64(1.0) ? result : sc .* result
                 elseif !isnothing(right_fp) && !isnothing(cheb_dim)
                     param, sc = right_fp
                     M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
-                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name)
+                    c_f = _field_1d_cheb_coeffs(param, prob, cheb_dim)
+                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name, c_f)
                     return sc == ComplexF64(1.0) ? result : sc .* result
                 else
                     return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) *
@@ -750,6 +752,15 @@ function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_
     return scale == ComplexF64(1.0) ? M : scale * M
 end
 
+"""T-basis Chebyshev coefficients of a 1D (z-only) field parameter, or `nothing`
+for 2D fields (which need the block-Toeplitz construction, not the banded op)."""
+function _field_1d_cheb_coeffs(param::ParamNode, prob::EVP, cheb_dim::Symbol)
+    f_vec = vec(prob.parameters[param.name])
+    N_z = prob.domain.coords[cheb_dim].N
+    length(f_vec) == N_z || return nothing
+    return chebyshev_coefficients(Float64.(f_vec))
+end
+
 function _converted_field_multiply(param::ParamNode, prob::EVP, N_per_var::Int,
                                    highest_cheb_order::Int,
                                    ctx::Union{Nothing, DiscretizationContext})
@@ -785,13 +796,26 @@ All 1D operators are lifted to full grid via Kronecker products.
 """
 function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var,
                                 ctx::Union{Nothing, DiscretizationContext}=nothing,
-                                field_name::Union{Symbol, Nothing}=nothing)
+                                field_name::Union{Symbol, Nothing}=nothing,
+                                field_coeffs::Union{Nothing, AbstractVector}=nothing)
     spec = domain.coords[cheb_dim]
     N_z = spec.N
 
+    # 1D (z-only) field with conversion (order ≥ 1): build the banded C^(λ)
+    # multiplication operator directly (Olver–Townsend). It equals S·M_f·S^{-1}
+    # but stays banded — avoiding the dense inverse-conversion that otherwise
+    # fills the operator. `field_coeffs !== nothing` means the field is z-only
+    # (length N_z); it is N_z × N_z and lifted to the full grid only when the
+    # domain has a resolved Fourier direction (N_per_var > N_z).
+    if !isnothing(field_coeffs) && highest_cheb_order >= 1
+        op_z    = ComplexF64.(ultraspherical_multiplication_operator(field_coeffs, N_z, highest_cheb_order))
+        op_full = size(op_z, 1) == N_per_var ? op_z : _lift_to_2d(op_z, cheb_dim, domain)
+        return op_full * G
+    end
+
     if size(M_f, 1) == N_per_var
-        # 2D field: S * M_f * S^{-1} * G.
-        # Cache S * M_f * S^{-1} per (field_name, cheb_order) — same product reused across equations.
+        # 2D field (varies in y and z), or order-0 1D field: S * M_f * S^{-1} * G.
+        # Cache S * M_f * S^{-1} per (field_name, cheb_order) — reused across equations.
         S_M_Sinv = if !isnothing(ctx) && !isnothing(field_name)
             key = (field_name, highest_cheb_order)
             get!(ctx.s_mf_sinv_cache, key) do
@@ -806,16 +830,22 @@ function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_p
         end
         return S_M_Sinv * G
     else
-        # 1D field: M_f is N_z × N_z, lift to full grid
-        S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
-        S_inv_1d = if !isnothing(ctx)
-            get!(ctx.sinv_1d_cache, highest_cheb_order) do
+        # 1D field in a 2D domain. Order 0 → multiply in T basis (no conversion);
+        # the order ≥ 1 banded path is handled above when coefficients are given,
+        # this dense product is a defensive fallback.
+        op_1d = if highest_cheb_order == 0
+            M_f
+        else
+            S_1d = ComplexF64.(get_conversion_operator(domain, cheb_dim, 0, highest_cheb_order))
+            S_inv_1d = if !isnothing(ctx)
+                get!(ctx.sinv_1d_cache, highest_cheb_order) do
+                    sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+                end
+            else
                 sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
             end
-        else
-            sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+            S_1d * M_f * S_inv_1d
         end
-        op_1d = S_1d * M_f * S_inv_1d
         op_full = _lift_to_2d(op_1d, cheb_dim, domain)
         return op_full * G
     end

@@ -193,6 +193,89 @@ end
 
 
 #──────────────────────────────────────────────────────────────────────────────#
+#  3b. Banded multiplication operator in the C^(λ) ultraspherical basis         #
+#──────────────────────────────────────────────────────────────────────────────#
+
+"""Tridiagonal "multiply-by-x" (Gegenbauer Jacobi) operator in the C^(λ) basis (λ ≥ 1).
+
+From the ultraspherical recurrence
+  x C_n^(λ) = α_n C_{n+1}^(λ) + β_n C_{n-1}^(λ),
+  α_n = (n+1)/(2(n+λ)),   β_n = (n+2λ-1)/(2(n+λ)).
+"""
+function _ultra_jacobi_x(N::Int, λ::Int)
+    @assert λ >= 1 "Gegenbauer Jacobi operator requires λ ≥ 1"
+    rows = Int[]; cols = Int[]; vals = Float64[]
+    for i in 1:N
+        n = i - 1
+        denom = 2 * (n + λ)
+        if i + 1 <= N
+            push!(rows, i + 1); push!(cols, i); push!(vals, (n + 1) / denom)        # → C_{n+1}
+        end
+        if i - 1 >= 1
+            push!(rows, i - 1); push!(cols, i); push!(vals, (n + 2λ - 1) / denom)   # → C_{n-1}
+        end
+    end
+    return sparse(rows, cols, vals, N, N)
+end
+
+"""
+    ultraspherical_multiplication_operator(f_coeffs, N, λ; tol=1e-13) -> SparseMatrixCSC
+
+Build the N×N multiplication operator M_λ[f] acting on coefficients in the
+ultraspherical C^(λ) basis (λ ≥ 1), where `f_coeffs` are the Chebyshev T
+coefficients of f.
+
+Unlike the T-basis operator (Toeplitz + Hankel, not banded), the C^(λ)
+multiplication operator is **banded** with bandwidth equal to the degree of f
+(Olver & Townsend, 2013) — the key to keeping variable-coefficient problems
+sparse.
+
+Constructed as M = Σ_m f_coeffs[m] · T_{m-1}(J_λ), where J_λ is the tridiagonal
+multiply-by-x operator in C^(λ) and T_k is applied via the Chebyshev recurrence
+`T_{k+1} = 2 J T_k - T_{k-1}`. The recurrence runs on a padded operator so that
+finite-N truncation never reaches the returned top-left N×N block.
+"""
+function ultraspherical_multiplication_operator(f_coeffs::AbstractVector, N::Int, λ::Int;
+                                                tol::Float64=1e-13)
+    @assert N >= 1 "Size N must be at least 1"
+    @assert λ >= 1 "Ultraspherical multiplication requires λ ≥ 1 (use multiplication_operator for the T basis)"
+
+    # Trim trailing negligible coefficients → true polynomial degree d-1.
+    d = length(f_coeffs)
+    while d > 1 && abs(f_coeffs[d]) <= tol
+        d -= 1
+    end
+    a = f_coeffs
+
+    T = eltype(a) <: Complex ? ComplexF64 : Float64
+
+    # Pad so the degree-(d-1) recurrence (T_{d-1}(J) has bandwidth d-1) never lets
+    # truncation reach the kept [1:N, 1:N] block.
+    Mp = N + d + 2
+    J  = _ultra_jacobi_x(Mp, λ)
+    Id = sparse(one(T) * I, Mp, Mp)
+
+    M = a[1] * Id
+    if d >= 2
+        T_prev = Id
+        T_cur  = T.(J)
+        M = M + a[2] * T_cur
+        for m in 3:d
+            T_next = 2 * (J * T_cur) - T_prev
+            M = M + a[m] * T_next
+            T_prev = T_cur
+            T_cur  = T_next
+            droptol!(T_cur, tol)
+        end
+    end
+
+    Msl = sparse(M[1:N, 1:N])
+    droptol!(Msl, tol)
+    return Msl
+end
+
+
+#──────────────────────────────────────────────────────────────────────────────#
 #  4. Chebyshev-Gauss-Lobatto points                                           #
 #──────────────────────────────────────────────────────────────────────────────#
 

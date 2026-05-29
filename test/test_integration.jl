@@ -92,6 +92,28 @@ using Test
         end
     end
 
+    @testset "Variable-coefficient field multiply stays banded (Olver–Townsend)" begin
+        mkc(N) = begin
+            d = Domain(x=FourierTransformed(), z=Chebyshev(N=N, lower=-1.0, upper=1.0))
+            p = EVP(d, variables=[:u], eigenvalue=:sigma)
+            z = gridpoints(d, :z); p[:U] = @. tanh(4z)
+            @equation p sigma * u == U * dz(u) - dz(dz(u))
+            @bc p left(u) == 0
+            @bc p right(u) == 0
+            discretize(p)
+        end
+
+        # Banded C^(λ) multiplication: assembled fill falls with N and routes
+        # sparse at high N. The old dense S·M·S⁻¹ form plateaued near 0.26.
+        @test BiGSTARS._assembled_density(mkc(768)) < 0.12
+
+        # Physics preserved: smallest positive-real eigenvalue is unchanged.
+        A, B = assemble(mkc(128), 1.0)
+        ev = eigvals(Matrix(A), Matrix(B))
+        λ = sort(filter(e -> isfinite(e) && real(e) > 1e-3, ev), by=abs)[1]
+        @test abs(λ - 1.6880521668) < 1e-6
+    end
+
     @testset "Density gate: sparse for banded, dense for filled" begin
         # constant-coefficient 2D Laplacian → banded/block → very sparse
         db = Domain(x=FourierTransformed(), y=Fourier(16, [0, 1.0]), z=Chebyshev(12, [0, 1.0]))
