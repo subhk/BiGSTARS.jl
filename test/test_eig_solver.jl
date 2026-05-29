@@ -98,4 +98,28 @@ using Random
         @test_throws ArgumentError BiGSTARS.sort_eigenvalues!(
             ComplexF64[1.0, 2.0], Matrix{ComplexF64}(I, 2, 2), :nearest)
     end
+
+    @testset "eigenvalue utilities (sort/remove/print/compare/summary)" begin
+        λ = ComplexF64[3.0 + 0im, 1.0 + 2im, 2.0 - 1im]
+        Χ = Matrix{ComplexF64}(I, 3, 3)
+
+        ls, _ = sort_evals(λ, Χ, :R; rev=true)              # Symbol method, real desc
+        @test real(ls[1]) == 3.0
+        ls2, _ = sort_evals(λ, Χ, "M"; sorting="lm")        # String method, magnitude
+        @test abs(ls2[1]) ≈ maximum(abs.(λ))
+
+        lr, χr = remove_evals(λ, Χ, 1.5, 3.5, "R")          # keep real ∈ [1.5,3.5] → drop 1+2im
+        @test length(lr) == 2 && all(e -> 1.5 ≤ real(e) ≤ 3.5, lr)
+        @test size(χr, 2) == 2
+        @test length(remove_evals(λ, Χ, 1.5, 3.5, :R)[1]) == 2   # Symbol convenience
+
+        @test (print_evals(λ); true)                        # runs without error
+
+        # compare_methods! + print_summary on a tiny diagonal problem
+        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0, 5.0])); B = Matrix{ComplexF64}(I, 5, 5)
+        solver = EigenSolver(A, B; σ₀=2.2, nev=1, n_tries=0)
+        results = compare_methods!(solver; methods=[:Arnoldi, :Krylov], verbose=false)
+        @test results isa Dict
+        @test (print_summary(solver); true)
+    end
 end

@@ -312,4 +312,53 @@ using Test
         @test cache_leg.N_vars == 2                           # w, zeta (v eliminated)
     end
 
+    @testset "2D variable coefficient (y,z) stays banded" begin
+        # Field varying in BOTH Fourier (y) and Chebyshev (z) → banded block-Toeplitz
+        # of banded C^(λ) z-blocks (no dense S·M·S⁻¹). Also exercises meshgrid.
+        function mk(Nz)
+            d = Domain(x=FourierTransformed(), y=Fourier(16, [0, 1.0]), z=Chebyshev(Nz, [0, 1.0]))
+            p = EVP(d, variables=[:u], eigenvalue=:sigma)
+            Y, Z = meshgrid(d, :y, :z)
+            p[:U] = vec(@. tanh(3Z) * cos(2π * Y))
+            @equation p sigma * u == U * dz(u) - dz(dz(u)) - dy(dy(u))
+            @bc p left(u) == 0
+            @bc p right(u) == 0
+            discretize(p)
+        end
+        smallest(c) = (A, B = assemble(c, 1.0);
+                       sort(filter(e -> isfinite(e) && real(e) > 1e-3, eigvals(Matrix(A), Matrix(B))), by=abs)[1])
+
+        A, _ = assemble(mk(64), 1.0)
+        @test issparse(A)
+        @test nnz(A) / length(A) < 0.10                 # banded, not dense
+        @test abs(smallest(mk(32)) - smallest(mk(64))) < 1e-4   # eigenvalue stable ⇒ operator correct
+    end
+
+    @testset "reconstruct_all and evaluate_field" begin
+        domain = Domain(z=Chebyshev(N=24, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * psi == v
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+        cache = discretize(prob)
+        A, B = assemble(cache, 0.0)
+        F = eigen(Matrix(A), Matrix(B))
+        idx = argmin([isfinite(λ) ? abs(λ - (-1 / π^2)) : Inf for λ in F.values])
+        vec = ComplexF64.(F.vectors[:, idx])
+        Np = cache.N_per_var
+
+        fields = reconstruct_all(cache, prob, vec, 0.0)
+        @test haskey(fields, :psi) && haskey(fields, :v)        # declared + derived
+        @test fields[:psi] == vec[1:Np]                         # declared = eigvec block
+        @test norm(fields[:v] - reconstruct(cache, prob, vec, 0.0, :v)) < 1e-12
+
+        got = evaluate_field(cache, prob, vec, 0.0) do f
+            f[:psi]
+        end
+        @test got == vec[1:Np]
+    end
+
 end
