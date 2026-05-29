@@ -282,14 +282,34 @@ using Test
         @bc prob right(psi) == 0
 
         # Default (no kwarg) now augments → v is a real variable block.
+        # (This operator-defined derived var with BCs is exactly the case the
+        # legacy `augment_derived=false` inverse path cannot build — so the
+        # default flip also makes such problems solvable for the first time.)
         cache = discretize(prob)
         @test cache.derived_var_order == [:v]
         @test cache.N_vars == 2
+    end
 
-        # Opt-out restores the legacy eliminate-via-inverse path.
-        cache_legacy = discretize(prob; augment_derived=false)
-        @test isempty(cache_legacy.derived_var_order)
-        @test cache_legacy.N_vars == 1
+    @testset "augment_derived=false opts out to the legacy path" begin
+        # Fourier×Cheb domain where Dh2 = dy²-k² is invertible, so the legacy
+        # inverse path works and the opt-out keeps v eliminated (no v block).
+        domain = Domain(x=FourierTransformed(), y=Fourier(8, [0, 1.0]), z=Chebyshev(12, [0, 1.0]))
+        prob = EVP(domain, variables=[:w, :zeta], eigenvalue=:sigma)
+        @derive prob v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)
+        @equation prob sigma * w == v - dz(dz(w))
+        @equation prob sigma * zeta == dz(w)
+        @bc prob left(w) == 0
+        @bc prob right(w) == 0
+        @bc prob left(dz(zeta)) == 0
+        @bc prob right(dz(zeta)) == 0
+
+        cache_aug = discretize(prob)                          # default augments
+        @test cache_aug.derived_var_order == [:v]
+        @test cache_aug.N_vars == 3                           # w, zeta, v
+
+        cache_leg = discretize(prob; augment_derived=false)   # opt out → legacy
+        @test isempty(cache_leg.derived_var_order)
+        @test cache_leg.N_vars == 2                           # w, zeta (v eliminated)
     end
 
 end
