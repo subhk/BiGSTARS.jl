@@ -1,5 +1,6 @@
 using Test
 using LinearAlgebra
+using Random
 
 @testset "Eigen solver interface" begin
     @testset "solve_eigenvalue_problem accepts verbose keyword" begin
@@ -49,5 +50,24 @@ using LinearAlgebra
         @test_throws DimensionMismatch solve!(
             EigenSolver(A, B; σ₀=2.2, method=:Arnoldi, nev=1, n_tries=2);
             verbose=false, A_buf=zeros(ComplexF64, 4, 4))
+    end
+
+    @testset "Krylov caps krylovdim at problem size" begin
+        N = 40
+        Random.seed!(1); M = rand(ComplexF64, N, N)
+        A = M + M'; B = Matrix{ComplexF64}(I, N, N)
+        runk(kd) = (Random.seed!(3);
+                    s = EigenSolver(A, B; σ₀=0.5, method=:Krylov, nev=1, n_tries=1, krylovdim=kd);
+                    solve!(s; verbose=false);
+                    s.results.eigenvalues[1])
+
+        runk(N); runk(200)                          # warmup (compile)
+        Random.seed!(3); aN   = @allocated runk(N)
+        Random.seed!(3); a200 = @allocated runk(200)
+
+        # krylovdim > N must be clamped to N: no oversized Krylov basis allocation
+        @test a200 ≤ 1.5 * aN
+        # and the clamp does not change the answer
+        @test abs(runk(N) - runk(200)) < 1e-8
     end
 end

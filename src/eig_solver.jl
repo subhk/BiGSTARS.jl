@@ -204,12 +204,17 @@ Single KrylovKit solve without retry logic. Expects a prebuilt shift-and-invert
 operator `op` for the current shift `σ` to avoid per-call allocations.
 """
 function solve_krylov_single(op, σ::Float64; config::SolverConfig)
+    n = size(op, 1)
+    # The Krylov subspace cannot exceed the problem dimension; clamping avoids
+    # KrylovKit allocating an oversized basis when krylovdim > n (common on the
+    # default krylovdim=200 for small/medium problems).
+    kdim = min(config.krylovdim, n)
     λinv, Χ, info = eigsolve(op,
-                             rand(ComplexF64, size(op, 1)),
+                             rand(ComplexF64, n),
                              config.nev,
                              config.which;
                              maxiter=config.maxiter,
-                             krylovdim=config.krylovdim,
+                             krylovdim=kdim,
                              tol=config.tol,
                              verbosity=0)
     
