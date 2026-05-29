@@ -136,22 +136,23 @@ using Test
     end
 
     @testset "Derived-var augmentation matches substitution path" begin
-        # Legacy (no derived variables): sigma*psi = dz(dz(psi)) - dx(dx(psi))
+        # Legacy (no derived variables): sigma*psi = -dz(dz(psi)) - dx(dx(psi))
+        # Eigenvalues: (n*pi)^2 + k^2 (positive).
         function make_legacy()
             domain = Domain(x=FourierTransformed(), z=Chebyshev(N=24, lower=0.0, upper=1.0))
             prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
-            @equation prob sigma * psi == dz(dz(psi)) - dx(dx(psi))
+            @equation prob sigma * psi == -dz(dz(psi)) - dx(dx(psi))
             @bc prob left(psi) == 0
             @bc prob right(psi) == 0
             discretize(prob)
         end
-        # Augmented: psi and v, where v = dz(dz(psi)) - dx(dx(psi))
+        # Augmented: introduce v = -dz(dz(psi)) - dx(dx(psi)) as a derived variable.
+        # @derive v v = rhs means Op(v) = v = rhs, i.e. v is an alias for the rhs expression.
+        # The constraint assembled is: 0 == v - (-dz(dz(psi)) - dx(dx(psi))).
         function make_augmented()
             domain = Domain(x=FourierTransformed(), z=Chebyshev(N=24, lower=0.0, upper=1.0))
             prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
-            @derive prob v dz(dz(v)) - dx(dx(v)) = psi
-            @derive_bc prob v left(v) == 0
-            @derive_bc prob v right(v) == 0
+            @derive prob v v = -dz(dz(psi)) - dx(dx(psi))
             @equation prob sigma * psi == v
             @bc prob left(psi) == 0
             @bc prob right(psi) == 0
@@ -160,7 +161,7 @@ using Test
         function smallest(cache, k)
             A, B = assemble(cache, k)
             ev = eigvals(Matrix(A), Matrix(B))
-            sort(filter(e -> isfinite(e) && real(e) > 1e-3, ev), by=abs)[1]
+            sort(filter(e -> isfinite(e) && real(e) > 0.1, ev), by=real)[1]
         end
         cache_leg = make_legacy()
         cache_aug = make_augmented()
@@ -170,6 +171,80 @@ using Test
         for k in (0.5, 1.5)
             @test abs(smallest(cache_leg, k) - smallest(cache_aug, k)) < 1e-8
         end
+    end
+
+    @testset "Augmented derived var with a real operator (analytic)" begin
+        # Genuine operator-defined derived variable that the legacy inverse path
+        # CANNOT handle (the 1D _sparse_block_inverse ignores BCs, leaving dz²
+        # singular). Augmentation keeps v as an unknown with its BCs as real rows.
+        #   σψ = v,  dz²v = ψ on z∈[0,1],  v(0)=v(1)=0, ψ(0)=ψ(1)=0
+        #   ⇒ σ·dz²ψ = ψ,  ψ=sin(nπz)  ⇒  σ = -1/(nπ)².  Smallest |σ| = -1/π².
+        domain = Domain(z=Chebyshev(N=32, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * psi == v
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+
+        cache = discretize(prob; augment_derived=true)
+        @test cache.N_vars == 2
+        @test cache.derived_var_order == [:v]
+
+        A, B = assemble(cache, 0.0)
+        ev = eigvals(Matrix(A), Matrix(B))
+        finite_real = real.(filter(e -> isfinite(e) && abs(imag(e)) < 1e-6, ev))
+        # The analytic n=1,2,3 eigenvalues must each appear in the spectrum.
+        for n in 1:3
+            target = -1 / (n * π)^2
+            @test minimum(abs.(finite_real .- target)) < 1e-4
+        end
+    end
+
+    @testset "Reconstruct augmented derived variable from eigenvector" begin
+        domain = Domain(z=Chebyshev(N=24, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * psi == v
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+
+        cache = discretize(prob; augment_derived=true)
+        A, B = assemble(cache, 0.0)
+        F = eigen(Matrix(A), Matrix(B))
+        # pick the eigenvector of the eigenvalue closest to the physical n=1 mode -1/π²
+        target = -1 / π^2
+        idx = argmin([isfinite(λ) ? abs(λ - target) : Inf for λ in F.values])
+        vec = F.vectors[:, idx]
+
+        Np = cache.N_per_var
+        v_block = ComplexF64.(vec[Np+1:2Np])            # v is the 2nd variable block
+        v_recon = reconstruct(cache, prob, vec, 0.0, :v)
+        @test length(v_recon) == Np
+        @test norm(v_recon - v_block) / max(norm(v_block), eps()) < 1e-10
+    end
+
+    @testset "Augmented derived problem assembles sparse" begin
+        # The augmented operator-defined derived problem assembles a banded
+        # (sparse) operator — no dense Op⁻¹. (The legacy inverse path cannot
+        # build this case at all, so there is no dense baseline to compare.)
+        function mkc(N)
+            domain = Domain(z=Chebyshev(N=N, lower=0.0, upper=1.0))
+            prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+            @derive prob v dz(dz(v)) = psi
+            @derive_bc prob v left(v) == 0
+            @derive_bc prob v right(v) == 0
+            @equation prob sigma * psi == v
+            @bc prob left(psi) == 0
+            @bc prob right(psi) == 0
+            discretize(prob; augment_derived=true)
+        end
+        A, _ = assemble(mkc(64), 0.0)
+        @test issparse(A)
+        @test nnz(A) / length(A) < 0.10        # banded, far from dense
     end
 
 end

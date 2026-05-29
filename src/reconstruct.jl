@@ -233,6 +233,15 @@ u_coeffs = reconstruct(cache, prob, eigvec, 0.1, :u)
 """
 function reconstruct(cache::DiscretizationCache, prob::EVP,
                      eigvec::AbstractVector, k::Float64, field_name::Symbol)
+    # Augmented (descriptor) form: the derived variable is a real block of the
+    # eigenvector — slice it directly instead of recomputing H_k * rhs.
+    if !isempty(cache.derived_var_order) && field_name in cache.derived_var_order
+        n_real = cache.N_vars - length(cache.derived_var_order)
+        di = findfirst(==(field_name), cache.derived_var_order)
+        blk = (n_real + di - 1) * cache.N_per_var
+        return ComplexF64.(eigvec[blk+1 : blk + cache.N_per_var])
+    end
+
     haskey(prob.derived_vars, field_name) ||
         error("No derived variable :$field_name. Available: $(keys(prob.derived_vars))")
 
