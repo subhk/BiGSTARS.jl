@@ -388,4 +388,36 @@ using Test
         @test length(c) == Np
     end
 
+    @testset "DSL macros: active-problem (no explicit prob) forms" begin
+        # The macros also work without an explicit `prob` arg, using the active
+        # problem (the form the examples use). Exercises those macro branches.
+        domain = Domain(z=Chebyshev(N=16, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)   # becomes the active problem
+        @substitution D2(A) = dz(dz(A))           # no `prob` arg
+        @derive v dz(dz(v)) = psi                 # no `prob` arg
+        @derive_bc v left(v) == 0
+        @derive_bc v right(v) == 0
+        @equation sigma * psi == -D2(psi) + v     # no `prob` arg
+        @bc left(psi) == 0
+        @bc right(psi) == 0
+
+        @test haskey(prob.substitutions, :D2)
+        @test haskey(prob.derived_vars, :v)
+        @test length(prob.equations) == 1
+        @test length(prob.bcs) == 2
+        cache = discretize(prob)
+        @test cache.derived_var_order == [:v]
+    end
+
+    @testset "DSL macros: malformed-input errors" begin
+        me(e) = macroexpand(@__MODULE__, e)
+        @test_throws Exception me(:(@equation foo))         # not lhs = rhs
+        @test_throws Exception me(:(@substitution foo))     # not Name(A) = expr
+        @test_throws Exception me(:(@derive))               # no args
+        @test_throws Exception me(:(@derive_bc v))          # too few args
+        @test_throws Exception me(:(@compute foo))          # not result = expr
+        # internal expression parsers reject unparseable input
+        @test_throws Exception BiGSTARS.parse_expr_ast(:([1, 2]), :(p))
+    end
+
 end
