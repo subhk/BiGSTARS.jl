@@ -42,14 +42,16 @@ Solve a problem with no FourierTransformed direction (pure 1D/2D, no wavenumber 
 """
 function solve(cache::DiscretizationCache;
                sigma_0::Float64, method::Symbol=:Krylov,
-               parallel::Bool=false, verbose::Bool=false, kwargs...)
+               parallel::Bool=false, verbose::Bool=false,
+               sparse::Union{Bool,Nothing}=nothing, kwargs...)
     return solve(cache, [0.0]; sigma_0=sigma_0, method=method,
-                 parallel=parallel, verbose=verbose, kwargs...)
+                 parallel=parallel, verbose=verbose, sparse=sparse, kwargs...)
 end
 
 function solve(cache::DiscretizationCache, k_values::AbstractVector;
                sigma_0::Float64, method::Symbol=:Krylov,
-               parallel::Bool=false, verbose::Bool=false, kwargs...)
+               parallel::Bool=false, verbose::Bool=false,
+               sparse::Union{Bool,Nothing}=nothing, kwargs...)
     n = length(k_values)
     results = Vector{SolverResults}(undef, n)
 
@@ -57,6 +59,25 @@ function solve(cache::DiscretizationCache, k_values::AbstractVector;
         ComplexF64[], zeros(ComplexF64, 0, 0), false, method,
         sigma_0, 0, 0.0, ConvergenceHistory()
     )
+
+    # Without derived-variable inversions the assembled operator stays sparse
+    # (banded ultraspherical blocks) — use sparse storage + sparse LU. Derived
+    # caches densify A via H(k)=op⁻¹, so dense is the right default there.
+    use_sparse = sparse === nothing ? isempty(cache.derived_caches) : sparse
+    if use_sparse
+        if parallel
+            Threads.@threads for i in 1:n
+                results[i] = _solve_sparse(cache, Float64(k_values[i]),
+                                           sigma_0, method, verbose, failed_result; kwargs...)
+            end
+        else
+            for i in 1:n
+                results[i] = _solve_sparse(cache, Float64(k_values[i]),
+                                           sigma_0, method, verbose, failed_result; kwargs...)
+            end
+        end
+        return results
+    end
 
     if parallel
         # One workspace per thread — allocated once, reused across all wavenumbers
@@ -93,6 +114,28 @@ function _solve_inplace(ws::AssemblyWorkspace, cache::DiscretizationCache,
     try
         # ws.temp is the pre-allocated N×N scratch reused as the shifted matrix.
         solve!(solver; verbose=verbose, A_buf=ws.temp)
+        return solver.results
+    catch e
+        verbose && @warn "Failed at k = $k_val: $e"
+        return failed_result
+    end
+end
+
+"""
+Solve a single wavenumber using freshly assembled **sparse** matrices.
+
+Keeps A and B as `SparseMatrixCSC` so the shift-and-invert factorization runs
+through sparse UMFPACK LU (`_factorize_shifted` falls back to `factorize` for
+non-`Matrix` types). Far cheaper than dense LU when the operator is banded /
+block-structured (no derived-variable inversions).
+"""
+function _solve_sparse(cache::DiscretizationCache, k_val::Float64,
+                       sigma_0::Float64, method::Symbol,
+                       verbose::Bool, failed_result::SolverResults; kwargs...)
+    A, B = assemble(cache, k_val)   # SparseMatrixCSC{ComplexF64}
+    solver = EigenSolver(A, B; σ₀=sigma_0, method=method, kwargs...)
+    try
+        solve!(solver; verbose=verbose)
         return solver.results
     catch e
         verbose && @warn "Failed at k = $k_val: $e"

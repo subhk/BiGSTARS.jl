@@ -71,4 +71,25 @@ using Test
         @test abs(real_pos[1] - (π / 2)^2) < 0.1
     end
 
+    @testset "Sparse solve path matches dense path" begin
+        domain = Domain(
+            x = FourierTransformed(),
+            z = Chebyshev(N=24, lower=-1.0, upper=1.0)
+        )
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc prob left(u) == 0
+        @bc prob right(u) == 0
+        cache = discretize(prob)
+        ks = [0.5, 1.5]
+
+        rd = solve(cache, ks; sigma_0=3.0, method=:Arnoldi, sparse=false)
+        rs = solve(cache, ks; sigma_0=3.0, method=:Arnoldi, sparse=true)
+
+        for i in eachindex(ks)
+            @test rd[i].converged && rs[i].converged
+            @test abs(rd[i].eigenvalues[1] - rs[i].eigenvalues[1]) < 1e-6
+        end
+    end
+
 end
