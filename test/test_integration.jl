@@ -247,4 +247,28 @@ using Test
         @test nnz(A) / length(A) < 0.10        # banded, far from dense
     end
 
+    @testset "Spurious modes filtered from descriptor (augmented) solve" begin
+        # The augmented system has a singular B (zero rows for the constraint and
+        # boundary equations) → infinite eigenvalues. The solver must return only
+        # physical modes, for BOTH methods. Physical: σ=-1/(nπ)²; nearest -0.1 is -1/π².
+        domain = Domain(z=Chebyshev(N=48, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * psi == v
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+        cache = discretize(prob; augment_derived=true)
+
+        for method in (:Arnoldi, :Krylov)
+            res = solve(cache; sigma_0=-0.1, method=method, nev=4, n_tries=2)
+            @test res[1].converged
+            # no huge spurious (infinite) modes survive the filter
+            @test all(e -> abs(e) < 0.5, res[1].eigenvalues)
+            # the physical n=1 mode is present
+            @test minimum(abs.(res[1].eigenvalues .- (-1/π^2))) < 1e-4
+        end
+    end
+
 end

@@ -235,6 +235,31 @@ _factorize_shifted(A::Matrix) = lu!(A)
 _factorize_shifted(A::AbstractMatrix) = factorize(A)
 
 """
+    _filter_physical_modes(λ, Χ, B; rtol=1e-6) -> (λ, Χ)
+
+Drop infinite/spurious eigenmodes of a generalized pencil `A x = λ B x` with a
+singular `B`. Descriptor formulations (e.g. augmented derived variables, or
+algebraic boundary rows) put zero rows in `B`, producing infinite eigenvalues
+that shift-and-invert can surface as huge or numerically-garbage `λ`. Such modes
+have `‖Bχ‖ ≈ 0`; physical modes have `O(1)` mass.
+
+For a non-singular `B` (identity / mass matrix) every mode has comparable mass,
+so all are kept — this is a no-op for standard problems. If filtering would
+remove everything (e.g. an empty or all-spurious set), the inputs are returned
+unchanged so callers always get a usable result.
+"""
+function _filter_physical_modes(λ::AbstractVector, Χ::AbstractMatrix, B; rtol::Float64=1e-6)
+    (isempty(λ) || size(Χ, 2) == 0) && return λ, Χ
+    masses = Float64[norm(B * view(Χ, :, i)) / max(norm(view(Χ, :, i)), eps())
+                     for i in 1:size(Χ, 2)]
+    scale = maximum(masses)
+    scale == 0.0 && return λ, Χ
+    keep = findall(>(rtol * scale), masses)
+    isempty(keep) && return λ, Χ
+    return λ[keep], Χ[:, keep]
+end
+
+"""
     solve!(solver::EigenSolver; verbose::Bool=true, A_buf=nothing)
 
 Solve the generalized eigenvalue problem with adaptive shift selection.
@@ -298,7 +323,11 @@ function solve!(solver::EigenSolver; verbose::Bool=true,
             else
                 throw(ArgumentError("Unknown method: $(config.method)"))
             end
-            
+
+            # Remove infinite/spurious modes (‖Bχ‖≈0) arising from a singular B
+            # (descriptor / augmented-derived systems). No-op for non-singular B.
+            λ, Χ = _filter_physical_modes(λ, Χ, solver.B)
+
             push!(history.converged, true)
             push!(history.eigenvalues, λ[1])
             push!(history.errors, "")
