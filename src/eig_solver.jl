@@ -20,12 +20,15 @@ Configuration parameters for eigenvalue solvers.
 - `nev::Int`: Number of eigenvalues to compute
 - `maxiter::Int`: Maximum iterations
 - `tol::Float64`: Convergence tolerance
-- `sortby::Symbol`: Sort eigenvalues by (:R, :I, :M)
+- `sortby::Symbol`: Order of returned eigenvalues — `:nearest` (default, distance from
+  the shift σ₀, i.e. the mode shift-and-invert targets), `:R` (real part), `:I`, `:M`
 - `n_tries::Int`: Number of retry attempts
 - `Δσ₀::Float64`: Initial shift increment
 - `incre::Float64`: Increment growth factor
 - `ϵ::Float64`: Successive eigenvalue tolerance
-- `krylovdim::Int`: Krylov subspace dimension (Krylov method only)
+- `krylovdim::Int`: Krylov subspace dimension (Krylov method only). Default 30;
+  raise it only for hard/clustered spectra (cost scales steeply with this). It is
+  clamped at runtime to `[nev+2, n]`.
 """
 @kwdef struct SolverConfig
     method::Symbol = :Krylov
@@ -34,12 +37,12 @@ Configuration parameters for eigenvalue solvers.
     nev::Int = 1
     maxiter::Int = 300
     tol::Float64 = 1e-12
-    sortby::Symbol = :M
+    sortby::Symbol = :nearest
     n_tries::Int = 8
     Δσ₀::Float64 = 0.2
     incre::Float64 = 1.2
     ϵ::Float64 = 1e-5
-    krylovdim::Int = 200
+    krylovdim::Int = 30
 end
 
 """
@@ -138,16 +141,24 @@ if VERSION < v"1.9"
 end
 
 """
-    sort_eigenvalues!(λ, Χ, by::Symbol; rev::Bool=true)
+    sort_eigenvalues!(λ, Χ, by::Symbol; rev::Bool=true, σ=nothing)
 
-Sort eigenvalues and eigenvectors in-place.
-- `:R` → real part
-- `:I` → imaginary part  
+Sort eigenvalues and eigenvectors (returns reordered copies).
+- `:nearest` → ascending distance `|λ - σ|` from the shift (requires `σ`); this is
+  the eigenvalue shift-and-invert actually targets, so `[1]` is the mode at the shift.
+- `:R` → real part (descending with `rev=true`)
+- `:I` → imaginary part
 - `:M` → magnitude
 """
-function sort_eigenvalues!(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true)
-    sortfun = by == :R ? real : by == :I ? imag : abs
-    idx = sortperm(λ, by=sortfun, rev=rev)
+function sort_eigenvalues!(λ::Vector, Χ::Matrix, by::Symbol; rev::Bool=true,
+                           σ::Union{Real,Nothing}=nothing)
+    if by === :nearest
+        σ === nothing && throw(ArgumentError("sortby=:nearest requires the shift σ"))
+        idx = sortperm(λ, by = x -> abs(x - σ))      # ascending: nearest the shift first
+    else
+        sortfun = by == :R ? real : by == :I ? imag : abs
+        idx = sortperm(λ, by=sortfun, rev=rev)
+    end
     return λ[idx], Χ[:, idx]
 end
 
@@ -177,7 +188,7 @@ function solve_arnoldi_single(op, σ::Float64; config::SolverConfig)
     μ, Χ = partialeigen(decomp)
     λ = @. 1.0 / μ + σ
     
-    return sort_eigenvalues!(λ, Χ, config.sortby; rev=true)
+    return sort_eigenvalues!(λ, Χ, config.sortby; rev=true, σ=σ)
 end
 
 """
@@ -194,7 +205,7 @@ function solve_arpack_single(A, B, σ::Float64; config::SolverConfig)
                              tol=config.tol,
                              check=0)
     
-    return sort_eigenvalues!(λ, Χ, config.sortby; rev=true)
+    return sort_eigenvalues!(λ, Χ, config.sortby; rev=true, σ=σ)
 end
 
 """
@@ -205,10 +216,11 @@ operator `op` for the current shift `σ` to avoid per-call allocations.
 """
 function solve_krylov_single(op, σ::Float64; config::SolverConfig)
     n = size(op, 1)
-    # The Krylov subspace cannot exceed the problem dimension; clamping avoids
-    # KrylovKit allocating an oversized basis when krylovdim > n (common on the
-    # default krylovdim=200 for small/medium problems).
-    kdim = min(config.krylovdim, n)
+    # Krylov subspace dimension: at least nev+2 (KrylovKit requires krylovdim > nev),
+    # at most the problem dimension n (the subspace cannot exceed it — and a larger
+    # value just wastes work; the cost scales steeply with krylovdim). Shift-and-invert
+    # makes the target eigenvalues dominant, so a modest subspace suffices.
+    kdim = clamp(config.krylovdim, min(config.nev + 2, n), n)
     λinv, Χ, info = eigsolve(op,
                              rand(ComplexF64, n),
                              config.nev,
@@ -220,7 +232,7 @@ function solve_krylov_single(op, σ::Float64; config::SolverConfig)
     
     λ = @. 1.0 / λinv + σ
     
-    return sort_eigenvalues!(λ, stack(unwrapvec, Χ), config.sortby; rev=true)
+    return sort_eigenvalues!(λ, stack(unwrapvec, Χ), config.sortby; rev=true, σ=σ)
 end
 
 # ==============================================================================

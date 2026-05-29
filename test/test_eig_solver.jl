@@ -70,4 +70,32 @@ using Random
         # and the clamp does not change the answer
         @test abs(runk(N) - runk(200)) < 1e-8
     end
+
+    @testset "krylovdim default is modest and overridable" begin
+        @test SolverConfig(σ₀=1.0).krylovdim == 30          # sane default (was 200)
+        @test SolverConfig(σ₀=1.0, krylovdim=150).krylovdim == 150  # explicit value kept
+
+        # The runtime clamp guarantees krylovdim > nev (KrylovKit requirement):
+        # a user-supplied krylovdim=2 with nev=3 is bumped to nev+2=5, so the
+        # solve runs instead of throwing.
+        A = ComplexF64.(Diagonal(collect(1.0:12.0))); B = Matrix{ComplexF64}(I, 12, 12)
+        s = EigenSolver(A, B; σ₀=6.0, method=:Krylov, nev=3, n_tries=1, krylovdim=2)
+        solve!(s; verbose=false)
+        @test s.results.converged
+    end
+
+    @testset "sortby=:nearest returns the mode at the shift" begin
+        @test SolverConfig(σ₀=1.0).sortby == :nearest          # default
+
+        # diag spectrum 1..5, shift 2.2 → nearest true eigenvalue is 2.0
+        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0, 5.0])); B = Matrix{ComplexF64}(I, 5, 5)
+        s = EigenSolver(A, B; σ₀=2.2, method=:Arnoldi, nev=3, n_tries=0)  # default :nearest
+        solve!(s; verbose=false)
+        λ, _ = get_results(s)
+        @test abs(λ[1] - 2.0) < 1e-6                            # nearest to σ₀ reported first
+
+        # :nearest without σ is an error
+        @test_throws ArgumentError BiGSTARS.sort_eigenvalues!(
+            ComplexF64[1.0, 2.0], Matrix{ComplexF64}(I, 2, 2), :nearest)
+    end
 end
