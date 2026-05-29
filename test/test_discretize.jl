@@ -4,7 +4,7 @@ using LinearAlgebra
 using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_operator,
     total_grid_size, discretize, assemble, allocate_workspace, assemble!,
     DiscretizationCache, AssemblyWorkspace, ParamNode, VarNode, BinaryOpNode,
-    DerivedVarCache
+    DerivedVarCache, DerivNode, UnaryOpNode, ConstNode, SubstitutionNode
 
 @testset "Discretize and Assemble" begin
 
@@ -171,6 +171,49 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         result = BiGSTARS._evaluate_expr(expr, prob, cache, coeffs, 0.0)
         expected = BiGSTARS._build_2d_coeff_multiply(coeffs, domain, :z, :y) * coeffs
         @test result ≈ expected
+    end
+
+    @testset "_evaluate_expr (@compute walker) — all node types" begin
+        # Real cache on x(FT)×y(Fourier)×z(Cheb) with a 2D field, scalar param,
+        # substitution, and a derived variable — so every _evaluate_expr branch fires.
+        domain = Domain(x=FourierTransformed(), y=Fourier(8, [0.0, 1.0]), z=Chebyshev(8, [0.0, 1.0]))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+        Y, Z = meshgrid(domain, :y, :z)
+        prob[:U] = vec(@. tanh(Z) * cos(2π * Y))      # 2D field parameter
+        prob[:c] = 2.5                                 # scalar parameter
+        @substitution prob Lap(A) = dz(dz(A)) + dy(dy(A))
+        @derive prob v dz(dz(v)) = u
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @equation prob sigma * u == v
+        @bc prob left(u) == 0
+        @bc prob right(u) == 0
+        cache = discretize(prob)
+        Np = cache.N_per_var
+        ev = rand(ComplexF64, cache.N_total)
+        E(node) = BiGSTARS._evaluate_expr(node, prob, cache, ev, 1.0)
+
+        # node types that return a field of length Np
+        @test length(E(VarNode(:u))) == Np                                   # declared var
+        @test length(E(VarNode(:v))) == Np                                   # derived var → reconstruct
+        @test length(E(DerivNode(VarNode(:u), :x))) == Np                    # dx → im*k
+        @test length(E(DerivNode(VarNode(:u), :y))) == Np                    # dy → Fourier diff
+        @test length(E(DerivNode(VarNode(:u), :z))) == Np                    # dz → Chebyshev diff
+        @test length(E(BinaryOpNode(:+, VarNode(:u), VarNode(:u)))) == Np    # +
+        @test length(E(BinaryOpNode(:-, VarNode(:u), VarNode(:u)))) == Np    # -
+        @test length(E(BinaryOpNode(:*, ConstNode(2.0), VarNode(:u)))) == Np # scalar * field
+        @test length(E(BinaryOpNode(:*, VarNode(:u), ConstNode(2.0)))) == Np # field * scalar
+        @test length(E(BinaryOpNode(:*, ParamNode(:U), VarNode(:u)))) == Np  # field param * var
+        @test length(E(BinaryOpNode(:*, VarNode(:u), ParamNode(:U)))) == Np  # var * field param
+        @test length(E(BinaryOpNode(:*, VarNode(:u), VarNode(:u)))) == Np    # field * field
+        @test length(E(UnaryOpNode(:-, VarNode(:u)))) == Np                  # negation
+        @test length(E(SubstitutionNode(:Lap, BiGSTARS.ExprNode[VarNode(:u)]))) == Np  # substitution
+
+        # error branches
+        @test_throws ErrorException E(ParamNode(:c))        # scalar param alone
+        @test_throws ErrorException E(ParamNode(:U))        # field param alone
+        @test_throws ErrorException E(ConstNode(3.0))       # constant alone
+        @test_throws ErrorException E(VarNode(:nope))       # unknown variable
     end
 
     @testset "2D block Toeplitz assembly matches sparse block reference" begin
