@@ -24,7 +24,7 @@ results = solve(cache, k_values; sigma_0=0.02)
 - **Symbolic equation DSL** — Write PDEs with `dx`, `dy`, `dz`; automatic discretization into sparse GEVP matrices
 - **Ultraspherical spectral method** — Fully sparse Chebyshev operators (Olver & Townsend, 2013); Fourier in coefficient space
 - **Generalized BCs** — Dirichlet, Neumann, Robin, higher-order, coupled, and eigenvalue-dependent boundary conditions
-- **Derived variables** (`@derive`) — Eliminate auxiliary fields via inverse operators; reduces system dimension
+- **Derived variables** (`@derive`) — auxiliary fields augmented into the sparse system by default (no dense inverse); opt out with `augment_derived=false`
 - **Wavenumber-separated caching** — Discretize once, assemble cheaply per wavenumber; parallel sweeps with `parallel=true`
 - **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions
 - **Post-processing** (`@compute`) — Evaluate any expression on eigenvectors using the same DSL syntax
