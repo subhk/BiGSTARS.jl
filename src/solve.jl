@@ -60,10 +60,11 @@ function solve(cache::DiscretizationCache, k_values::AbstractVector;
         sigma_0, 0, 0.0, ConvergenceHistory()
     )
 
-    # Without derived-variable inversions the assembled operator stays sparse
-    # (banded ultraspherical blocks) — use sparse storage + sparse LU. Derived
-    # caches densify A via H(k)=op⁻¹, so dense is the right default there.
-    use_sparse = sparse === nothing ? isempty(cache.derived_caches) : sparse
+    # Sparse storage + sparse LU is a large win for banded / block-structured
+    # operators (2D problems, high-order derivatives) but loses to dense LU once
+    # the operator fills in (variable coefficients with rich spectra, ~40%+).
+    # Auto-select on estimated fill; allow an explicit override.
+    use_sparse = sparse === nothing ? (_assembled_density(cache) < 0.10) : sparse
     if use_sparse
         if parallel
             Threads.@threads for i in 1:n
@@ -119,6 +120,24 @@ function _solve_inplace(ws::AssemblyWorkspace, cache::DiscretizationCache,
         verbose && @warn "Failed at k = $k_val: $e"
         return failed_result
     end
+end
+
+"""
+Estimate the fill fraction (nnz / N²) of the assembled operator `A` from the
+cached k-components. Used by `solve` to auto-select sparse vs dense storage.
+Derived variables invert an operator (dense `H(k)`), so any derived cache forces
+the dense estimate (`1.0`). The structural union of the components is an upper
+bound on the per-wavenumber fill.
+"""
+function _assembled_density(cache::DiscretizationCache)
+    isempty(cache.derived_caches) || return 1.0
+    N = cache.N_total
+    N == 0 && return 1.0
+    pat = spzeros(ComplexF64, N, N)
+    for (_, M) in cache.A_kcomponents
+        pat += M
+    end
+    return nnz(pat) / (N * N)
 end
 
 """

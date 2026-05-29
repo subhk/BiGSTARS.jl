@@ -92,4 +92,25 @@ using Test
         end
     end
 
+    @testset "Density gate: sparse for banded, dense for filled" begin
+        # constant-coefficient 2D Laplacian → banded/block → very sparse
+        db = Domain(x=FourierTransformed(), y=Fourier(16, [0, 1.0]), z=Chebyshev(12, [0, 1.0]))
+        pb = EVP(db, variables=[:u], eigenvalue=:sigma)
+        @equation pb sigma * u == -dx(dx(u)) - dy(dy(u)) - dz(dz(u))
+        @bc pb left(u) == 0
+        @bc pb right(u) == 0
+        cb = discretize(pb)
+        @test BiGSTARS._assembled_density(cb) < 0.10        # → auto-selects sparse
+
+        # rich variable coefficient → fills in → above threshold
+        df = Domain(x=FourierTransformed(), z=Chebyshev(N=64, lower=-1.0, upper=1.0))
+        pf = EVP(df, variables=[:u], eigenvalue=:sigma)
+        z = gridpoints(df, :z); pf[:U] = @. tanh(4z)
+        @equation pf sigma * u == U * dz(u) - dz(dz(u))
+        @bc pf left(u) == 0
+        @bc pf right(u) == 0
+        cf = discretize(pf)
+        @test BiGSTARS._assembled_density(cf) > 0.10        # → auto-selects dense
+    end
+
 end
