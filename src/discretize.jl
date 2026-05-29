@@ -345,17 +345,13 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
                 if !isnothing(left_fp) && !isnothing(cheb_dim)
                     param, sc = left_fp
-                    M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
-                    c_f = _field_1d_cheb_coeffs(param, prob, cheb_dim)
-                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name, c_f)
+                    result = _field_times_operator(param, G, prob, cheb_dim, highest_cheb_order, N_per_var, ctx)
                     return sc == ComplexF64(1.0) ? result : sc .* result
                 elseif !isnothing(right_fp) && !isnothing(cheb_dim)
                     param, sc = right_fp
-                    M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
                     G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
-                    c_f = _field_1d_cheb_coeffs(param, prob, cheb_dim)
-                    result = _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var, ctx, param.name, c_f)
+                    result = _field_times_operator(param, G, prob, cheb_dim, highest_cheb_order, N_per_var, ctx)
                     return sc == ComplexF64(1.0) ? result : sc .* result
                 else
                     return discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx) *
@@ -526,6 +522,75 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
     end
 
     return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
+end
+
+"""
+Banded 2D field multiplication operator directly in the C^(λ) ultraspherical
+basis (λ ≥ 1). Same Fourier-block-Toeplitz structure as `_build_2d_field_multiply`,
+but each z-block is the banded ultraspherical multiplication operator for that
+Fourier mode of the field — avoiding the dense inverse-conversion `S_z⁻¹` and
+keeping the operator sparse (fill ∝ band/N_z).
+"""
+function _build_2d_field_multiply_banded(f_vec::AbstractVector, domain::Domain,
+                                         cheb_dim::Symbol, fourier_dim::Symbol, λ::Int)
+    N_z = domain.coords[cheb_dim].N
+    N_y = domain.coords[fourier_dim].N
+
+    f_physical = reshape(Float64.(f_vec), N_z, N_y)
+    f_hat = zeros(ComplexF64, N_z, N_y)
+    for iz in 1:N_z
+        f_hat[iz, :] = fft(f_physical[iz, :]) / N_y
+    end
+
+    Mz_blocks = Vector{SparseMatrixCSC{ComplexF64, Int}}(undef, N_y)
+    for dm in 0:N_y-1
+        f_dm = f_hat[:, dm + 1]
+        c = ComplexF64.(chebyshev_coefficients(real.(f_dm))) .+
+            im .* ComplexF64.(chebyshev_coefficients(imag.(f_dm)))
+        Mz_blocks[dm + 1] = ultraspherical_multiplication_operator(c, N_z, λ)
+    end
+
+    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
+end
+
+"""
+Banded full-grid C^(λ) multiplication operator for a field parameter, or
+`nothing` when `highest_cheb_order == 0` (T basis — no conversion, handled by
+the caller's fallback). Unifies the 1D (z-only, lifted) and 2D (varies in y and
+z) cases; both stay sparse (banded ultraspherical, no dense `S⁻¹`).
+"""
+function _field_banded_operator(param::ParamNode, prob::EVP, cheb_dim::Symbol,
+                                highest_cheb_order::Int, N_per_var::Int)
+    highest_cheb_order >= 1 || return nothing
+    domain = prob.domain
+    N_z = domain.coords[cheb_dim].N
+    f_vec = vec(prob.parameters[param.name])
+    fourier_dim = _find_fourier_dim(domain)
+
+    if isnothing(fourier_dim) || length(f_vec) == N_z
+        # 1D (z-only) field
+        c = chebyshev_coefficients(Float64.(real.(f_vec)))
+        M_z = ComplexF64.(ultraspherical_multiplication_operator(c, N_z, highest_cheb_order))
+        return size(M_z, 1) == N_per_var ? M_z : _lift_to_2d(M_z, cheb_dim, domain)
+    else
+        # 2D (y, z) field
+        return _build_2d_field_multiply_banded(f_vec, domain, cheb_dim, fourier_dim, highest_cheb_order)
+    end
+end
+
+"""
+Discretize `f · G`, a field parameter `f` times an already-built operator `G`.
+Uses the banded C^(λ) multiplication (1D or 2D field, sparse) for Chebyshev
+order ≥ 1; falls back to the T-basis multiply (`S·M_f·S⁻¹`) for order 0.
+"""
+function _field_times_operator(param::ParamNode, G, prob::EVP, cheb_dim::Symbol,
+                               highest_cheb_order::Int, N_per_var::Int,
+                               ctx::Union{Nothing, DiscretizationContext})
+    banded = _field_banded_operator(param, prob, cheb_dim, highest_cheb_order, N_per_var)
+    isnothing(banded) || return banded * G
+    M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
+    return _apply_field_multiply(M_f, G, prob.domain, cheb_dim, highest_cheb_order,
+                                 N_per_var, ctx, param.name)
 end
 
 """
@@ -755,15 +820,6 @@ function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_
     return scale == ComplexF64(1.0) ? M : scale * M
 end
 
-"""T-basis Chebyshev coefficients of a 1D (z-only) field parameter, or `nothing`
-for 2D fields (which need the block-Toeplitz construction, not the banded op)."""
-function _field_1d_cheb_coeffs(param::ParamNode, prob::EVP, cheb_dim::Symbol)
-    f_vec = vec(prob.parameters[param.name])
-    N_z = prob.domain.coords[cheb_dim].N
-    length(f_vec) == N_z || return nothing
-    return chebyshev_coefficients(Float64.(f_vec))
-end
-
 function _converted_field_multiply(param::ParamNode, prob::EVP, N_per_var::Int,
                                    highest_cheb_order::Int,
                                    ctx::Union{Nothing, DiscretizationContext})
@@ -788,33 +844,17 @@ function _field_multiply_T_lifted(param::ParamNode, prob::EVP, N_per_var::Int,
 end
 
 """
-    _apply_field_multiply(M_f, G, domain, cheb_dim, highest, N_per_var)
+    _apply_field_multiply(M_f, G, domain, cheb_dim, highest, N_per_var, ctx, field_name)
 
-Apply field multiplication in the correct basis: `S * M_f * S^{-1} * G`.
-
-M_f is the 1D T-basis multiplication operator (N_z × N_z).
-G is the full-grid operator (N_per_var × N_per_var).
-S^{-1} converts C^(h) output back to T basis, M_f multiplies, then S converts back.
-All 1D operators are lifted to full grid via Kronecker products.
+Fallback field multiplication via `S * M_f * S^{-1} * G` (T-basis operator `M_f`
+converted around the operand). Used only for Chebyshev order 0; order ≥ 1 fields
+are built directly as banded operators by [`_field_banded_operator`].
 """
 function _apply_field_multiply(M_f, G, domain, cheb_dim, highest_cheb_order, N_per_var,
                                 ctx::Union{Nothing, DiscretizationContext}=nothing,
-                                field_name::Union{Symbol, Nothing}=nothing,
-                                field_coeffs::Union{Nothing, AbstractVector}=nothing)
+                                field_name::Union{Symbol, Nothing}=nothing)
     spec = domain.coords[cheb_dim]
     N_z = spec.N
-
-    # 1D (z-only) field with conversion (order ≥ 1): build the banded C^(λ)
-    # multiplication operator directly (Olver–Townsend). It equals S·M_f·S^{-1}
-    # but stays banded — avoiding the dense inverse-conversion that otherwise
-    # fills the operator. `field_coeffs !== nothing` means the field is z-only
-    # (length N_z); it is N_z × N_z and lifted to the full grid only when the
-    # domain has a resolved Fourier direction (N_per_var > N_z).
-    if !isnothing(field_coeffs) && highest_cheb_order >= 1
-        op_z    = ComplexF64.(ultraspherical_multiplication_operator(field_coeffs, N_z, highest_cheb_order))
-        op_full = size(op_z, 1) == N_per_var ? op_z : _lift_to_2d(op_z, cheb_dim, domain)
-        return op_full * G
-    end
 
     if size(M_f, 1) == N_per_var
         # 2D field (varies in y and z), or order-0 1D field: S * M_f * S^{-1} * G.

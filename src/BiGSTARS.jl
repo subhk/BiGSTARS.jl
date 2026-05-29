@@ -9,6 +9,7 @@ module BiGSTARS
     using LinearMaps
     using KrylovKit
     using VectorInterface: MinimalSVec, MinimalMVec, MinimalVec
+    using PrecompileTools: @setup_workload, @compile_workload
 
     export
         # Domain and coordinate types
@@ -95,5 +96,23 @@ module BiGSTARS
 
     # Utilities
     include("utils.jl")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    #  Precompilation: exercise discretize → assemble → solve on a tiny problem
+    #  so the first real call doesn't pay full compile latency (TTFX).
+    # ──────────────────────────────────────────────────────────────────────────
+    @setup_workload begin
+        @compile_workload begin
+            dom = Domain(x = FourierTransformed(), z = Chebyshev(N=8, lower=0.0, upper=1.0))
+            prob = EVP(dom, variables=[:u], eigenvalue=:sigma)
+            @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
+            @bc prob left(u) == 0
+            @bc prob right(u) == 0
+            cache = discretize(prob)
+            # `solve` swallows non-convergence (returns a failed result), so the
+            # workload never throws during precompilation regardless of the shift.
+            solve(cache, [1.0]; sigma_0 = 10.0, method = :Krylov, nev = 1, verbose = false)
+        end
+    end
 
 end # module BiGSTARS

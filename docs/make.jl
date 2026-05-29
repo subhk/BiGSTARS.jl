@@ -123,6 +123,7 @@ makedocs(
                 "Equation DSL"                  => "equation_dsl.md",
                 "Spectral Operators"            => "matrices.md",
                 "Eigenvalue Solver"             => "method.md",
+                "Performance & Sparsity"        => "performance.md",
                 "Utility functions"             => "basic_functionality.md",
                 "API Reference"                 => "modules/BiGSTARS.md",
                 "Examples"                      => Any[
