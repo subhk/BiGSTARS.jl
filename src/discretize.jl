@@ -31,6 +31,7 @@ struct DiscretizationCache
     N_per_var::Int
     N_vars::Int
     domain::Domain
+    derived_var_order::Vector{Symbol}
 end
 
 const FieldMultiplyCacheKey = Tuple{Symbol, Symbol, Union{Nothing, Symbol}}
@@ -63,11 +64,13 @@ function DiscretizationCache(A_components::Dict{Int, SparseMatrixCSC{ComplexF64,
                              B_components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
                              derived_caches::Dict{Symbol, DerivedVarCache},
                              N_total::Int, N_per_var::Int, N_vars::Int,
-                             domain::Domain)
+                             domain::Domain,
+                             derived_var_order::Vector{Symbol}=Symbol[])
     A_kcomponents = _legacy_components_to_k(A_components, domain)
     B_kcomponents = _legacy_components_to_k(B_components, domain)
     return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents,
-                               derived_caches, N_total, N_per_var, N_vars, domain)
+                               derived_caches, N_total, N_per_var, N_vars, domain,
+                               derived_var_order)
 end
 
 function _legacy_components_to_k(components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
@@ -1113,6 +1116,64 @@ function _extract_coefficient_of_var(expr::ExprNode, var_name::Symbol,
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
+#  Augment EVP: promote derived variables to regular variables
+# ──────────────────────────────────────────────────────────────────────────────
+
+"""
+    _augment_derived_problem(prob::EVP) -> (augmented_prob, derived_order)
+
+Rewrite an EVP with derived variables into an equivalent plain multi-variable
+EVP: each derived variable `v` (defined by `Op(v) = rhs`) becomes a regular
+variable governed by the constraint equation `0 == Op(v) - rhs`, and its
+`@derive_bc` boundary conditions become ordinary BCs on `v`. The returned
+problem has `derived_vars` empty, so the standard `discretize` machinery
+assembles it as a sparse augmented system (no operator inverse).
+
+Returns `(augmented_prob, derived_order)`. If there are no derived variables,
+returns `(prob, Symbol[])`. Does not mutate `prob`; saves/restores the global
+active-problem Ref.
+"""
+function _augment_derived_problem(prob::EVP)
+    isempty(prob.derived_vars) && return prob, Symbol[]
+
+    derived_order = collect(keys(prob.derived_vars))
+
+    # Save the current active prob so EVP() constructor side-effect is undone
+    saved_active = _active_prob[]
+
+    new_vars = vcat(prob.variables, derived_order)
+    new_prob = EVP(prob.domain; variables=new_vars, eigenvalue=prob.eigenvalue)
+
+    # Copy parameters and substitutions (shallow copy is fine — values are immutable)
+    for (name, val) in prob.parameters
+        new_prob.parameters[name] = val
+    end
+    for (name, sub) in prob.substitutions
+        new_prob.substitutions[name] = sub
+    end
+
+    # Copy existing equations and BCs verbatim
+    append!(new_prob.equations, prob.equations)
+    append!(new_prob.bcs, prob.bcs)
+
+    # For each derived variable, add a constraint equation and promote its BCs
+    for dname in derived_order
+        dvar = prob.derived_vars[dname]
+        # Build Op(v) as a SubstitutionNode referencing the stored operator
+        op_lhs = SubstitutionNode(dvar.operator_name, ExprNode[VarNode(dname)])
+        # Constraint: 0 == Op(v) - rhs  →  lhs=ConstNode(0), rhs=Op(v)-rhs_expr
+        constraint_rhs = BinaryOpNode(:-, op_lhs, dvar.rhs)
+        push!(new_prob.equations, Equation(ConstNode(0.0), constraint_rhs))
+        # Move the derive BCs into the regular BC list
+        append!(new_prob.bcs, dvar.bcs)
+    end
+
+    # Restore the active problem to what it was before we created new_prob
+    _active_prob[] = saved_active
+    return new_prob, derived_order
+end
+
+# ──────────────────────────────────────────────────────────────────────────────
 #  Block placement for multi-variable systems
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1504,8 +1565,16 @@ end
 Validate the problem, expand substitutions, lower derivatives, separate by k-power,
 and build sparse matrix components. Returns a cache for fast wavenumber assembly.
 """
-function discretize(prob::EVP)
+function discretize(prob::EVP; augment_derived::Bool=false)
     validate_problem(prob)
+
+    # Augmented (descriptor) form: rewrite derived variables into regular
+    # variables + constraint equations so the assembled operator stays sparse
+    # (no Op⁻¹). Record the derived block order for reconstruction.
+    derived_var_order = Symbol[]
+    if augment_derived && !isempty(prob.derived_vars)
+        prob, derived_var_order = _augment_derived_problem(prob)
+    end
 
     N_per_var = total_grid_size(prob.domain)
     N_vars = length(prob.variables)
@@ -1704,7 +1773,7 @@ function discretize(prob::EVP)
     end
 
     return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents, derived_caches,
-                               N_total, N_per_var, N_vars, prob.domain)
+                               N_total, N_per_var, N_vars, prob.domain, derived_var_order)
 end
 
 """

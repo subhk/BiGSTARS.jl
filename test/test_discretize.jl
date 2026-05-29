@@ -364,4 +364,35 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test abs(real_pos[1] - expected) / expected < 0.01
     end
 
+    @testset "augment_derived_problem transform" begin
+        domain = Domain(x=FourierTransformed(), z=Chebyshev(N=16, lower=0.0, upper=1.0))
+        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+        @equation prob sigma * psi == -dz(dz(psi))
+        @derive prob v dz(dz(v)) = psi
+        @derive_bc prob v left(v) == 0
+        @derive_bc prob v right(v) == 0
+        @bc prob left(psi) == 0
+        @bc prob right(psi) == 0
+
+        aug, order = BiGSTARS._augment_derived_problem(prob)
+
+        @test order == [:v]
+        @test aug.variables == [:psi, :v]
+        @test isempty(aug.derived_vars)
+        @test length(aug.equations) == 2
+        @test length(aug.bcs) == 4
+        @test prob.variables == [:psi]
+        @test haskey(prob.derived_vars, :v)
+        @test BiGSTARS._get_active_prob() === prob
+    end
+
+    @testset "DiscretizationCache carries derived_var_order" begin
+        domain = Domain(z=Chebyshev(N=8, lower=0.0, upper=1.0))
+        A0 = Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(0 => spzeros(ComplexF64, 8, 8))
+        B0 = Dict{Int,SparseMatrixCSC{ComplexF64,Int}}()
+        dc = Dict{Symbol,BiGSTARS.DerivedVarCache}()
+        cache = BiGSTARS.DiscretizationCache(A0, B0, dc, 8, 8, 1, domain)  # legacy 7-arg ctor
+        @test cache.derived_var_order == Symbol[]
+    end
+
 end

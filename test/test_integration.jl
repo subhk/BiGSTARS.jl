@@ -135,4 +135,41 @@ using Test
         @test BiGSTARS._assembled_density(cf) > 0.10        # → auto-selects dense
     end
 
+    @testset "Derived-var augmentation matches substitution path" begin
+        # Legacy (no derived variables): sigma*psi = dz(dz(psi)) - dx(dx(psi))
+        function make_legacy()
+            domain = Domain(x=FourierTransformed(), z=Chebyshev(N=24, lower=0.0, upper=1.0))
+            prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+            @equation prob sigma * psi == dz(dz(psi)) - dx(dx(psi))
+            @bc prob left(psi) == 0
+            @bc prob right(psi) == 0
+            discretize(prob)
+        end
+        # Augmented: psi and v, where v = dz(dz(psi)) - dx(dx(psi))
+        function make_augmented()
+            domain = Domain(x=FourierTransformed(), z=Chebyshev(N=24, lower=0.0, upper=1.0))
+            prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+            @derive prob v dz(dz(v)) - dx(dx(v)) = psi
+            @derive_bc prob v left(v) == 0
+            @derive_bc prob v right(v) == 0
+            @equation prob sigma * psi == v
+            @bc prob left(psi) == 0
+            @bc prob right(psi) == 0
+            discretize(prob; augment_derived=true)
+        end
+        function smallest(cache, k)
+            A, B = assemble(cache, k)
+            ev = eigvals(Matrix(A), Matrix(B))
+            sort(filter(e -> isfinite(e) && real(e) > 1e-3, ev), by=abs)[1]
+        end
+        cache_leg = make_legacy()
+        cache_aug = make_augmented()
+        @test cache_aug.derived_var_order == [:v]
+        @test cache_aug.N_vars == 2
+        @test cache_leg.N_vars == 1
+        for k in (0.5, 1.5)
+            @test abs(smallest(cache_leg, k) - smallest(cache_aug, k)) < 1e-8
+        end
+    end
+
 end
