@@ -74,7 +74,7 @@ Or get all fields at once:
 ```julia
 fields = reconstruct_all(cache, prob, eigvec, k_val)
 # fields[:w], fields[:zeta], fields[:b] — from eigenvector
-# fields[:v] — reconstructed via @derive inverse operator
+# fields[:v] — read from its eigenvector block (augmented), or rebuilt via Op⁻¹ if augment_derived=false
 ```
 
 ## Converting to Physical Space

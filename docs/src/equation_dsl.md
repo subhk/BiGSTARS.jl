@@ -96,7 +96,7 @@ Write equations using `dx()`, `dy()`, `dz()` for derivatives:
 
 ## Derived Variables
 
-Define auxiliary variables implicitly. The DSL computes the inverse operator and substitutes automatically. Two forms are supported:
+Define auxiliary variables implicitly via `Op(v) = rhs`. By default the variable is **augmented** into the system — kept as a sparse unknown governed by its defining equation, so the assembled operator stays sparse (no dense inverse). Pass `augment_derived=false` to `discretize` for the legacy path that eliminates `v` via the explicit operator inverse `Op⁻¹` (smaller system, denser). Two forms are supported:
 
 **Form 1: Named operator** (requires a `@substitution`):
 ```julia
@@ -109,7 +109,7 @@ Define auxiliary variables implicitly. The DSL computes the inverse operator and
 @derive v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)
 ```
 
-Both define `v = Op^{-1} * rhs`. The variable `v` can then be used freely in equations:
+Both define `v` by `Op(v) = rhs`. The variable `v` can then be used freely in equations:
 
 ```julia
 @equation sigma * b = dBdz * w + dBdy * v + U * dx(b) - E * D2(b)

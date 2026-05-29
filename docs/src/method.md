@@ -46,12 +46,12 @@ Configuration parameters for eigenvalue solvers.
     nev::Int = 1                      # Number of eigenvalues to compute
     maxiter::Int = 300                # Maximum iterations
     tol::Float64 = 1e-12              # Convergence tolerance
-    sortby::Symbol = :M               # Sort eigenvalues by (:R, :I, :M)
+    sortby::Symbol = :nearest         # Order results: :nearest (to σ₀), :R, :I, :M
     n_tries::Int = 8                  # Number of retry attempts
     Δσ₀::Float64 = 0.2                # Initial shift increment
     incre::Float64 = 1.2              # Increment growth factor
     ϵ::Float64 = 1e-5                 # Successive eigenvalue tolerance
-    krylovdim::Int = 200              # Krylov subspace dimension (Krylov method only)
+    krylovdim::Int = 30               # Krylov subspace dimension (Krylov only; clamped to [nev+2, n])
 end
 ```
 
@@ -127,7 +127,7 @@ config = SolverConfig(
     nev = 10,
     maxiter = 500,
     tol = 1e-14,
-    krylovdim = 200,
+    krylovdim = 60,                 # raise above the default 30 only for hard/clustered spectra
     n_tries = 12,
     ϵ = 1e-6
 )
@@ -232,11 +232,12 @@ Compare multiple solver methods on the same problem.
 
 ### Utility Functions
 
-#### `sort_eigenvalues!(λ, Χ, by::Symbol; rev::Bool=true)`
-Sort eigenvalues and eigenvectors in-place.
-- `:R` → Sort by real part
-- `:I` → Sort by imaginary part  
-- `:M` → Sort by magnitude
+#### `sort_eigenvalues!(λ, Χ, by::Symbol; rev::Bool=true, σ=nothing)`
+Order eigenvalues and eigenvectors.
+- `:nearest` → ascending distance `|λ - σ|` from the shift (the mode shift-and-invert targets; requires `σ`)
+- `:R` → real part
+- `:I` → imaginary part
+- `:M` → magnitude
 
 #### `get_method_info(method::Symbol)`
 Get detailed information about a specific solver method.
@@ -263,12 +264,12 @@ solve_krylov(A, B; σ₀, kwargs...)
 | `nev`        | `1`       | Number of eigenvalues           |
 | `maxiter`    | `300`     | Maximum iterations              |
 | `tol`        | `1e-12`   | Convergence tolerance           |
-| `sortby`     | `:M`      | Sorting criterion               |
+| `sortby`     | `:nearest`| Result order (`:nearest` to σ₀, `:R`, `:I`, `:M`) |
 | `n_tries`    | `8`       | Retry attempts                  |
 | `Δσ₀`        | `0.2`     | Initial shift increment         |
 | `incre`      | `1.2`     | Increment growth factor         |
 | `ϵ`          | `1e-5`    | Successive eigenvalue tolerance |
-| `krylovdim`  | `200`     | Krylov subspace dimension       |
+| `krylovdim`  | `30`      | Krylov subspace dim (clamped to `[nev+2, n]`) |
 
 ## Error Handling
 
