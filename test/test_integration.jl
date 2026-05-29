@@ -409,6 +409,34 @@ using Test
         @test cache.derived_var_order == [:v]
     end
 
+    @testset "Legacy derived path (augment_derived=false): assemble + reconstruct" begin
+        # Fourier×Cheb domain where Dh2 = dx²+dy² = -k²+dy² is invertible (m=0 block
+        # skipped at finite k) — the legacy elimination path works. Exercises the
+        # H(k) inverse build (assemble) and the H_k reconstruction (reconstruct).
+        domain = Domain(x=FourierTransformed(), y=Fourier(8, [0.0, 1.0]), z=Chebyshev(8, [0.0, 1.0]))
+        prob = EVP(domain, variables=[:w, :zeta], eigenvalue=:sigma)
+        @derive prob v dx(dx(v)) + dy(dy(v)) = dy(dz(w)) - dx(zeta)
+        @equation prob sigma * w == v - dz(dz(w))
+        @equation prob sigma * zeta == dz(w)
+        @bc prob left(w) == 0
+        @bc prob right(w) == 0
+        @bc prob left(dz(zeta)) == 0
+        @bc prob right(dz(zeta)) == 0
+
+        cache = discretize(prob; augment_derived=false)     # legacy elimination path
+        @test isempty(cache.derived_var_order)               # v eliminated, not augmented
+        @test haskey(cache.derived_caches, :v)
+        @test cache.N_vars == 2                              # w, zeta (no v block)
+
+        A, B = assemble(cache, 1.0)                          # builds H(k) inverse, derived terms
+        @test issparse(A)
+
+        F = eigen(Matrix(A), Matrix(B))
+        idx = findfirst(λ -> isfinite(λ), F.values)
+        vrec = reconstruct(cache, prob, ComplexF64.(F.vectors[:, idx]), 1.0, :v)  # H_k reconstruction
+        @test length(vrec) == cache.N_per_var
+    end
+
     @testset "DSL macros: malformed-input errors" begin
         me(e) = macroexpand(@__MODULE__, e)
         @test_throws Exception me(:(@equation foo))         # not lhs = rhs
