@@ -22,4 +22,32 @@ using LinearAlgebra
         @test fieldtype(typeof(solver), :A) === typeof(A)
         @test fieldtype(typeof(solver), :B) === typeof(B)
     end
+
+    @testset "solve! reuses caller-provided A_shifted buffer" begin
+        # Diagonal problem: exact eigenvalues are 1,2,3,4,5. σ₀=2.2 → nearest is 2.0.
+        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0, 5.0]))
+        B = Matrix{ComplexF64}(I, 5, 5)
+
+        # Baseline: no buffer
+        s1 = EigenSolver(A, B; σ₀=2.2, method=:Arnoldi, nev=1, n_tries=2)
+        solve!(s1; verbose=false)
+        λ1, _ = get_results(s1)
+
+        # Buffered: caller supplies preallocated A_shifted scratch (sentinel-filled)
+        buf = fill(ComplexF64(NaN), 5, 5)
+        s2 = EigenSolver(A, B; σ₀=2.2, method=:Arnoldi, nev=1, n_tries=2)
+        solve!(s2; verbose=false, A_buf=buf)
+        λ2, _ = get_results(s2)
+
+        truevals = ComplexF64.(1:5)
+        @test !any(isnan, buf)                              # buffer was actually used (overwritten)
+        @test minimum(abs.(λ1[1] .- truevals)) < 1e-6       # baseline finds a true eigenvalue
+        @test minimum(abs.(λ2[1] .- truevals)) < 1e-6       # buffered finds a true eigenvalue
+        @test abs(λ1[1] - λ2[1]) < 1e-10                    # buffer path identical to baseline
+
+        # Mismatched buffer size is rejected
+        @test_throws DimensionMismatch solve!(
+            EigenSolver(A, B; σ₀=2.2, method=:Arnoldi, nev=1, n_tries=2);
+            verbose=false, A_buf=zeros(ComplexF64, 4, 4))
+    end
 end

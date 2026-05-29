@@ -91,7 +91,8 @@ function _solve_inplace(ws::AssemblyWorkspace, cache::DiscretizationCache,
     # EigenSolver accepts AbstractMatrix, so dense matrices work fine
     solver = EigenSolver(ws.A, ws.B; σ₀=sigma_0, method=method, kwargs...)
     try
-        solve!(solver; verbose=verbose)
+        # ws.temp is the pre-allocated N×N scratch reused as the shifted matrix.
+        solve!(solver; verbose=verbose, A_buf=ws.temp)
         return solver.results
     catch e
         verbose && @warn "Failed at k = $k_val: $e"

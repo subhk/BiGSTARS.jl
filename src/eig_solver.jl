@@ -222,8 +222,15 @@ end
 # Main Solver Interface
 # ==============================================================================
 
+# Factorize the shifted matrix for the shift-and-invert operator. Dense matrices
+# use in-place `lu!` (the buffer is rebuilt from A and B each attempt, so
+# overwriting it is safe) to avoid the copy `factorize` makes; sparse/other
+# matrix types fall back to `factorize`.
+_factorize_shifted(A::Matrix) = lu!(A)
+_factorize_shifted(A::AbstractMatrix) = factorize(A)
+
 """
-    solve!(solver::EigenSolver; verbose::Bool=true)
+    solve!(solver::EigenSolver; verbose::Bool=true, A_buf=nothing)
 
 Solve the generalized eigenvalue problem with adaptive shift selection.
 
@@ -237,12 +244,22 @@ solve!(solver)
 λ, Χ = get_results(solver)
 ```
 """
-function solve!(solver::EigenSolver; verbose::Bool=true)
+function solve!(solver::EigenSolver; verbose::Bool=true,
+               A_buf::Union{Nothing,AbstractMatrix}=nothing)
     config = solver.config
     history = ConvergenceHistory()
-    
-    # Reusable buffers to avoid per-attempt allocations
-    A_shifted = solver.A + solver.B                 # establishes union sparsity pattern
+
+    # Reusable buffer for the shifted matrix (A - σB). Reuse a caller-provided
+    # buffer (e.g. an AssemblyWorkspace scratch) when given, avoiding a per-call
+    # N×N allocation in wavenumber sweeps; otherwise allocate one.
+    if A_buf === nothing
+        A_shifted = solver.A + solver.B             # establishes union sparsity pattern
+    else
+        size(A_buf) == size(solver.A) ||
+            throw(DimensionMismatch("A_buf size $(size(A_buf)) ≠ matrix size $(size(solver.A))"))
+        A_shifted = A_buf
+        A_shifted .= solver.A .+ solver.B           # establish sparsity pattern / known state
+    end
     temp      = Vector{eltype(A_shifted)}(undef, size(solver.A, 1))
     
     # Generate shift attempts
@@ -265,13 +282,13 @@ function solve!(solver::EigenSolver; verbose::Bool=true)
             # Dispatch to appropriate solver
             λ, Χ = if config.method == :Arnoldi
                 A_shifted .= solver.A .- σ .* solver.B
-                op = construct_linear_map(factorize(A_shifted), solver.B, temp)
+                op = construct_linear_map(_factorize_shifted(A_shifted), solver.B, temp)
                 solve_arnoldi_single(op, σ; config=config)
             elseif config.method == :Arpack  
                 solve_arpack_single(solver.A, solver.B, σ; config=config)
             elseif config.method == :Krylov
                 A_shifted .= solver.A .- σ .* solver.B
-                op = construct_linear_map(factorize(A_shifted), solver.B, temp)
+                op = construct_linear_map(_factorize_shifted(A_shifted), solver.B, temp)
                 solve_krylov_single(op, σ; config=config)
             else
                 throw(ArgumentError("Unknown method: $(config.method)"))
