@@ -1,5 +1,7 @@
 # <img src="./gfd_instability.svg" height="80" width="90">  BiGSTARS.jl 
 
+[![CI](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/subhk/BiGSTARS.jl/actions/workflows/CI.yml) [![codecov](https://codecov.io/gh/subhk/BiGSTARS.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/subhk/BiGSTARS.jl)
+
 <!-- description --> 
   **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS): A linear stability analysis tool for geophysical flows with Julia. 
 
