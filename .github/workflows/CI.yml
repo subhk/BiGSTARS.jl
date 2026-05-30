@@ -51,6 +51,13 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    # Serialize gh-pages deploys: concurrent docs jobs (e.g. several pushes to
+    # main in quick succession) otherwise race on `git push --force-with-lease`,
+    # and the loser is rejected with "stale info". Queue them instead of
+    # cancelling, so every deploy completes without colliding.
+    concurrency:
+      group: docs-deploy
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
