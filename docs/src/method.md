@@ -10,10 +10,14 @@ This package provides a robust solution for the generalized eigenvalue problem:
 A x = \lambda B x
 ```
 
-It implements three different solver methods with automatic shift selection and convergence verification:
+It implements three in-process solver methods with automatic shift selection and convergence verification:
 - **Arnoldi Method** ([ArnoldiMethod.jl](https://github.com/JuliaLinearAlgebra/ArnoldiMethod.jl))
 - **Arpack Method** ([Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl)) 
 - **Krylov Method** ([KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl))
+
+For problems too large for a single process, an experimental **distributed (MPI)**
+backend solves one eigenproblem across MPI ranks with SLEPc over PETSc — see
+[Distributed (MPI)](mpi.md).
 
 Most users do not need to construct solver objects manually. The usual workflow is:
 
@@ -163,6 +167,13 @@ results = compare_methods!(solver; methods=[:Arnoldi, :Krylov], verbose=true)
 - **Best for:** Modern problems, flexible interface
 - **Strengths:** Clean interface, good for research
 - **Key parameters:** `which`, `nev`, `tol`, `maxiter`, `krylovdim`
+
+### Distributed (MPI) Method — experimental
+- **Best for:** A single eigenproblem too large for one process
+- **Strengths:** Spreads the shift-and-invert factorization and Krylov solve across MPI ranks via SLEPc/PETSc
+- **Entrypoint:** `solve_mpi` (separate from the in-process `solve`); requires the
+  `MPI`, `PetscWrap`, and `SlepcWrap` packages plus a complex-scalar system
+  PETSc/SLEPc build. See [Distributed (MPI)](mpi.md) for setup and usage.
 
 ## Shift-and-Invert Transformation
 

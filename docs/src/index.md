@@ -37,6 +37,10 @@ Bi-global analysis bridges the gap between 1D stability tools (often too idealiz
     <strong>Solver workflow</strong>
     <p>Use Arnoldi, ARPACK, or KrylovKit with adaptive shift-and-invert and thread-parallel wavenumber sweeps.</p>
   </div>
+  <div class="bigstars-card">
+    <strong>Distributed solves (experimental)</strong>
+    <p>Spread a single large eigenproblem across MPI ranks with SLEPc/PETSc through <code>solve_mpi</code>. See <a href="mpi.html">Distributed (MPI)</a>.</p>
+  </div>
 </div>
 ```
 

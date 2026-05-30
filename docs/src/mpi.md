@@ -1,5 +1,10 @@
 # Distributed (MPI) eigensolver
 
+!!! warning "Experimental"
+    The distributed backend is new and not yet covered by a green integration
+    run. Verify your results against an in-process method on a smaller problem
+    before relying on it. The API may change.
+
 For problems too large for the in-process backends, BiGSTARS can run the
 eigensolve across MPI ranks using SLEPc over PETSc. Assembly stays serial on
 rank 0; the shift-and-invert factorization and Krylov eigensolve are distributed.
