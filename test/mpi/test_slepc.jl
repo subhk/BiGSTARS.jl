@@ -5,7 +5,11 @@
 # solve_mpi manages SlepcInitialize itself (the solver options go into the PETSc
 # options database at init time), so this script does not call SlepcInitialize.
 using BiGSTARS
-using MPI, PetscWrap, SlepcWrap
+using MPI
+# PetscWrap & SlepcWrap are loaded only to activate BiGSTARSMPIExt. Use `import`,
+# not `using`: PetscWrap also exports `solve`, which would shadow BiGSTARS.solve
+# (used below) and error with an ambiguous-binding UndefVarError.
+import PetscWrap, SlepcWrap
 using Test
 using LinearAlgebra
 
