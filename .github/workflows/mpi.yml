@@ -1,23 +1,95 @@
 name: MPI/SLEPc
 on:
-  workflow_dispatch:        # opt-in: run manually; not on every push
+  push:
+    branches: [main]
+    paths:
+      - 'ext/**'
+      - 'src/mpi_prep.jl'
+      - 'test/mpi/**'
+      - 'Project.toml'
+      - '.github/workflows/mpi.yml'
+  pull_request:
+    paths:
+      - 'ext/**'
+      - 'src/mpi_prep.jl'
+      - 'test/mpi/**'
+      - 'Project.toml'
+      - '.github/workflows/mpi.yml'
+  workflow_dispatch:
+
+env:
+  PETSC_VERSION: "3.22.2"
+  SLEPC_VERSION: "3.22.1"
+  PETSC_ARCH: "arch-linux-c-complex"
+
 jobs:
   mpi-slepc:
     runs-on: ubuntu-latest
+    continue-on-error: true        # non-blocking until a green run confirms the wrapper API
     steps:
       - uses: actions/checkout@v4
-      - name: Install PETSc/SLEPc (complex)
+
+      - name: Install build tools and OpenMPI
         run: |
           sudo apt-get update
-          sudo apt-get install -y petsc-dev slepc-dev openmpi-bin libopenmpi-dev
-          # Note: distro PETSc may be real-scalar. For a complex build, compile
-          # PETSc/SLEPc with --with-scalar-type=complex and export the vars below.
-          echo "PETSC_DIR=/usr/lib/petscdir" >> $GITHUB_ENV
-          echo "SLEPC_DIR=/usr/lib/slepcdir" >> $GITHUB_ENV
+          sudo apt-get install -y build-essential gfortran python3 \
+            openmpi-bin libopenmpi-dev libblas-dev liblapack-dev
+
+      - name: Cache PETSc + SLEPc
+        id: cache-petsc
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/petsc
+            ${{ github.workspace }}/slepc
+          key: petsc-${{ env.PETSC_VERSION }}-slepc-${{ env.SLEPC_VERSION }}-${{ env.PETSC_ARCH }}
+
+      - name: Build PETSc (complex) and SLEPc
+        if: steps.cache-petsc.outputs.cache-hit != 'true'
+        run: |
+          export PETSC_DIR=${{ github.workspace }}/petsc
+          export SLEPC_DIR=${{ github.workspace }}/slepc
+          export PETSC_ARCH=${{ env.PETSC_ARCH }}
+          # PETSc
+          curl -L https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-${PETSC_VERSION}.tar.gz | tar xz
+          mv petsc-${PETSC_VERSION} "$PETSC_DIR"
+          cd "$PETSC_DIR"
+          ./configure PETSC_ARCH=$PETSC_ARCH \
+            --with-scalar-type=complex \
+            --with-fortran-bindings=0 \
+            --with-debugging=0 \
+            --download-mumps --download-scalapack \
+            --download-metis --download-parmetis
+          make PETSC_DIR=$PETSC_DIR PETSC_ARCH=$PETSC_ARCH all
+          # SLEPc
+          cd "${{ github.workspace }}"
+          curl -L https://slepc.upv.es/download/distrib/slepc-${SLEPC_VERSION}.tar.gz | tar xz
+          mv slepc-${SLEPC_VERSION} "$SLEPC_DIR"
+          cd "$SLEPC_DIR"
+          ./configure
+          make SLEPC_DIR=$SLEPC_DIR PETSC_DIR=$PETSC_DIR PETSC_ARCH=$PETSC_ARCH
+
+      - name: Export PETSc/SLEPc env
+        run: |
+          echo "PETSC_DIR=${{ github.workspace }}/petsc" >> $GITHUB_ENV
+          echo "SLEPC_DIR=${{ github.workspace }}/slepc" >> $GITHUB_ENV
+          echo "PETSC_ARCH=${{ env.PETSC_ARCH }}" >> $GITHUB_ENV
+
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.10'
-      - name: Instantiate + add weakdeps
-        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.add(["MPI","PetscWrap","SlepcWrap"])'
-      - name: Run MPI integration test
-        run: mpiexec -n 2 julia --project=. test/mpi/test_slepc.jl
+
+      - name: Configure MPI.jl to use the system OpenMPI
+        run: |
+          julia --project=test/mpi -e 'using Pkg; Pkg.develop(path=".")'
+          julia --project=test/mpi -e 'using Pkg; Pkg.add("MPIPreferences")'
+          julia --project=test/mpi -e 'using MPIPreferences; MPIPreferences.use_system_binary()'
+
+      - name: Instantiate the MPI test environment
+        run: julia --project=test/mpi -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Run integration test (n=1)
+        run: mpiexec -n 1 julia --project=test/mpi test/mpi/test_slepc.jl
+
+      - name: Run integration test (n=2)
+        run: mpiexec --oversubscribe -n 2 julia --project=test/mpi test/mpi/test_slepc.jl
