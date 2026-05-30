@@ -59,7 +59,7 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     nproc = MPI.Comm_size(comm)
 
     M = MatCreate()                                # defaults to MPI.COMM_WORLD
-    MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, N, N)
+    MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
     MatSetFromOptions(M)
     MatSetUp(M)
     rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
@@ -105,7 +105,9 @@ function _insert_rows!(M, rstart::Integer,
         row  = PetscInt(rstart + r - 1)            # global 0-based row
         cols = PetscInt.(local_colind[k0:k1])      # global 0-based columns
         vs   = PetscScalar.(local_vals[k0:k1])
-        MatSetValues(M, [row], cols, vs, INSERT_VALUES)
+        # PetscWrap 0.1.5 MatSetValues takes explicit counts:
+        # (mat, nrows, rows, ncols, cols, V, mode). Insert this single global row.
+        MatSetValues(M, PetscInt(1), [row], PetscInt(length(cols)), cols, vs, INSERT_VALUES)
     end
     return M
 end

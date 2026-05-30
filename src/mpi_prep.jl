@@ -70,6 +70,7 @@ extension can consume it while CI verifies it.
 function _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_type)
     haskey(_WHICH_OPT, which) || throw(ArgumentError("unsupported which=$which"))
     opts = "-eps_type $(eps_type) " *
+           "-eps_gen_non_hermitian " *                # generalized non-Hermitian pencil (EPS_GNHEP)
            "-eps_nev $(nev) " *
            "-eps_tol $(tol) " *
            "-eps_max_it $(maxiter) " *

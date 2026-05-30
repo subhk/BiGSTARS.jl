@@ -84,6 +84,7 @@ using LinearAlgebra
                                   maxiter=300, ncv=0, mat_solver="mumps",
                                   eps_type="krylovschur")
         @test occursin("-eps_type krylovschur", s)
+        @test occursin("-eps_gen_non_hermitian", s)    # generalized non-Hermitian
         @test occursin("-eps_nev 5", s)
         @test occursin("-eps_target 0.5", s)
         @test occursin("-eps_target_magnitude", s)
