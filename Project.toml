@@ -15,6 +15,14 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
+[weakdeps]
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+PetscWrap = "5be22e1c-01b5-4697-96eb-ef9ccdc854b8"
+SlepcWrap = "c3679e3b-785e-4ccc-b734-b7685cbb935e"
+
+[extensions]
+BiGSTARSMPIExt = ["MPI", "PetscWrap", "SlepcWrap"]
+
 [compat]
 ArnoldiMethod = "0.4.0"
 Arpack = "0.5.3"
@@ -22,7 +30,10 @@ FFTW = "1"
 KrylovKit = "0.9.5, 0.10"
 LinearAlgebra = "1.6"
 LinearMaps = "3.11.3"
+MPI = "0.20"
+PetscWrap = "0.2"
 PrecompileTools = "1"
+SlepcWrap = "0.1"
 VectorInterface = "0.5, 0.6"
 julia = "1.10"
 
