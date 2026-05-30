@@ -29,9 +29,11 @@ using LinearAlgebra: norm
 # nev/tol/sinvert/mat_solver/target from the database. `solve_mpi` performs that
 # initialization itself (manage_init).
 #
-# Still unverified against a live PETSc (none in the dev env): the exact MPI.jl
-# collective/point-to-point forms and the VecGetArray element type for a complex
-# build are flagged "CONFIRM"; resolve them on the first real CI run.
+# MPI.jl calls target the 0.19 API (positional send/recv/Gather, VBuffer Gatherv!),
+# verified against MPI.jl v0.19.2. Still unverified against a live PETSc (none in
+# the dev env) and flagged "CONFIRM": the VecGetArray element type for a complex
+# build, the VecGetArray/VecRestoreArray pairing, and passing `nothing` as the
+# non-root Gatherv! buffer. Resolve them on the first real CI run.
 # ==============================================================================
 
 # Tracks whether this extension initialized SLEPc (so repeated solve_mpi calls
@@ -60,8 +62,8 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     MatSetUp(M)
     rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
 
-    # Gather every rank's ownership range to rank 0.
-    starts = MPI.Gather(Int(rstart), 0, comm)      # CONFIRM: MPI.jl Gather scalar form
+    # Gather every rank's ownership range to rank 0 (MPI 0.19: positional root).
+    starts = MPI.Gather(Int(rstart), 0, comm)
     ends   = MPI.Gather(Int(rend),   0, comm)
 
     if rank == 0
@@ -69,12 +71,12 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
         # Send each non-root rank its CSR row-block; insert rank 0's own block directly.
         for p in 1:(nproc - 1)
             lrp, lci, lv = _csr_row_block(rowptr, colind, vals, starts[p + 1], ends[p + 1])
-            MPI.send((lrp, lci, lv), comm; dest=p, tag=0)   # CONFIRM: MPI.jl send kwarg form
+            MPI.send((lrp, lci, lv), p, 0, comm)            # MPI 0.19: send(obj, dest, tag, comm)
         end
         lrp, lci, lv = _csr_row_block(rowptr, colind, vals, rstart, rend)
         _insert_rows!(M, rstart, lrp, lci, lv)
     else
-        lrp, lci, lv = MPI.recv(comm; source=0, tag=0)      # CONFIRM: MPI.jl recv return form
+        (lrp, lci, lv), _ = MPI.recv(0, 0, comm)            # MPI 0.19: recv(src, tag, comm) -> (obj, status)
         _insert_rows!(M, rstart, lrp, lci, lv)
     end
 
