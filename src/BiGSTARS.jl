@@ -52,6 +52,7 @@ module BiGSTARS
         SolverResults,
         ConvergenceHistory,
         compare_methods!,
+        solve_mpi,
         print_summary,
 
         # Utilities
@@ -88,6 +89,7 @@ module BiGSTARS
     # Eigenvalue solver
     include("construct_linear_map.jl")
     include("eig_solver.jl")
+    include("mpi_prep.jl")
 
     # Discretization and solving
     include("discretize.jl")
