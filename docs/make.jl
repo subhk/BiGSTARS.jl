@@ -47,13 +47,11 @@ examples = [
 # end
 
 for example in examples
-  withenv("GITHUB_REPOSITORY" => "subhk/BiGSTARSDocumentation") do
     example_filepath = joinpath(EXAMPLES_DIR, example)
     Literate.markdown(example_filepath,
                       OUTPUT_DIR;
                       flavor = Literate.DocumenterFlavor(),
                       execute = true)
-  end
 end
 
 # for example in examples
@@ -75,7 +73,7 @@ format = Documenter.HTML(
     prettyurls     = get(ENV, "CI", nothing) == "true",
     size_threshold      = 250 * 1024^2,   # 100 MiB
     size_threshold_warn =  20 * 1024^2,    #  20 MiB warning
-    canonical      = "https://subhk.github.io/BiGSTARSDocumentation/stable",
+    canonical      = "https://subhk.github.io/BiGSTARS.jl/stable",
     assets         = ["assets/bigstars.css"]
 )
 
@@ -177,23 +175,24 @@ if get(ENV, "CI", "false") == "true"
     actor = get(ENV, "GITHUB_ACTOR", "")
     documenter_key = get(ENV, "DOCUMENTER_KEY", "")
 
-    if event_name == "pull_request" && !isempty(documenter_key) && actor != "dependabot[bot]"
-        deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
-                   repo_previews = "github.com/subhk/BiGSTARSDocumentation",
-                   devbranch = "main",
-                   forcepush = true,
-                   push_preview = true,
-                   versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
-    elseif event_name != "pull_request"
-        repo = "github.com/subhk/BiGSTARSDocumentation"
-        withenv("GITHUB_REPOSITORY" => repo) do
-            deploydocs(; repo,
-                         devbranch = "main",
-                         forcepush = true,
-                         versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+    # All docs — stable, dev, versioned tags, and PR previews — deploy to this
+    # repo's own gh-pages. A single write deploy key (DOCUMENTER_KEY on
+    # subhk/BiGSTARS.jl) serves both this deploy and TagBot's release tags.
+    if event_name == "pull_request"
+        if !isempty(documenter_key) && actor != "dependabot[bot]"
+            deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+                       devbranch = "main",
+                       forcepush = true,
+                       push_preview = true,
+                       versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
+        else
+            @info "Skipping deploydocs: deploy credentials unavailable (fork PR or dependabot)."
         end
     else
-        @info "Skipping deploydocs for pull_request because deploy credentials are unavailable."
+        deploydocs(repo = "github.com/subhk/BiGSTARS.jl",
+                   devbranch = "main",
+                   forcepush = true,
+                   versions = ["stable" => "v^", "dev" => "dev", "v#.#.#"])
     end
 else
     @info "Skipping deploydocs outside CI."
