@@ -390,7 +390,7 @@ end
 BiGSTARS = "55e6fa54-20b2-4a8e-ba84-e72db1c430e6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
-MPIPreferences = "3da0fdf6-3033-4564-8d83-1f572995feabb"
+MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
 PetscWrap = "5be22e1c-01b5-4697-96eb-ef9ccdc854b8"
 SlepcWrap = "c3679e3b-785e-4ccc-b734-b7685cbb935e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

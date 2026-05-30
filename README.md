@@ -29,6 +29,7 @@ results = solve(cache, k_values; sigma_0=0.02)
 - **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions
 - **Post-processing** (`@compute`) — Evaluate any expression on eigenvectors using the same DSL syntax
 - **Multiple solvers** — Arnoldi, ARPACK, KrylovKit with adaptive shift-and-invert
+- **Distributed (MPI) backend** *(experimental)* — solve one large eigenproblem across MPI ranks with **SLEPc/PETSc** via `solve_mpi`
 
 
 ## Docs
@@ -61,6 +62,15 @@ julia> ]
 ```
 
 BiGSTARS.jl requires **Julia 1.10** or newer.
+
+### Optional: distributed (MPI) backend
+
+The `solve_mpi` backend is provided by a package extension that loads only when
+`MPI`, `PetscWrap`, and `SlepcWrap` are installed, so the base install stays
+lightweight. It additionally needs a **complex-scalar** system build of PETSc and
+SLEPc (`./configure --with-scalar-type=complex`). This backend is experimental —
+see the [Distributed (MPI)](https://subhk.github.io/BiGSTARSDocumentation/stable/mpi/)
+docs page for setup and a worked example.
 
 
 ## Examples
