@@ -22,4 +22,30 @@ function _to_csr(A::SparseMatrixCSC)
     return rowptr, colind, vals
 end
 
+"""
+    _csr_row_block(rowptr, colind, vals, rstart::Integer, rend::Integer)
+        -> (local_rowptr::Vector{Int32}, local_colind::Vector{Int32}, local_vals)
+
+Extract the contiguous global row range `[rstart, rend)` (0-based, half-open) from
+0-based CSR arrays. Column indices stay global (PETSc `MatSetValues` takes global
+columns); `local_rowptr` is re-based to start at 0. Sized for one MPI rank's owned
+rows, ready to scatter and insert.
+"""
+function _csr_row_block(rowptr::AbstractVector{<:Integer},
+                        colind::AbstractVector{<:Integer},
+                        vals::AbstractVector,
+                        rstart::Integer, rend::Integer)
+    nrows = rend - rstart
+    nrows ≥ 0 || throw(ArgumentError("rend ($rend) < rstart ($rstart)"))
+    kstart = rowptr[rstart + 1]                 # 0-based offset of first owned entry
+    kend = rowptr[rend + 1]                     # 0-based offset past last owned entry
+    local_rowptr = Vector{Int32}(undef, nrows + 1)
+    @inbounds for r in 0:nrows
+        local_rowptr[r + 1] = Int32(rowptr[rstart + r + 1] - kstart)
+    end
+    local_colind = Int32.(@view colind[(kstart + 1):kend])
+    local_vals = collect(@view vals[(kstart + 1):kend])
+    return local_rowptr, local_colind, local_vals
+end
+
 function solve_mpi end
