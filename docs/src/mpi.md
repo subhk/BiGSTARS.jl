@@ -22,13 +22,13 @@ rank 0; the shift-and-invert factorization and Krylov eigensolve are distributed
 ```julia
 using BiGSTARS, MPI, PetscWrap, SlepcWrap
 
-SlepcInitialize()
 cache = discretize(prob)
+# solve_mpi initializes SLEPc itself — the solver options must be in the PETSc
+# options database at init time, so do NOT call SlepcInitialize yourself.
 results = solve_mpi(cache, k_values;
                     sigma_0=0.02, nev=5, which=:LM,
                     tol=1e-10, mat_solver=:mumps)
 # results is fully populated on rank 0; other ranks get empty markers.
-SlepcFinalize()
 ```
 
 Run with `mpiexec -n P julia --project=. script.jl`.
@@ -47,52 +47,45 @@ using BiGSTARS
 using MPI, PetscWrap, SlepcWrap
 using Printf
 
-SlepcInitialize()
-try
-    comm  = MPI.COMM_WORLD
-    rank  = MPI.Comm_rank(comm)
-    nproc = MPI.Comm_size(comm)
+# Build the EVP (runs on every rank; only rank-0's matrices get used)
+domain = Domain(x = FourierTransformed(),
+                y = Fourier(60, [0, 1]),
+                z = Chebyshev(40, [0, 1]))
+prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
 
-    # Build the EVP (runs on every rank; only rank-0's matrices get used)
-    domain = Domain(x = FourierTransformed(),
-                    y = Fourier(60, [0, 1]),
-                    z = Chebyshev(40, [0, 1]))
-    prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+Y, Z = gridpoints(domain, :y, :z)
+Ri = 1.0
+prob[:U]    = Z .- 0.5
+prob[:Ri]   = Ri
+prob[:E]    = 1e-12
+prob[:dBdy] = -ones(length(Z))
+prob[:dQdy] = zeros(length(Z))
 
-    Y, Z = gridpoints(domain, :y, :z)
-    Ri = 1.0
-    prob[:U]    = Z .- 0.5
-    prob[:Ri]   = Ri
-    prob[:E]    = 1e-12
-    prob[:dBdy] = -ones(length(Z))
-    prob[:dQdy] = zeros(length(Z))
+@substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + Ri * dz(dz(A))
+@equation sigma * Lap(psi) = U * dx(Lap(psi)) + dQdy * dx(psi) - E * Lap(Lap(psi))
+@bc left(sigma * dz(psi)  + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+@bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
 
-    @substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + Ri * dz(dz(A))
-    @equation sigma * Lap(psi) = U * dx(Lap(psi)) + dQdy * dx(psi) - E * Lap(Lap(psi))
-    @bc left(sigma * dz(psi)  + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
-    @bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+cache = discretize(prob)
 
-    cache = discretize(prob)
+# Distributed solve: one eigenproblem at k = 1.0, across all ranks.
+# sigma_0 is the shift-and-invert target; the nev modes nearest it come back.
+# solve_mpi initializes SLEPc itself, so don't call SlepcInitialize.
+results = solve_mpi(cache, [1.0];
+                    sigma_0=0.2, nev=6, which=:LM,
+                    tol=1e-10, mat_solver=:mumps)
 
-    # Distributed solve: one eigenproblem at k = 1.0, across all ranks.
-    # sigma_0 is the shift-and-invert target; the nev modes nearest it come back.
-    results = solve_mpi(cache, [1.0];
-                        sigma_0=0.2, nev=6, which=:LM,
-                        tol=1e-10, mat_solver=:mumps)
-
-    # Only rank 0 has populated results; other ranks get empty markers.
-    if rank == 0
-        r = results[1]
-        if r.converged
-            i = argmax(real.(r.eigenvalues))   # most unstable = largest growth
-            σ = r.eigenvalues[i]
-            @printf("[%d ranks] most unstable σ = %.6f %+.6fi\n", nproc, real(σ), imag(σ))
-        else
-            println("did not converge")
-        end
+# Only rank 0 has populated results; other ranks get empty markers.
+rank = MPI.Comm_rank(MPI.COMM_WORLD)
+if rank == 0
+    r = results[1]
+    if r.converged
+        i = argmax(real.(r.eigenvalues))   # most unstable = largest growth
+        σ = r.eigenvalues[i]
+        @printf("most unstable σ = %.6f %+.6fi\n", real(σ), imag(σ))
+    else
+        println("did not converge")
     end
-finally
-    SlepcFinalize()
 end
 ```
 
