@@ -54,6 +54,12 @@ using LinearAlgebra
         @test Arebuilt ≈ A
     end
 
+    @testset "sparse_from_csr is the inverse of _to_csr" begin
+        A = sprand(ComplexF64, 10, 10, 0.3)
+        csr = BiGSTARS._to_csr(A)
+        @test BiGSTARS.sparse_from_csr(csr) ≈ A
+    end
+
     @testset "solve_mpi without the extension throws an install hint" begin
         err = try
             BiGSTARS.solve_mpi(nothing, [0.0]; sigma_0=1.0)

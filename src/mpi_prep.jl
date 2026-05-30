@@ -81,3 +81,22 @@ function _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_
     ncv > 0 && (opts *= "-eps_ncv $(ncv) ")
     return opts
 end
+
+"""
+    sparse_from_csr(csr) -> SparseMatrixCSC
+
+Rebuild a `SparseMatrixCSC` from a `(rowptr, colind, vals)` CSR tuple produced by
+[`_to_csr`](@ref) (0-based indices). Used on rank 0 to recover the mass matrix `B`
+for the singular-`B` mode filter. Pure-Julia (no PETSc), so it is CI-testable.
+"""
+function sparse_from_csr(csr)
+    rowptr, colind, vals = csr
+    N = length(rowptr) - 1
+    I = Int[]; J = Int[]; V = eltype(vals)[]
+    for r in 1:N
+        for k in (rowptr[r] + 1):rowptr[r + 1]
+            push!(I, r); push!(J, colind[k] + 1); push!(V, vals[k])
+        end
+    end
+    return sparse(I, J, V, N, N)
+end
