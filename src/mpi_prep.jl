@@ -47,5 +47,3 @@ function _csr_row_block(rowptr::AbstractVector{<:Integer},
     local_vals = collect(@view vals[(kstart + 1):kend])
     return local_rowptr, local_colind, local_vals
 end
-
-function solve_mpi end

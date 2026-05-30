@@ -53,4 +53,15 @@ using LinearAlgebra
         Arebuilt = sparse(I, J, V, 12, 12)
         @test Arebuilt ≈ A
     end
+
+    @testset "solve_mpi without the extension throws an install hint" begin
+        err = try
+            BiGSTARS.solve_mpi(nothing, [0.0]; sigma_0=1.0)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("SlepcWrap", err.msg)
+    end
 end
