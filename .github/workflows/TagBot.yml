@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: write
-  issues: read
+  issues: write          # TagBot opens a fallback issue if a release/tag-push step fails
   pull-requests: read
 
 jobs:
