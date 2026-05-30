@@ -35,10 +35,10 @@ results = solve(cache, k_values; sigma_0=0.02)
 ## Docs
 <!-- Badges -->
  <p align="left">
-    <a href="https://subhk.github.io/BiGSTARSDocumentation/stable">
+    <a href="https://subhk.github.io/BiGSTARS.jl/stable">
         <img alt="stable docs" src="https://img.shields.io/badge/documentation-stable%20-blue">
     </a>
-      <a href="https://subhk.github.io/BiGSTARSDocumentation/dev">
+      <a href="https://subhk.github.io/BiGSTARS.jl/dev">
         <img alt="latest docs" src="https://img.shields.io/badge/documentation-dev%20-orange">
     </a>
     <a href="https://doi.org/10.5281/zenodo.18385010">
@@ -69,7 +69,7 @@ The `solve_mpi` backend is provided by a package extension that loads only when
 `MPI`, `PetscWrap`, and `SlepcWrap` are installed, so the base install stays
 lightweight. It additionally needs a **complex-scalar** system build of PETSc and
 SLEPc (`./configure --with-scalar-type=complex`). This backend is experimental —
-see the [Distributed (MPI)](https://subhk.github.io/BiGSTARSDocumentation/stable/mpi/)
+see the [Distributed (MPI)](https://subhk.github.io/BiGSTARS.jl/stable/mpi/)
 docs page for setup and a worked example.
 
 
