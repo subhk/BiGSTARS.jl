@@ -1,0 +1,23 @@
+name: MPI/SLEPc
+on:
+  workflow_dispatch:        # opt-in: run manually; not on every push
+jobs:
+  mpi-slepc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PETSc/SLEPc (complex)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y petsc-dev slepc-dev openmpi-bin libopenmpi-dev
+          # Note: distro PETSc may be real-scalar. For a complex build, compile
+          # PETSc/SLEPc with --with-scalar-type=complex and export the vars below.
+          echo "PETSC_DIR=/usr/lib/petscdir" >> $GITHUB_ENV
+          echo "SLEPC_DIR=/usr/lib/slepcdir" >> $GITHUB_ENV
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - name: Instantiate + add weakdeps
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.add(["MPI","PetscWrap","SlepcWrap"])'
+      - name: Run MPI integration test
+        run: mpiexec -n 2 julia --project=. test/mpi/test_slepc.jl
