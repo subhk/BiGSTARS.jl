@@ -2,7 +2,8 @@ module BiGSTARSMPIExt
 
 using BiGSTARS
 using BiGSTARS: _to_csr, _csr_row_block, SolverResults, ConvergenceHistory,
-                sort_eigenvalues!, _filter_physical_modes
+                sort_eigenvalues!, _filter_physical_modes,
+                _eps_options, sparse_from_csr
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -93,37 +94,6 @@ end
 # Task 7: configure and run the SLEPc EPS shift-and-invert solve
 # ------------------------------------------------------------------------------
 
-# Map BiGSTARS `which` to a SLEPc EPS option. `:LM` means "nearest the shift",
-# matching the existing shift-and-invert convention (target magnitude).
-const _WHICH_OPT = Dict(
-    :LM => "target_magnitude",
-    :LR => "largest_real",
-    :SR => "smallest_real",
-    :LI => "largest_imaginary",
-    :SI => "smallest_imaginary",
-)
-
-"""
-    _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_type) -> String
-
-Build the PETSc/SLEPc options-database string that configures one solve:
-Krylov-Schur EPS, shift-and-invert ST targeting `sigma_0`, with a parallel LU
-(direct) factorization for the inner solves.
-"""
-function _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_type)
-    haskey(_WHICH_OPT, which) || throw(ArgumentError("unsupported which=$which"))
-    opts = "-eps_type $(eps_type) " *
-           "-eps_nev $(nev) " *
-           "-eps_tol $(tol) " *
-           "-eps_max_it $(maxiter) " *
-           "-eps_target $(sigma_0) " *
-           "-eps_$(_WHICH_OPT[which]) " *
-           "-st_type sinvert " *
-           "-st_pc_type lu " *
-           "-st_pc_factor_mat_solver_type $(mat_solver) "
-    ncv > 0 && (opts *= "-eps_ncv $(ncv) ")
-    return opts
-end
 
 """
     _solve_one(A_csr, B_csr, N, comm; sigma_0, nev, which, tol, maxiter, ncv,
@@ -220,18 +190,6 @@ function _assemble_results(λ, Χ, B_csr, sigma_0, nconv, solve_time)
                          :Slepc, Float64(sigma_0), Int(nconv), solve_time, hist)
 end
 
-"""Rebuild a SparseMatrixCSC on rank 0 from the CSR tuple (for the mass filter)."""
-function sparse_from_csr(csr)
-    rowptr, colind, vals = csr
-    N = length(rowptr) - 1
-    I = Int[]; J = Int[]; V = eltype(vals)[]
-    for r in 1:N
-        for k in (rowptr[r] + 1):rowptr[r + 1]
-            push!(I, r); push!(J, colind[k] + 1); push!(V, vals[k])
-        end
-    end
-    return sparse(I, J, V, N, N)
-end
 
 # ------------------------------------------------------------------------------
 # Task 9: public solve_mpi methods, option defaults, and validation
