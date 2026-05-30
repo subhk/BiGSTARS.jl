@@ -701,3 +701,29 @@ show_example_usage()
 println(get_method_info(:Arpack))
 ```
 """
+
+# ==============================================================================
+# Distributed (MPI) backend entrypoint
+# ==============================================================================
+
+"""
+    solve_mpi(cache, k_values; sigma_0, nev=1, which=:LM, tol=1e-10, maxiter=300, kwargs...)
+
+Distributed-memory eigensolve via SLEPc over PETSc, one eigenproblem per
+wavenumber spread across all MPI ranks. Provided by the package extension
+`BiGSTARSMPIExt`, which loads only when `MPI`, `PetscWrap`, and `SlepcWrap` are
+all imported. Returns `Vector{SolverResults}`, fully populated on rank 0.
+
+Run under `mpiexec -n P julia script.jl` with `SlepcInitialize()` /
+`SlepcFinalize()` bracketing the work, and a complex-scalar system PETSc/SLEPc.
+"""
+function solve_mpi end
+
+# Least-specific fallback: any concrete-typed method from the extension wins over
+# this Vararg signature, so when the extension is loaded its real methods are
+# called; otherwise this fires with an install hint.
+function solve_mpi(@nospecialize(args...); kwargs...)
+    error("solve_mpi requires the distributed backend: install and import MPI, " *
+          "PetscWrap, and SlepcWrap, plus a complex-scalar system PETSc/SLEPc " *
+          "build (set SLEPC_DIR, PETSC_DIR, PETSC_ARCH). See docs/src/mpi.md.")
+end
