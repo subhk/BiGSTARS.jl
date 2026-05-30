@@ -177,6 +177,9 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
 
     vr, vi = MatCreateVecs(A)                      # vectors compatible with A (returns a pair)
     for ie in 0:(nconv - 1)
+        # EPSGetEigenpair returns the raw PetscScalar eigenvalue components. On a
+        # complex build PetscScalar==ComplexF64, so `vpr` is the FULL complex
+        # eigenvalue and `vpi`≈0 — take ComplexF64(vpr), not ComplexF64(vpr, vpi).
         vpr, vpi, _, _ = EPSGetEigenpair(eps, ie, vr, vi)
         # PetscWrap 0.1.5 VecGetArray returns (array, ref); the array is
         # PetscScalar (ComplexF64 on a complex build) and aliases PETSc memory,
@@ -186,7 +189,7 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
         if rank == 0
             recvbuf = Vector{ComplexF64}(undef, N)
             MPI.Gatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), 0, comm)
-            λ[ie + 1] = ComplexF64(vpr, vpi)
+            λ[ie + 1] = ComplexF64(vpr)            # vpr is the complex eigenvalue (complex build)
             Χ[:, ie + 1] = recvbuf
         else
             MPI.Gatherv!(sendbuf, nothing, 0, comm)
@@ -253,6 +256,11 @@ function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache,
                         tol=Float64(tol), maxiter=Int(maxiter), ncv=Int(ncv),
                         mat_solver=String(mat_solver), eps_type=String(eps_type))
 
+    # MPI.jl populates its COMM_WORLD handle only through its own MPI.Init(); the
+    # C-level MPI_Init that PETSc runs inside SlepcInitialize does NOT, so COMM_WORLD
+    # stays the null sentinel (Comm_rank → MPI_ERR_COMM). Init MPI.jl first, then let
+    # PETSc reuse the already-initialized MPI.
+    MPI.Initialized() || MPI.Init()
     if manage_init && !_SLEPC_INITED[]
         SlepcInitialize(opts)
         _SLEPC_INITED[] = true
