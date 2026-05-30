@@ -29,11 +29,13 @@ using LinearAlgebra: norm
 # nev/tol/sinvert/mat_solver/target from the database. `solve_mpi` performs that
 # initialization itself (manage_init).
 #
-# MPI.jl calls target the 0.19 API (positional send/recv/Gather, VBuffer Gatherv!),
-# verified against MPI.jl v0.19.2. Still unverified against a live PETSc (none in
-# the dev env) and flagged "CONFIRM": the VecGetArray element type for a complex
-# build, the VecGetArray/VecRestoreArray pairing, and passing `nothing` as the
-# non-root Gatherv! buffer. Resolve them on the first real CI run.
+# Every PETSc/SLEPc/MPI call name and signature here has been checked against
+# source: PetscWrap 0.1.5 src (MatCreate/MatSetValues/MatGetOwnershipRange/
+# MatCreateVecs→(vr,vi)/VecGetArray→(arr,ref)/VecRestoreArray(vec,ref)), SlepcWrap
+# 0.1.3 (EPSCreate/EPSSetOperators/EPSGetEigenpair, options via SlepcInitialize),
+# and MPI.jl v0.19.2 (positional send/recv, VBuffer Gatherv! with `nothing` on
+# non-root). What remains unverified is only runtime numerics (convergence,
+# eigenvector layout) — that needs a live complex PETSc/SLEPc, i.e. the CI job.
 # ==============================================================================
 
 # Tracks whether this extension initialized SLEPc (so repeated solve_mpi calls
@@ -174,11 +176,11 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
     vr, vi = MatCreateVecs(A)                      # vectors compatible with A (returns a pair)
     for ie in 0:(nconv - 1)
         vpr, vpi, _, _ = EPSGetEigenpair(eps, ie, vr, vi)
-        local_part = VecGetArray(vr)               # this rank's owned entries
-        # CONFIRM: with a complex PetscScalar build, VecGetArray returns ComplexF64
-        # and the eigenvector imaginary part lives in vr (vpi ≈ 0). If it returns
-        # reals, combine ComplexF64.(VecGetArray(vr), VecGetArray(vi)).
-        sendbuf = Vector{ComplexF64}(local_part)
+        # PetscWrap 0.1.5 VecGetArray returns (array, ref); the array is
+        # PetscScalar (ComplexF64 on a complex build) and aliases PETSc memory,
+        # so copy it out before restoring, and restore with the ref (not the array).
+        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries
+        sendbuf = Vector{ComplexF64}(local_arr)
         if rank == 0
             recvbuf = Vector{ComplexF64}(undef, N)
             MPI.Gatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), 0, comm)
@@ -187,7 +189,7 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
         else
             MPI.Gatherv!(sendbuf, nothing, 0, comm)
         end
-        VecRestoreArray(vr, local_part)            # CONFIRM: VecGetArray/VecRestoreArray pairing
+        VecRestoreArray(vr, local_ref)
     end
     VecDestroy(vr)
     VecDestroy(vi)

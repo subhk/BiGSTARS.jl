@@ -79,14 +79,22 @@ jobs:
         with:
           version: '1.10'
 
-      - name: Configure MPI.jl to use the system OpenMPI
+      - name: Configure MPI.jl (0.19 legacy build) for system OpenMPI
+        env:
+          JULIA_PKG_PRECOMPILE_AUTO: "0"   # don't precompile MPI before it is built
+          JULIA_MPI_BINARY: system
+          JULIA_MPICC: mpicc
+          JULIA_MPIEXEC: mpiexec
         run: |
-          julia --project=test/mpi -e 'using Pkg; Pkg.develop(path=".")'
-          julia --project=test/mpi -e 'using Pkg; Pkg.add("MPIPreferences")'
-          julia --project=test/mpi -e 'using MPIPreferences; MPIPreferences.use_system_binary()'
+          # MPI.jl 0.19 (pinned transitively by SlepcWrap) predates MPIPreferences;
+          # it is bound to a system MPI by Pkg.build("MPI") reading the JULIA_MPI_*
+          # env vars, NOT by MPIPreferences.use_system_binary(). Install first with
+          # auto-precompile off, then build so deps/deps.jl points at system OpenMPI.
+          julia --project=test/mpi -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+          julia --project=test/mpi -e 'using Pkg; Pkg.build("MPI"; verbose=true)'
 
-      - name: Instantiate the MPI test environment
-        run: julia --project=test/mpi -e 'using Pkg; Pkg.instantiate()'
+      - name: Precompile the MPI test environment
+        run: julia --project=test/mpi -e 'using Pkg; Pkg.precompile()'
 
       - name: Run integration test (n=1)
         run: mpiexec -n 1 julia --project=test/mpi test/mpi/test_slepc.jl
