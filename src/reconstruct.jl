@@ -64,9 +64,24 @@ macro compute_setup(cache, eigvec, k)
 end
 
 # Module-level storage for @compute context
-const _compute_cache = Ref{Any}(nothing)
+const _compute_cache = Ref{Union{Nothing,DiscretizationCache}}(nothing)
 const _compute_eigvec = Ref{Any}(nothing)
 const _compute_k = Ref{Float64}(0.0)
+
+# Memoized T→T Chebyshev derivative operators, keyed by (N_z, scale). S₀ is
+# bidiagonal upper-triangular but its inverse is dense, so building
+# D_T = S₀⁻¹·D₀ costs an O(N_z³) dense solve. The operator depends only on
+# (N_z, scale), so cache it instead of rebuilding on every derivative evaluation.
+const _cheb_DT_cache = Dict{Tuple{Int,Float64}, SparseMatrixCSC{ComplexF64,Int}}()
+
+function _cheb_derivative_operator(N_z::Int, scale::Float64)
+    return get!(_cheb_DT_cache, (N_z, scale)) do
+        D_0   = ComplexF64(scale) .* differentiation_operator(0, N_z)
+        S_0   = ComplexF64.(conversion_operator(0, N_z))
+        S_inv = sparse(Matrix(S_0) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+        S_inv * D_0  # T→T derivative
+    end
+end
 
 """
 Evaluate an expression tree on eigenvector data.
@@ -119,13 +134,10 @@ function _evaluate_expr(expr::ExprNode, prob::EVP, cache::DiscretizationCache,
             D_full = _lift_to_2d(D_1d, coord, domain)
             return D_full * inner_vec
         elseif spec isa ChebyshevBasisSpec
-            # Chebyshev derivative in T basis: S^{-1} * D_0
+            # Chebyshev derivative in T basis: S^{-1} * D_0 (memoized per N_z, scale)
             N_z = spec.N
             scale = 2.0 / (spec.upper - spec.lower)
-            D_0 = ComplexF64(scale) .* differentiation_operator(0, N_z)
-            S_0 = ComplexF64.(conversion_operator(0, N_z))
-            S_inv = sparse(Matrix(S_0) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
-            D_T = S_inv * D_0  # T→T derivative
+            D_T = _cheb_derivative_operator(N_z, scale)
             D_full = _lift_to_2d(D_T, coord, domain)
             return D_full * inner_vec
         end
