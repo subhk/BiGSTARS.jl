@@ -48,6 +48,39 @@ function _csr_row_block(rowptr::AbstractVector{<:Integer},
     return local_rowptr, local_colind, local_vals
 end
 
+"""
+    _csr_block_nnz_split(rowptr, colind, rstart, rend, cstart, cend)
+        -> (d_nnz::Vector{Int32}, o_nnz::Vector{Int32})
+
+Per-row nonzero counts for the owned global row range `[rstart, rend)` (0-based,
+half-open), split by the diagonal column-ownership range `[cstart, cend)`:
+`d_nnz[i]` counts entries whose column lies in `[cstart, cend)` (the on-process
+"diagonal block" of a PETSc `MatMPIAIJ`), `o_nnz[i]` counts the rest (off-diagonal
+block). Exact counts — feeding these to `MatMPIAIJSetPreallocation` means PETSc
+never has to grow a row mid-insert. For a single rank pass `cstart=0, cend=N`
+(every entry is diagonal). Pure-Julia, so it is unit-tested without PETSc.
+"""
+function _csr_block_nnz_split(rowptr::AbstractVector{<:Integer},
+                              colind::AbstractVector{<:Integer},
+                              rstart::Integer, rend::Integer,
+                              cstart::Integer, cend::Integer)
+    nrows = rend - rstart
+    nrows ≥ 0 || throw(ArgumentError("rend ($rend) < rstart ($rstart)"))
+    d_nnz = Vector{Int32}(undef, nrows)
+    o_nnz = Vector{Int32}(undef, nrows)
+    @inbounds for i in 1:nrows
+        k0 = rowptr[rstart + i] + 1          # 0-based CSR offset → 1-based Julia
+        k1 = rowptr[rstart + i + 1]
+        d = 0; o = 0
+        for k in k0:k1
+            c = colind[k]                    # 0-based global column index
+            (cstart ≤ c < cend) ? (d += 1) : (o += 1)
+        end
+        d_nnz[i] = Int32(d); o_nnz[i] = Int32(o)
+    end
+    return d_nnz, o_nnz
+end
+
 # Map BiGSTARS `which` to a SLEPc EPS option. `:LM` means "nearest the shift",
 # matching the existing shift-and-invert convention (target magnitude). Used by
 # the MPI extension; kept here (pure-Julia) so it is unit-testable without PETSc.
