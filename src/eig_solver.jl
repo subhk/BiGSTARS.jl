@@ -262,8 +262,11 @@ unchanged so callers always get a usable result.
 """
 function _filter_physical_modes(λ::AbstractVector, Χ::AbstractMatrix, B; rtol::Float64=1e-6)
     (isempty(λ) || size(Χ, 2) == 0) && return λ, Χ
-    masses = Float64[norm(B * view(Χ, :, i)) / max(norm(view(Χ, :, i)), eps())
-                     for i in 1:size(Χ, 2)]
+    masses = Vector{Float64}(undef, size(Χ, 2))
+    @inbounds for i in 1:size(Χ, 2)
+        χ = view(Χ, :, i)
+        masses[i] = norm(B * χ) / max(norm(χ), eps())   # norm(χ) computed once
+    end
     scale = maximum(masses)
     scale == 0.0 && return λ, Χ
     keep = findall(>(rtol * scale), masses)
