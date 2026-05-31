@@ -1,8 +1,8 @@
 module BiGSTARSMPIExt
 
 using BiGSTARS
-using BiGSTARS: _to_csr, _csr_row_block, SolverResults, ConvergenceHistory,
-                sort_eigenvalues!, _filter_physical_modes,
+using BiGSTARS: _to_csr, _csr_row_block, _csr_block_nnz_split, SolverResults,
+                ConvergenceHistory, sort_eigenvalues!, _filter_physical_modes,
                 _eps_options, sparse_from_csr
 using MPI
 using PetscWrap
@@ -36,11 +36,22 @@ using LinearAlgebra: norm
 # and MPI.jl v0.19.2 (positional send/recv, VBuffer Gatherv! with `nothing` on
 # non-root). What remains unverified is only runtime numerics (convergence,
 # eigenvector layout) — that needs a live complex PETSc/SLEPc, i.e. the CI job.
+#
+# Mat{MPI,Seq}AIJSetPreallocation are called via `_prealloc!` but gated on
+# `isdefined(PetscWrap, …)`: if the wrapper build lacks them, the build degrades
+# to MatSetUp's default allocation (correct, just slower). Whether 0.1.5 exposes
+# them, and the exact-count split, are validated by the CI job, not here.
 # ==============================================================================
 
 # Tracks whether this extension initialized SLEPc (so repeated solve_mpi calls
 # don't double-initialize). SLEPc/PETSc may only be initialized once per process.
 const _SLEPC_INITED = Ref(false)
+# The options string SLEPc was initialized with. PETSc/SLEPc options enter the
+# database once, at the single per-process SlepcInitialize, and there is no
+# programmatic per-solve setter in these wrappers — so a later solve_mpi call with
+# different solver options (σ₀, nev, tol, …) would be SILENTLY ignored. We record
+# the options here and error on mismatch instead of returning a wrong-target solve.
+const _SLEPC_OPTS = Ref{String}("")
 
 # ------------------------------------------------------------------------------
 # Build the distributed PETSc matrix from scattered CSR row-blocks
@@ -61,7 +72,10 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     M = MatCreate()                                # defaults to MPI.COMM_WORLD
     MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
     MatSetFromOptions(M)
-    MatSetUp(M)
+    # Row ownership is fixed by the sizes + comm (set above), so it is available
+    # before MatSetUp. We preallocate from exact nnz counts BEFORE inserting (and
+    # before any MatSetUp), the canonical PETSc order — calling a preallocation
+    # routine is what "sets up" the matrix, so MatSetUp is only the fallback below.
     rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
 
     # Gather every rank's ownership range to rank 0 (MPI 0.19: positional root).
@@ -70,21 +84,55 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
 
     if rank == 0
         rowptr, colind, vals = A_csr
-        # Send each non-root rank its CSR row-block; insert rank 0's own block directly.
+        # Send each non-root rank its CSR row-block plus its exact per-row nnz
+        # split (diagonal/off-diagonal). Square matrix with the default layout ⇒
+        # column ownership equals row ownership, so [pstart,pend) is the diagonal
+        # column range for rank p.
         for p in 1:(nproc - 1)
-            lrp, lci, lv = _csr_row_block(rowptr, colind, vals, starts[p + 1], ends[p + 1])
-            MPI.send((lrp, lci, lv), p, 0, comm)            # MPI 0.19: send(obj, dest, tag, comm)
+            ps, pe = starts[p + 1], ends[p + 1]
+            lrp, lci, lv = _csr_row_block(rowptr, colind, vals, ps, pe)
+            d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, ps, pe, ps, pe)
+            MPI.send((lrp, lci, lv, d_nnz, o_nnz), p, 0, comm)  # MPI 0.19: send(obj, dest, tag, comm)
         end
         lrp, lci, lv = _csr_row_block(rowptr, colind, vals, rstart, rend)
+        d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, rstart, rend, rstart, rend)
+        _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
         _insert_rows!(M, rstart, lrp, lci, lv)
     else
-        (lrp, lci, lv), _ = MPI.recv(0, 0, comm)            # MPI 0.19: recv(src, tag, comm) -> (obj, status)
+        (lrp, lci, lv, d_nnz, o_nnz), _ = MPI.recv(0, 0, comm)  # MPI 0.19: recv(src, tag, comm) -> (obj, status)
+        _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
         _insert_rows!(M, rstart, lrp, lci, lv)
     end
 
     MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
     MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
     return M
+end
+
+"""
+    _prealloc!(M, nproc, d_nnz, o_nnz) -> Bool
+
+Exact-count preallocation of the AIJ matrix `M` from per-row nonzero counts.
+Parallel (`nproc>1`) uses `MatMPIAIJSetPreallocation(M, 0, d_nnz, 0, o_nnz)`;
+serial uses `MatSeqAIJSetPreallocation(M, 0, d_nnz)` (every entry is diagonal).
+Both are gated on `isdefined` so that a wrapper build lacking these symbols
+simply degrades to the caller's `MatSetUp` fallback (correct, just unallocated).
+Returns `true` iff a preallocation routine was actually invoked.
+"""
+function _prealloc!(M, nproc::Integer, d_nnz, o_nnz)
+    if nproc == 1
+        if isdefined(PetscWrap, :MatSeqAIJSetPreallocation)
+            PetscWrap.MatSeqAIJSetPreallocation(M, PetscInt(0), PetscInt.(d_nnz))
+            return true
+        end
+    else
+        if isdefined(PetscWrap, :MatMPIAIJSetPreallocation)
+            PetscWrap.MatMPIAIJSetPreallocation(M, PetscInt(0), PetscInt.(d_nnz),
+                                                PetscInt(0), PetscInt.(o_nnz))
+            return true
+        end
+    end
+    return false
 end
 
 """
@@ -261,9 +309,19 @@ function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache,
     # stays the null sentinel (Comm_rank → MPI_ERR_COMM). Init MPI.jl first, then let
     # PETSc reuse the already-initialized MPI.
     MPI.Initialized() || MPI.Init()
-    if manage_init && !_SLEPC_INITED[]
-        SlepcInitialize(opts)
-        _SLEPC_INITED[] = true
+    if manage_init
+        if !_SLEPC_INITED[]
+            SlepcInitialize(opts)
+            _SLEPC_INITED[] = true
+            _SLEPC_OPTS[] = opts
+        elseif opts != _SLEPC_OPTS[]
+            error("solve_mpi: SLEPc is already initialized in this process with " *
+                  "different options, and PETSc/SLEPc options can only be set once " *
+                  "per process. Restart Julia for new solver settings, or pass " *
+                  "manage_init=false and drive SlepcInitialize yourself.\n" *
+                  "  initialized with: $(_SLEPC_OPTS[])\n" *
+                  "  requested now:    $(opts)")
+        end
     end
     _assert_complex_scalars()
 

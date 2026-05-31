@@ -54,6 +54,38 @@ using LinearAlgebra
         @test Arebuilt ≈ A
     end
 
+    @testset "_csr_block_nnz_split counts diagonal vs off-diagonal nnz" begin
+        A = sparse(ComplexF64[
+            10  0  20;
+             0 30   0;
+            40  0 50])
+        rowptr, colind, vals = BiGSTARS._to_csr(A)
+
+        # Whole matrix, single rank: every entry is "diagonal" (cols [0,3)).
+        d, o = BiGSTARS._csr_block_nnz_split(rowptr, colind, 0, 3, 0, 3)
+        @test d == Int32[2, 1, 2]
+        @test o == Int32[0, 0, 0]
+
+        # Diagonal columns [0,2): col 2 falls in the off-diagonal block.
+        d2, o2 = BiGSTARS._csr_block_nnz_split(rowptr, colind, 0, 3, 0, 2)
+        @test d2 == Int32[1, 1, 1]            # row0 col0 | row1 col1 | row2 col0
+        @test o2 == Int32[1, 0, 1]            # row0 col2 | row1 —    | row2 col2
+
+        # An owned sub-block of rows [1,3) with diagonal cols [1,3).
+        d3, o3 = BiGSTARS._csr_block_nnz_split(rowptr, colind, 1, 3, 1, 3)
+        @test d3 == Int32[1, 1]               # row1 col1 | row2 col2
+        @test o3 == Int32[0, 1]               # row1 —    | row2 col0
+
+        # d_nnz + o_nnz always equals the per-row total nnz.
+        for (rs, re) in ((0, 3), (1, 3), (0, 1))
+            dd, oo = BiGSTARS._csr_block_nnz_split(rowptr, colind, rs, re, 1, 2)
+            for i in 1:(re - rs)
+                g = rs + i                    # 1-based global row
+                @test dd[i] + oo[i] == rowptr[g + 1] - rowptr[g]
+            end
+        end
+    end
+
     @testset "sparse_from_csr is the inverse of _to_csr" begin
         A = sprand(ComplexF64, 10, 10, 0.3)
         csr = BiGSTARS._to_csr(A)
