@@ -81,8 +81,11 @@ function solve(cache::DiscretizationCache, k_values::AbstractVector;
     end
 
     if parallel
-        # One workspace per thread — allocated once, reused across all wavenumbers
-        n_threads = Threads.nthreads()
+        # One workspace per thread — allocated once, reused across all wavenumbers.
+        # Size to maxthreadid(): threadid() can exceed nthreads() when an
+        # interactive threadpool is present, so indexing by threadid() into an
+        # nthreads()-sized vector would be an out-of-bounds access.
+        n_threads = Threads.maxthreadid()
         workspaces = [allocate_workspace(cache) for _ in 1:n_threads]
 
         Threads.@threads for i in 1:n

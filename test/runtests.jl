@@ -20,4 +20,5 @@ using FFTW
     include("test_boundary.jl")
     include("test_discretize.jl")
     include("test_integration.jl")
+    include("test_coverage_gaps.jl")
 end
