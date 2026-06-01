@@ -250,6 +250,17 @@ using SparseArrays
         @test length(bcs) == 1
         @test bcs[1].expr isa DerivNode          # deriv_order==1 ⇒ dz(v)
         @test bcs[1].side == :left
+
+        # non-derivative inner expression ⇒ deriv-counting loop breaks at order 0
+        @derive_bc prob v right(abs(v)) == 0
+        @test length(prob.derived_vars[:v].bcs) == 2
+    end
+
+    @testset "macros: @bc with explicit coordinate argument" begin
+        d = Domain(z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        prob = EVP(d, variables=[:u], eigenvalue=:sigma)
+        @bc prob left(u, z) == 0                 # explicit coord (3-arg left/right form)
+        @test prob.bcs[1].coord == :z
     end
 
     @testset "macros: @derive form 2 with scalar literal + parameter in operator" begin
@@ -315,6 +326,10 @@ using SparseArrays
         @compute mw = M * w                              # matrix-parameter operator branch
         @test length(mw) == Np
         @test mw ≈ ev[1:Np]                             # M = I ⇒ operator is identity
+
+        # _evaluate_expr rejects a node it cannot evaluate (e.g. the eigenvalue)
+        @test_throws ErrorException BiGSTARS._evaluate_expr(
+            EigenvalueNode(:sigma), prob, cache, ev, 0.5)
     end
 
     @testset "discretize: dynamic (eigenvalue-dependent) boundary condition" begin
@@ -424,6 +439,230 @@ using SparseArrays
         @test haskey(cache.derived_caches, :v)
         res = solve(cache, [1.0]; sigma_0=0.1, method=:Arnoldi, sparse=false)  # dense in-place
         @test res[1] isa SolverResults
+    end
+
+    # ── Direct unit tests for discretize.jl internal tree/operator helpers ──────
+    # These pure functions have many branches that the integration pipeline reaches
+    # only for specific (rare) expression shapes; exercising them directly is exact
+    # and deterministic.
+
+    @testset "discretize internals: strip_eigenvalue + _try_strip" begin
+        s = EigenvalueNode(:sigma)
+        @test BiGSTARS.strip_eigenvalue(BinaryOpNode(:*, s, VarNode(:u))) == VarNode(:u)
+        @test BiGSTARS.strip_eigenvalue(BinaryOpNode(:*, VarNode(:u), s)) == VarNode(:u)
+        # product chain on the left: (σ·U)·u → U·u
+        @test BiGSTARS.strip_eigenvalue(
+            BinaryOpNode(:*, BinaryOpNode(:*, s, ParamNode(:U)), VarNode(:u))) ==
+            BinaryOpNode(:*, ParamNode(:U), VarNode(:u))
+        # product chain on the right: u·(σ·U) → u·U
+        @test BiGSTARS.strip_eigenvalue(
+            BinaryOpNode(:*, VarNode(:u), BinaryOpNode(:*, s, ParamNode(:U)))) ==
+            BinaryOpNode(:*, VarNode(:u), ParamNode(:U))
+        @test_throws ErrorException BiGSTARS.strip_eigenvalue(VarNode(:u))
+    end
+
+    @testset "discretize internals: _strip_eigenvalue_from_term" begin
+        s = EigenvalueNode(:sigma)
+        f(e) = BiGSTARS._strip_eigenvalue_from_term(e, :sigma)
+        @test f(s) == ConstNode(1.0)
+        @test f(BinaryOpNode(:*, s, VarNode(:u))) == VarNode(:u)          # left σ
+        @test f(BinaryOpNode(:*, VarNode(:u), s)) == VarNode(:u)          # right σ
+        # right σ with a coefficient: u·(2σ) → u·2
+        @test f(BinaryOpNode(:*, VarNode(:u), BinaryOpNode(:*, ConstNode(2.0), s))) ==
+              BinaryOpNode(:*, VarNode(:u), ConstNode(2.0))
+        @test f(UnaryOpNode(:-, BinaryOpNode(:*, s, VarNode(:u)))) ==
+              UnaryOpNode(:-, VarNode(:u))                                # unary
+        @test f(VarNode(:u)) == VarNode(:u)                              # passthrough
+        @test f(BinaryOpNode(:*, s, s)) isa BinaryOpNode                 # σ on both sides
+    end
+
+    @testset "discretize internals: _replace_var" begin
+        g(e) = BiGSTARS._replace_var(e, :a, :b)
+        @test g(VarNode(:a)) == VarNode(:b)
+        @test g(VarNode(:c)) == VarNode(:c)
+        @test g(DerivNode(VarNode(:a), :z)) == DerivNode(VarNode(:b), :z)
+        @test g(BinaryOpNode(:+, VarNode(:a), VarNode(:c))) ==
+              BinaryOpNode(:+, VarNode(:b), VarNode(:c))
+        @test g(UnaryOpNode(:-, VarNode(:a))) == UnaryOpNode(:-, VarNode(:b))
+        @test g(SubstitutionNode(:F, ExprNode[VarNode(:a)])) ==
+              SubstitutionNode(:F, ExprNode[VarNode(:b)])
+        @test g(ConstNode(1.0)) == ConstNode(1.0)                        # passthrough
+    end
+
+    @testset "discretize internals: _distribute_deriv (BC derivative distribution)" begin
+        h(e) = BiGSTARS._distribute_deriv(e, :z, 1)
+        @test h(BinaryOpNode(:+, VarNode(:a), VarNode(:b))) ==
+              BinaryOpNode(:+, DerivNode(VarNode(:a), :z), DerivNode(VarNode(:b), :z))
+        # scalar/param on the right of a product stays outside the derivative
+        @test h(BinaryOpNode(:*, VarNode(:a), ParamNode(:U))) ==
+              BinaryOpNode(:*, DerivNode(VarNode(:a), :z), ParamNode(:U))
+        @test h(DerivNode(VarNode(:a), :y)) == DerivNode(DerivNode(VarNode(:a), :z), :y)
+        @test h(UnaryOpNode(:-, VarNode(:a))) == UnaryOpNode(:-, DerivNode(VarNode(:a), :z))
+        @test_throws ErrorException h(BinaryOpNode(:*, VarNode(:a), VarNode(:b)))  # non-scalar product
+        @test_throws ErrorException h(EigenvalueNode(:sigma))                      # unsupported
+    end
+
+    @testset "discretize internals: operator/expr builders on hand-built nodes" begin
+        du = Domain(z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        pu = EVP(du, variables=[:u], eigenvalue=:sigma)
+        pu[:E] = 2.0
+        pu[:U] = collect(1.0:8.0)
+        pu[:M] = Matrix{Float64}(I, 8, 8)
+        Np = 8
+
+        # _discretize_operator branches (T basis, dummy=nothing → VarNode is identity)
+        do_(e) = BiGSTARS._discretize_operator(e, nothing, pu, Np)
+        @test do_(BinaryOpNode(:+, VarNode(:u), VarNode(:u))) == 2 * BiGSTARS._full_identity(du)
+        @test do_(BinaryOpNode(:-, VarNode(:u), VarNode(:u))) == 0 * BiGSTARS._full_identity(du)
+        @test do_(BinaryOpNode(:*, VarNode(:u), ConstNode(3.0))) == 3 * BiGSTARS._full_identity(du)
+        @test do_(BinaryOpNode(:*, VarNode(:u), VarNode(:u))) isa AbstractMatrix   # fallback *
+        @test do_(ParamNode(:E)) == 2 * BiGSTARS._full_identity(du)                # scalar param
+        @test do_(ConstNode(5.0)) == 5 * BiGSTARS._full_identity(du)
+        @test do_(WavenumberNode(:k_x)) == BiGSTARS._full_identity(du)
+        @test_throws ErrorException do_(EigenvalueNode(:sigma))
+
+        # discretize_expr_in_T branches
+        dt(e) = BiGSTARS.discretize_expr_in_T(e, pu, Np)
+        @test dt(ParamNode(:E)) == ComplexF64(2.0) * sparse(I, Np, Np)             # scalar
+        @test dt(ParamNode(:M)) == ComplexF64.(pu[:M])                             # matrix
+        @test dt(BinaryOpNode(:+, VarNode(:u), VarNode(:u))) isa AbstractMatrix    # +
+        @test dt(BinaryOpNode(:-, VarNode(:u), VarNode(:u))) isa AbstractMatrix    # -
+        @test_throws ErrorException dt(EigenvalueNode(:sigma))                     # unsupported
+
+        # discretize_expr branches (C^(p) basis), ctx=nothing
+        de(e) = BiGSTARS.discretize_expr(e, pu, Np, 1, nothing)
+        @test de(ParamNode(:E)) isa AbstractMatrix                                 # scalar param (275)
+        @test de(ParamNode(:U)) isa AbstractMatrix                                 # field param standalone (280)
+        @test de(ConstNode(3.0)) isa AbstractMatrix                                # const standalone (284)
+        @test de(BinaryOpNode(:+, VarNode(:u), VarNode(:u))) isa AbstractMatrix    # +
+        @test de(BinaryOpNode(:-, VarNode(:u), VarNode(:u))) isa AbstractMatrix    # -
+        @test de(BinaryOpNode(:*, ConstNode(2.0), ConstNode(3.0))) isa AbstractMatrix  # scalar·scalar
+        @test de(BinaryOpNode(:*, VarNode(:u), ParamNode(:E))) isa AbstractMatrix  # scalar on right
+        @test de(BinaryOpNode(:*, DerivNode(VarNode(:u), :z), ParamNode(:U))) isa AbstractMatrix # field on right
+        @test de(UnaryOpNode(:-, VarNode(:u))) isa AbstractMatrix                  # unary
+        @test_throws ErrorException de(EigenvalueNode(:sigma))                     # cannot discretize
+
+        # _extract_field_param: scalar·field both orders
+        @test BiGSTARS._extract_field_param(BinaryOpNode(:*, ConstNode(2.0), ParamNode(:U)), pu)[1] == ParamNode(:U)
+        @test BiGSTARS._extract_field_param(BinaryOpNode(:*, ParamNode(:U), ConstNode(2.0)), pu)[2] == ComplexF64(2.0)
+
+        # _converted_field_multiply (standalone field, T-basis path)
+        @test BiGSTARS._converted_field_multiply(ParamNode(:U), pu, Np, 0, nothing) isa AbstractMatrix
+    end
+
+    @testset "discretize internals: FourierTransformed-direction guards" begin
+        dft = Domain(x = FourierTransformed(), z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        pft = EVP(dft, variables=[:u], eigenvalue=:sigma)
+        # A derivative in a FourierTransformed direction must have been lowered earlier.
+        @test_throws ErrorException BiGSTARS.discretize_expr(
+            DerivNode(VarNode(:u), :x), pft, 8, 1, nothing)
+        @test_throws ErrorException BiGSTARS.discretize_expr_in_T(
+            DerivNode(VarNode(:u), :x), pft, 8)
+    end
+
+    @testset "discretize internals: BC row builders on hand-built nodes" begin
+        du = Domain(z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        pu = EVP(du, variables=[:u], eigenvalue=:sigma)
+
+        # _try_bc_scalar: negation and product-of-scalars
+        @test BiGSTARS._try_bc_scalar(UnaryOpNode(:-, ConstNode(2.0)), :left, :z, pu) == ComplexF64(-2.0)
+        @test BiGSTARS._try_bc_scalar(BinaryOpNode(:*, ConstNode(2.0), ConstNode(3.0)), :left, :z, pu) == ComplexF64(6.0)
+
+        # _build_bc_row_1d!: ConstNode is a no-op; var·scalar (scalar on right); negation
+        row = zeros(ComplexF64, 8)
+        BiGSTARS._build_bc_row_1d!(row, ConstNode(2.0), :left, :z, pu)
+        @test all(==(0), row)                                            # bare const → no row
+        BiGSTARS._build_bc_row_1d!(row, BinaryOpNode(:*, VarNode(:u), ConstNode(2.0)), :left, :z, pu)
+        @test any(!=(0), row)                                            # scalar-on-right `*` branch
+        row2 = zeros(ComplexF64, 8)
+        BiGSTARS._build_bc_row_1d!(row2, UnaryOpNode(:-, VarNode(:u)), :left, :z, pu)
+        @test any(!=(0), row2)                                           # unary minus
+
+        # error branches
+        @test_throws ErrorException BiGSTARS._build_bc_row_1d!(
+            zeros(ComplexF64, 8), BinaryOpNode(:*, VarNode(:u), VarNode(:u)), :left, :z, pu)
+        @test_throws ErrorException BiGSTARS._build_bc_row_1d!(
+            zeros(ComplexF64, 8), EigenvalueNode(:sigma), :left, :z, pu)
+        # derivative in the wrong (non-boundary) direction is rejected
+        @test_throws ErrorException BiGSTARS._build_bc_row_1d!(
+            zeros(ComplexF64, 8), DerivNode(VarNode(:u), :y), :left, :z, pu)
+    end
+
+    @testset "discretize internals: _try_strip, _legacy_k_key, chained-deriv-any" begin
+        s = EigenvalueNode(:sigma)
+        @test BiGSTARS._try_strip(s) == ConstNode(1.0)
+        @test BiGSTARS._try_strip(BinaryOpNode(:*, VarNode(:u), s)) == VarNode(:u)   # right σ
+        # nested recursion, left and right
+        @test BiGSTARS._try_strip(
+            BinaryOpNode(:*, BinaryOpNode(:*, s, ParamNode(:U)), VarNode(:u))) ==
+            BinaryOpNode(:*, ParamNode(:U), VarNode(:u))
+        @test BiGSTARS._try_strip(
+            BinaryOpNode(:*, VarNode(:u), BinaryOpNode(:*, s, ParamNode(:U)))) ==
+            BinaryOpNode(:*, VarNode(:u), ParamNode(:U))
+        @test BiGSTARS._try_strip(VarNode(:u)) === nothing                            # nothing
+
+        # _strip_eigenvalue_from_term: left σ carrying a coefficient (2σ·u → 2·u)
+        @test BiGSTARS._strip_eigenvalue_from_term(
+            BinaryOpNode(:*, BinaryOpNode(:*, ConstNode(2.0), s), VarNode(:u)), :sigma) ==
+            BinaryOpNode(:*, ConstNode(2.0), VarNode(:u))
+
+        # _legacy_k_key: one vs many transformed directions
+        d1 = Domain(x = FourierTransformed(), z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        d2 = Domain(x = FourierTransformed(), y = FourierTransformed(),
+                    z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        @test BiGSTARS._legacy_k_key(2, d1) == (:k_x => 2,)
+        @test BiGSTARS._legacy_k_key(2, d2) == (:_total_k => 2,)
+
+        # count/unwrap chained derivatives in a non-matching direction
+        @test BiGSTARS.count_chained_derivs_any(DerivNode(VarNode(:u), :y), :z) == 0
+        @test BiGSTARS.unwrap_chained_derivs_any(DerivNode(VarNode(:u), :y), :z) ==
+              DerivNode(VarNode(:u), :y)
+    end
+
+    @testset "discretize internals: field-multiply fallback + conversion inverse" begin
+        # _full_conversion_inv: Chebyshev (builds S⁻¹ lifted) and Fourier-only (identity)
+        dz8 = Domain(z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        @test BiGSTARS._full_conversion_inv(dz8, 1, nothing) isa AbstractMatrix
+        dyf = Domain(y = Fourier(8, [0.0, 1.0]))
+        @test BiGSTARS._full_conversion_inv(dyf, 1, nothing) isa AbstractMatrix     # identity branch
+
+        # _apply_field_multiply: N_per_var-sized M_f → S·M·S⁻¹·G
+        Mf = sparse(ComplexF64(1.0) * I, 8, 8); G = sparse(ComplexF64(1.0) * I, 8, 8)
+        @test size(BiGSTARS._apply_field_multiply(Mf, G, dz8, :z, 1, 8, nothing, nothing)) == (8, 8)
+
+        # _apply_field_multiply: N_z-sized M_f → lift 1D op to the 2D grid (order ≥ 1)
+        d2 = Domain(y = Fourier(4, [0.0, 1.0]), z = Chebyshev(N=4, lower=0.0, upper=1.0))
+        Mf1 = sparse(ComplexF64(1.0) * I, 4, 4); G2 = sparse(ComplexF64(1.0) * I, 16, 16)
+        @test size(BiGSTARS._apply_field_multiply(Mf1, G2, d2, :z, 1, 16, nothing, nothing)) == (16, 16)
+    end
+
+    @testset "discretize internals: _sparse_block_inverse paths" begin
+        # 1D (no Fourier dim): direct dense inverse
+        dz = Domain(z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        @test BiGSTARS._sparse_block_inverse(sparse(ComplexF64(1.0) * I, 8, 8), dz) isa AbstractMatrix
+
+        # Block-diagonal Fourier×Cheb with boundary bordering (BC rows replace last rows)
+        d2 = Domain(y = Fourier(4, [0.0, 1.0]), z = Chebyshev(N=6, lower=0.0, upper=1.0))
+        opbd = sparse(ComplexF64(1.0) * I, 24, 24)
+        bc = BiGSTARS.BoundaryCondition(:left, :z, VarNode(:v), 0.0, false)
+        Hbd = BiGSTARS._sparse_block_inverse(opbd, d2; bcs=[bc])
+        @test size(Hbd) == (24, 24)
+
+        # Non-block-diagonal operator → dense fallback inverse
+        opfull = Matrix(ComplexF64(1.0) * I, 24, 24); opfull[1, 7] = 0.1
+        @test BiGSTARS._sparse_block_inverse(sparse(opfull), d2) isa AbstractMatrix
+    end
+
+    @testset "discretize: keyword-form assemble dispatch" begin
+        d = Domain(x = FourierTransformed(), z = Chebyshev(N=12, lower=-1.0, upper=1.0))
+        p = EVP(d, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+        cache = discretize(p)
+        Ak, Bk = assemble(cache; k_x=1.5)        # keyword form → single-dim delegate
+        Ap, Bp = assemble(cache, 1.5)            # positional form
+        @test Ak == Ap && Bk == Bp
     end
 
 end
