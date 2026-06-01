@@ -317,4 +317,113 @@ using SparseArrays
         @test mw ≈ ev[1:Np]                             # M = I ⇒ operator is identity
     end
 
+    @testset "discretize: dynamic (eigenvalue-dependent) boundary condition" begin
+        N = 16
+        mk(dynamic) = begin
+            d = Domain(z = Chebyshev(N=N, lower=0.0, upper=1.0))
+            p = EVP(d, variables=[:u], eigenvalue=:sigma)
+            @equation p sigma * u == -dz(dz(u))
+            @bc p left(u) == 0
+            if dynamic
+                @bc p right(sigma * u + dz(u)) == 0   # eigenvalue appears on the boundary
+            else
+                @bc p right(dz(u)) == 0               # static counterpart
+            end
+            discretize(p)
+        end
+        Ad, Bd = assemble(mk(true), 0.0)
+        As, Bs = assemble(mk(false), 0.0)
+        @test size(Ad) == (N, N) && size(Bd) == (N, N)
+        @test all(isfinite, nonzeros(Ad)) && all(isfinite, nonzeros(Bd))
+        # The eigenvalue term in the dynamic BC lands in B; the static BC's B row is empty.
+        @test nnz(Bd) > nnz(Bs)
+        @test any(isfinite, eigvals(Matrix(Ad), Matrix(Bd)))
+    end
+
+    @testset "discretize: field-coefficient and derivative-of-product BCs" begin
+        N = 24
+        d = Domain(z = Chebyshev(N=N, lower=0.0, upper=1.0))
+        p = EVP(d, variables=[:u], eigenvalue=:sigma)
+        p[:U] = ones(N)                       # U ≡ 1 at the boundaries
+        @equation p sigma * u == -dz(dz(u))
+        @bc p left(U * u) == 0                # field-param coefficient at boundary → u(0)=0
+        @bc p right(dz(U * u)) == 0           # derivative of a product → u'(1)=0
+        cache = discretize(p)
+        A, B = assemble(cache, 0.0)
+        ev = eigvals(Matrix(A), Matrix(B))
+        pos = sort(real.(filter(e -> isfinite(e) && abs(imag(e)) < 1e-6 && real(e) > 0.1, ev)))
+        # σu=-u'', u(0)=0, u'(1)=0 ⇒ σ_n=((n-½)π)²; smallest = (π/2)²
+        @test !isempty(pos)
+        @test abs(pos[1] - (π / 2)^2) < 1e-3
+    end
+
+    @testset "discretize: derivatives of coefficient expressions (T-basis branches)" begin
+        # Each additive term is a derivative OF a coefficient expression, routing through
+        # discretize_expr_in_T: ConstNode (2u), field ParamNode (U·u), unary (-u),
+        # Fourier derivative (dy(u)), and the conservative flux form dz(U·dz(u)).
+        d = Domain(y = Fourier(8, [0.0, 1.0]), z = Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(d, variables=[:u], eigenvalue=:sigma)
+        _, Z = meshgrid(d, :y, :z); p[:U] = vec(@. 1.0 + 0.3 * Z)
+        @equation p sigma * u == -dz(U * dz(u)) + dz(2.0 * u) - dz(U * u) + dz(-u) + dz(dy(u))
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+        cache = discretize(p)
+        A, B = assemble(cache, 0.0)
+        @test size(A, 1) == cache.N_total
+        @test issparse(A)
+        @test all(isfinite, nonzeros(A))
+    end
+
+    @testset "discretize: flux-form variable coefficient is resolution-stable" begin
+        # σu = -d/dz(U du/dz), U(z)=1+½z, u(0)=u(1)=0. Smallest eigenvalue must be
+        # stable under refinement (proof the conservative operator assembles correctly).
+        function smallest(N)
+            d = Domain(z = Chebyshev(N=N, lower=0.0, upper=1.0))
+            p = EVP(d, variables=[:u], eigenvalue=:sigma)
+            z = gridpoints(d, :z); p[:U] = @. 1.0 + 0.5 * z
+            @equation p sigma * u == -dz(U * dz(u))
+            @bc p left(u) == 0
+            @bc p right(u) == 0
+            A, B = assemble(discretize(p), 0.0)
+            ev = eigvals(Matrix(A), Matrix(B))
+            minimum(real.(filter(e -> isfinite(e) && abs(imag(e)) < 1e-6 && real(e) > 0.1, ev)))
+        end
+        @test abs(smallest(24) - smallest(40)) < 1e-4
+    end
+
+    @testset "discretize: order-0 field multiply (T-basis S·M·S⁻¹ fallback)" begin
+        # No Chebyshev derivative anywhere ⇒ highest_cheb_order==0, so the banded
+        # C^(λ) multiply is skipped and the field coefficient routes through the
+        # T-basis multiply fallback (_apply_field_multiply / _full_conversion_inv).
+        d = Domain(y = Fourier(8, [0.0, 1.0]), z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        p = EVP(d, variables=[:u], eigenvalue=:sigma)
+        _, Z = meshgrid(d, :y, :z); p[:U] = vec(@. 1.0 + 0.2 * Z)
+        @equation p sigma * u == U * u - dy(dy(u))     # field × variable, no dz
+        cache = discretize(p)
+        A, B = assemble(cache, 0.0)
+        @test size(A, 1) == cache.N_total
+        @test all(isfinite, nonzeros(A))
+    end
+
+    @testset "discretize: legacy-derived problem solved via in-place assembly" begin
+        # augment_derived=false keeps v eliminated (H(k) inverse). Solving it drives
+        # the derived branch of in-place assemble! (assemble! + H(k) reconstruction).
+        d = Domain(x = FourierTransformed(),
+                   y = Fourier(8, [0.0, 1.0]),
+                   z = Chebyshev(N=8, lower=0.0, upper=1.0))
+        p = EVP(d, variables=[:w, :zeta], eigenvalue=:sigma)
+        @derive p v dx(dx(v)) + dy(dy(v)) = dy(dz(w)) - dx(zeta)
+        @equation p sigma * w == v - dz(dz(w))
+        @equation p sigma * zeta == dz(w)
+        @bc p left(w) == 0
+        @bc p right(w) == 0
+        @bc p left(dz(zeta)) == 0
+        @bc p right(dz(zeta)) == 0
+
+        cache = discretize(p; augment_derived=false)
+        @test haskey(cache.derived_caches, :v)
+        res = solve(cache, [1.0]; sigma_0=0.1, method=:Arnoldi, sparse=false)  # dense in-place
+        @test res[1] isa SolverResults
+    end
+
 end
