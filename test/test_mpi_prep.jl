@@ -181,6 +181,43 @@ end
             mat_solver="mumps", eps_type="krylovschur")
     end
 
+    @testset "restrict_cache_rows + restricted assemble_rows" begin
+    function mk_aug()
+        dom = Domain(z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:psi], eigenvalue=:sigma)
+        @derive p v dz(dz(v)) = psi
+        @derive_bc p v left(v) == 0
+        @derive_bc p v right(v) == 0
+        @equation p sigma * psi == v
+        @bc p left(psi) == 0
+        @bc p right(psi) == 0
+        discretize(p; augment_derived=true)
+    end
+    function mk_plain()
+        dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+        discretize(p)
+    end
+    for (mk, k) in ((mk_plain, 1.3), (mk_aug, 0.0))
+        cache = mk(); N = cache.N_total
+        @test cache.row_range === nothing
+        for (rs, re) in ((0, N), (0, cld(N,2)), (cld(N,2), N), (N-1, N))
+            rc = BiGSTARS.restrict_cache_rows(cache, rs, re)
+            @test rc.row_range == (rs, re)
+            Ar, Br = BiGSTARS.assemble_rows(rc, k, rs, re)                  # restricted (direct sum)
+            Af, Bf = BiGSTARS.assemble_rows(cache, k, rs, re)              # full (2a slice)
+            @test Ar ≈ Af && Br ≈ Bf
+            @test_throws ArgumentError BiGSTARS.assemble_rows(rc, k, 0, re ÷ 2)  # range mismatch
+        end
+        # double restriction is rejected
+        rc = BiGSTARS.restrict_cache_rows(cache, 0, N)
+        @test_throws ArgumentError BiGSTARS.restrict_cache_rows(rc, 0, N)
+    end
+end
+
     @testset "assemble_rows == assemble row-slice" begin
         function mkcache_plain()
             dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
@@ -223,5 +260,19 @@ end
             end
             @test BiGSTARS._assemble_B_full(cache, k) ≈ Bfull
         end
+    end
+end
+
+@testset "_petsc_ownership matches PETSC_DECIDE split" begin
+    for (N, P) in ((10,1),(10,2),(10,3),(7,3),(12,4),(5,5),(5,8),(1,1),(0,2))
+        ranges = [BiGSTARS._petsc_ownership(N, P, r) for r in 0:(P-1)]
+        @test ranges[1][1] == 0                         # starts at 0
+        @test ranges[end][2] == N                       # ends at N
+        for r in 1:(P-1)
+            @test ranges[r][2] == ranges[r+1][1]        # contiguous, no gaps/overlap
+        end
+        sizes = [re - rs for (rs, re) in ranges]
+        @test sum(sizes) == N                           # covers exactly N rows
+        @test maximum(sizes) - minimum(sizes) ≤ 1       # balanced to within 1
     end
 end

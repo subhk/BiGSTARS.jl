@@ -107,3 +107,18 @@ if rank == 0
     end
     ts3.anynonpass && exit(1)
 end
+
+# ── discretize_distributed (Phase 2b-i): per-rank row-restricted cache ─────────
+# Build a per-rank restricted cache and solve from it; results must match the
+# full-cache analytic reference σ_1(k) = k² + π².
+nprocs2 = MPI.Comm_size(MPI.COMM_WORLD)
+ngd = (nprocs2 % 2 == 0) ? 2 : 1
+dcache = discretize_distributed(prob; ngroups=ngd)
+res_d = solve(dcache, [1.0]; sigma_0=10.0, nev=4, which=:LM, tol=1e-10, ngroups=ngd)
+if rank == 0
+    ts4 = @testset "discretize_distributed (ngroups=$(ngd))" begin
+        @test res_d[1].converged
+        @test isapprox(minimum(real, res_d[1].eigenvalues), 1.0 + π^2; rtol=1e-4)
+    end
+    ts4.anynonpass && exit(1)
+end

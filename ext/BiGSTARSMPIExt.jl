@@ -2,9 +2,9 @@ module BiGSTARSMPIExt
 
 using BiGSTARS
 using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
-                _sigma_schedule, _group_indices, assemble_rows,
+                _sigma_schedule, _group_indices, _petsc_ownership, assemble_rows,
                 _assemble_B_full, SolverResults, ConvergenceHistory,
-                sort_eigenvalues!, _filter_physical_modes
+                sort_eigenvalues!, _filter_physical_modes, restrict_cache_rows
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -327,6 +327,26 @@ end
 """Single-problem overload (no wavenumber sweep)."""
 function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache; sigma_0::Real, kwargs...)
     return BiGSTARS.solve(cache, [0.0]; sigma_0=sigma_0, kwargs...)
+end
+
+function BiGSTARS.discretize_distributed(prob; ngroups::Integer=1, kwargs...)
+    MPI.Initialized() || MPI.Init()
+    world = MPI.COMM_WORLD
+    P = MPI.Comm_size(world); wrank = MPI.Comm_rank(world)
+    (1 ≤ ngroups ≤ P) || error("discretize_distributed: ngroups=$(ngroups) must be in 1:$(P)")
+    (P % ngroups == 0) || error("discretize_distributed: nprocs=$(P) not divisible by ngroups=$(ngroups)")
+
+    cache = BiGSTARS.discretize(prob; kwargs...)          # full, on every rank
+    psize = P ÷ ngroups
+    grank = wrank % psize                                 # rank within its group (deterministic)
+
+    # Owned rows via PETSc's deterministic PETSC_DECIDE split (pure formula — no PETSc
+    # probe, so this needs no PetscInitialize). solve's per-group build Mat uses the
+    # same split, and assemble_rows asserts the resulting range matches row_range.
+    rstart, rend = _petsc_ownership(cache.N_total, psize, grank)
+
+    # Group roots keep the FULL cache (the mass filter needs full B); others restrict.
+    return grank == 0 ? cache : restrict_cache_rows(cache, rstart, rend)
 end
 
 end # module
