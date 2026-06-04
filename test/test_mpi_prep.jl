@@ -102,6 +102,8 @@ using LinearAlgebra
         # schedule scales with |σ₀|; n_tries=0 → just [σ₀]
         @test BiGSTARS._sigma_schedule(-2.0, 1, 0.5, 1.0) == [-2.0, -1.0, -3.0]
         @test BiGSTARS._sigma_schedule(3.0, 0, 0.2, 1.2) == [3.0]
+        # σ₀ = 0: base floors to 1.0 so the retry shifts still vary (not all zero)
+        @test BiGSTARS._sigma_schedule(0.0, 2, 0.2, 1.2) == [0.0, 0.2, 0.24, -0.2, -0.24]
     end
 
     @testset "solve without the extension throws an install hint" begin
