@@ -164,12 +164,12 @@ For multiple Chebyshev directions, use coordinate-qualified form: `left(expr, :z
 # Discretize once
 cache = discretize(prob)
 
-# Solve over wavenumbers
+# Solve over wavenumbers (one distributed eigenproblem per wavenumber)
 k_values = range(0.1, 5.0, length=50)
-results = solve(cache, k_values; sigma_0=0.02, method=:Krylov)
+results = solve(cache, k_values; sigma_0=0.02, nev=1)
 
-# Parallel (requires julia -t auto):
-results = solve(cache, k_values; sigma_0=0.02, parallel=true)
+# Parallelism is intrinsic — run across ranks with:
+#   mpiexec -n P julia --project=. script.jl
 
 # For problems without wavenumber direction:
 results = solve(cache; sigma_0=0.02)
@@ -207,7 +207,7 @@ assemble(cache; kx=1.0)  # error: use k_x or x
 ```
 
 !!! note
-    `solve(cache, k_values; ...)` is the high-level sweep API for one scalar wavenumber applied to every transformed direction. For genuinely independent `k_x, k_y, ...` scans, call `assemble(cache; k_x=..., k_y=...)` and then use `EigenSolver` directly.
+    `solve(cache, k_values; ...)` is the high-level sweep API for one scalar wavenumber applied to every transformed direction. For genuinely independent `k_x, k_y, ...` scans, call `assemble(cache; k_x=..., k_y=...)` to get the matrices and drive SLEPc yourself.
 
 ### Inspecting the Cache
 
@@ -276,7 +276,7 @@ prob[:dBdy] = -ones(length(Z))
 @bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
 
 cache = discretize(prob)
-results = solve(cache, [0.1]; sigma_0=0.02, method=:Krylov)
+results = solve(cache, [0.1]; sigma_0=0.02)
 ```
 
 ## Complete Example (Stone 1971 with Derived Variables)
@@ -320,5 +320,5 @@ prob[:eps2inv] = 100.0
 @bc left(dz(b)) = 0;      @bc right(dz(b)) = 0
 
 cache = discretize(prob)
-results = solve(cache, [0.1]; sigma_0=0.02, method=:Krylov)
+results = solve(cache, [0.1]; sigma_0=0.02)
 ```

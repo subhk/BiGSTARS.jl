@@ -1,11 +1,7 @@
-# eady_mpi.jl — distributed (MPI) Eady baroclinic instability via `solve_mpi`.
+# eady_mpi.jl — distributed (MPI) Eady baroclinic instability via `solve`.
 #
-# This is the MPI/SLEPc counterpart of `examples/Eady.jl`: the same eigenvalue
-# problem, but the single eigensolve is spread across MPI ranks with SLEPc over
-# PETSc instead of being solved in-process.
-#
-# EXPERIMENTAL: the distributed backend is not yet covered by a green integration
-# run. Verify against a serial method on a small problem before relying on it.
+# `solve` is the package's eigensolver (SLEPc over PETSc): the eigenproblem is
+# spread across MPI ranks. Same problem as `examples/Eady.jl`.
 #
 # ── Prerequisites ────────────────────────────────────────────────────────────
 # 1. A complex-scalar system PETSc + SLEPc build, with PETSC_DIR / PETSC_ARCH /
@@ -19,11 +15,12 @@
 # ── Run ──────────────────────────────────────────────────────────────────────
 #        mpiexec -n 4 julia --project=test/mpi examples/eady_mpi.jl
 #
-# `solve_mpi` initializes SLEPc itself (the solver options must be in the PETSc
+# `solve` initializes SLEPc itself (the static solver options must be in the PETSc
 # options database at init time), so you do NOT call SlepcInitialize/SlepcFinalize.
 
 using BiGSTARS
-using MPI, PetscWrap, SlepcWrap
+using MPI
+import PetscWrap, SlepcWrap   # import (not using): PetscWrap exports `solve`, which would shadow BiGSTARS.solve
 using Printf
 
 # ── Build the EVP (runs on every rank; only rank-0's matrices get used) ──
@@ -53,8 +50,8 @@ cache = discretize(prob)
 # ── Distributed solve: one eigenproblem at k = 1.0, across all ranks ──
 # `sigma_0` is the shift-and-invert target (a guess near the growth rate);
 # the `nev` modes nearest it come back, and rank 0 picks the most unstable.
-# solve_mpi manages SlepcInitialize (with the solver options) on first call.
-results = solve_mpi(cache, [1.0];
+# solve manages SlepcInitialize (with the solver options) on first call.
+results = solve(cache, [1.0];
                     sigma_0    = 0.2,     # target shift
                     nev        = 6,
                     which      = :LM,     # eigenvalues nearest the shift

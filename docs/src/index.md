@@ -35,11 +35,11 @@ Bi-global analysis bridges the gap between 1D stability tools (often too idealiz
   </div>
   <div class="bigstars-card">
     <strong>Solver workflow</strong>
-    <p>Use Arnoldi, ARPACK, or KrylovKit with adaptive shift-and-invert and thread-parallel wavenumber sweeps.</p>
+    <p>Solve generalized eigenproblems with SLEPc/PETSc: distributed shift-and-invert with adaptive-σ retry.</p>
   </div>
   <div class="bigstars-card">
-    <strong>Distributed solves (experimental)</strong>
-    <p>Spread a single large eigenproblem across MPI ranks with SLEPc/PETSc through <code>solve_mpi</code>. See <a href="mpi.html">Distributed (MPI)</a>.</p>
+    <strong>Distributed solves</strong>
+    <p>Spread each eigenproblem across MPI ranks with SLEPc/PETSc through <code>solve</code>. See <a href="mpi.html">Distributed (MPI)</a>.</p>
   </div>
 </div>
 ```
@@ -98,7 +98,7 @@ prob[:E] = 1e-12
 # Discretize once, solve over wavenumbers
 cache = discretize(prob)
 k_values = range(0.1, 5.0, length=50)
-results = solve(cache, k_values; sigma_0=0.02, method=:Krylov)
+results = solve(cache, k_values; sigma_0=0.02, nev=1)
 
 # For problems without wavenumber direction:
 results = solve(cache; sigma_0=0.02)

@@ -81,6 +81,19 @@ function _csr_block_nnz_split(rowptr::AbstractVector{<:Integer},
     return d_nnz, o_nnz
 end
 
+"""
+    _sigma_schedule(σ₀, n_tries, Δσ₀, incre) -> Vector{Float64}
+
+Adaptive shift schedule: `σ₀` first, then `n_tries` geometrically growing
+increments above and below it (`Δσ₀ * incre^(i-1) * |σ₀|`). Pure-Julia, so the
+adaptive-σ logic is unit-tested without PETSc. Mirrors the schedule the old
+serial solver used.
+"""
+function _sigma_schedule(σ₀::Real, n_tries::Integer, Δσ₀::Real, incre::Real)
+    up = Float64[Δσ₀ * incre^(i - 1) * abs(σ₀) for i in 1:n_tries]
+    return vcat(Float64(σ₀), σ₀ .+ up, σ₀ .- up)
+end
+
 # Map BiGSTARS `which` to a SLEPc EPS option. `:LM` means "nearest the shift",
 # matching the existing shift-and-invert convention (target magnitude). Used by
 # the MPI extension; kept here (pure-Julia) so it is unit-testable without PETSc.
@@ -93,21 +106,22 @@ const _WHICH_OPT = Dict(
 )
 
 """
-    _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_type) -> String
+    _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type) -> String
 
 Build the PETSc/SLEPc options-database string that configures one distributed
-solve: Krylov-Schur EPS, shift-and-invert ST targeting `sigma_0`, with a parallel
-LU (direct) factorization for the inner solves. Pure-Julia (no PETSc), so the
-extension can consume it while CI verifies it.
+solve: Krylov-Schur EPS, shift-and-invert ST, with a parallel LU (direct)
+factorization for the inner solves. The numeric target is NOT placed here — it
+is set per attempt via `EPSSetTarget`, so the static options stay invariant across
+σ attempts and wavenumbers. Pure-Julia (no PETSc), so it is unit-tested while CI
+verifies the solve.
 """
-function _eps_options(; sigma_0, nev, which, tol, maxiter, ncv, mat_solver, eps_type)
+function _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type)
     haskey(_WHICH_OPT, which) || throw(ArgumentError("unsupported which=$which"))
     opts = "-eps_type $(eps_type) " *
            "-eps_gen_non_hermitian " *                # generalized non-Hermitian pencil (EPS_GNHEP)
            "-eps_nev $(nev) " *
            "-eps_tol $(tol) " *
            "-eps_max_it $(maxiter) " *
-           "-eps_target $(sigma_0) " *
            "-eps_$(_WHICH_OPT[which]) " *
            "-st_type sinvert " *
            "-st_pc_type lu " *

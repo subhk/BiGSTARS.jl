@@ -92,9 +92,23 @@ using LinearAlgebra
         @test BiGSTARS.sparse_from_csr(csr) ≈ A
     end
 
-    @testset "solve_mpi without the extension throws an install hint" begin
+    @testset "_sigma_schedule" begin
+        s = BiGSTARS._sigma_schedule(1.0, 3, 0.2, 1.2)
+        @test s[1] == 1.0
+        @test length(s) == 1 + 2 * 3
+        @test s[2] ≈ 1.0 + 0.2 * 1.0       # first up step
+        @test s[3] ≈ 1.0 + 0.2 * 1.2       # second up step (×incre)
+        @test s[5] ≈ 1.0 - 0.2 * 1.0       # first down step
+        # schedule scales with |σ₀|; n_tries=0 → just [σ₀]
+        @test BiGSTARS._sigma_schedule(-2.0, 1, 0.5, 1.0) == [-2.0, -1.0, -3.0]
+        @test BiGSTARS._sigma_schedule(3.0, 0, 0.2, 1.2) == [3.0]
+    end
+
+    @testset "solve without the extension throws an install hint" begin
+        # Cross-platform env: PetscWrap/SlepcWrap are NOT imported, so the extension
+        # is inactive and the base fallback fires.
         err = try
-            BiGSTARS.solve_mpi(nothing, [0.0]; sigma_0=1.0)
+            solve(nothing, [0.0]; sigma_0=1.0)
             nothing
         catch e
             e
@@ -111,20 +125,20 @@ using LinearAlgebra
         @test BiGSTARS._WHICH_OPT[:SI] == "smallest_imaginary"
     end
 
-    @testset "_eps_options builds the SLEPc options string" begin
-        s = BiGSTARS._eps_options(; sigma_0=0.5, nev=5, which=:LM, tol=1e-10,
+    @testset "_eps_options builds the SLEPc options string (no numeric target)" begin
+        s = BiGSTARS._eps_options(; nev=5, which=:LM, tol=1e-10,
                                   maxiter=300, ncv=0, mat_solver="mumps",
                                   eps_type="krylovschur")
         @test occursin("-eps_type krylovschur", s)
         @test occursin("-eps_gen_non_hermitian", s)    # generalized non-Hermitian
         @test occursin("-eps_nev 5", s)
-        @test occursin("-eps_target 0.5", s)
-        @test occursin("-eps_target_magnitude", s)
+        @test occursin("-eps_target_magnitude", s)     # which flag stays
+        @test !occursin("-eps_target ", s)             # numeric target removed (set via EPSSetTarget)
         @test occursin("-st_type sinvert", s)
         @test occursin("-st_pc_factor_mat_solver_type mumps", s)
         @test !occursin("-eps_ncv", s)                 # ncv=0 omitted
 
-        s2 = BiGSTARS._eps_options(; sigma_0=1.0, nev=2, which=:SR, tol=1e-8,
+        s2 = BiGSTARS._eps_options(; nev=2, which=:SR, tol=1e-8,
                                    maxiter=100, ncv=20, mat_solver="superlu_dist",
                                    eps_type="krylovschur")
         @test occursin("-eps_ncv 20", s2)              # ncv>0 included
@@ -132,7 +146,7 @@ using LinearAlgebra
 
         # Unsupported `which` is rejected.
         @test_throws ArgumentError BiGSTARS._eps_options(;
-            sigma_0=0.0, nev=1, which=:XX, tol=1e-10, maxiter=10, ncv=0,
+            nev=1, which=:XX, tol=1e-10, maxiter=10, ncv=0,
             mat_solver="mumps", eps_type="krylovschur")
     end
 end

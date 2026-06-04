@@ -40,37 +40,6 @@ using SparseArrays
         @test abs(lM[1]) ≈ maximum(abs.(λ))            # largest magnitude first
     end
 
-    @testset "eig_solver: get_results / print_summary on un-run solver" begin
-        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0])); B = Matrix{ComplexF64}(I, 3, 3)
-        s = EigenSolver(A, B; σ₀=2.0)
-        @test_throws ArgumentError get_results(s)      # not run yet
-        @test (print_summary(s); true)                 # "Solver has not been run" branch
-    end
-
-    @testset "eig_solver: all attempts fail throws" begin
-        # An unknown method makes every shift attempt throw inside the solve loop →
-        # solve! raises the all-attempts-failed error after recording a failed result.
-        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0])); B = Matrix{ComplexF64}(I, 4, 4)
-        s = EigenSolver(A, B; σ₀=2.0, method=:NoSuchMethod, nev=1, n_tries=0)
-        @test_throws Exception solve!(s; verbose=false)
-        @test !isnothing(s.results)                    # failed result is still recorded
-        @test !s.results.converged
-        @test_throws ArgumentError get_results(s)      # non-converged → throws
-    end
-
-    @testset "eig_solver: compare_methods! verbose summary" begin
-        A = ComplexF64.(Diagonal([1.0, 2.0, 3.0, 4.0, 5.0])); B = Matrix{ComplexF64}(I, 5, 5)
-        solver = EigenSolver(A, B; σ₀=2.2, nev=1, n_tries=0)
-        # verbose=true exercises the summary block (fastest method, consistency check)
-        res = compare_methods!(solver; methods=[:Arnoldi, :Krylov], verbose=true)
-        @test res isa Dict
-
-        # An unknown method makes the solve error → catch branch + "no methods
-        # converged" summary (verbose=true).
-        res2 = compare_methods!(solver; methods=[:NoSuchMethod], verbose=true)
-        @test isnothing(res2[:NoSuchMethod])
-    end
-
     @testset "expr: show methods for node types" begin
         @test sprint(show, EigenvalueNode(:sigma)) == "sigma"
         @test sprint(show, UnaryOpNode(:-, VarNode(:u))) == "-(u)"
@@ -274,27 +243,6 @@ using SparseArrays
         @test haskey(prob.substitutions, :_derive_v)
     end
 
-    @testset "solve: parallel paths and failure → failed_result" begin
-        d = Domain(x = FourierTransformed(), z = Chebyshev(N=16, lower=-1.0, upper=1.0))
-        prob = EVP(d, variables=[:u], eigenvalue=:sigma)
-        @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
-        @bc prob left(u) == 0
-        @bc prob right(u) == 0
-        cache = discretize(prob)
-
-        # parallel=true over both storage paths (runs even with a single thread)
-        rp_sparse = solve(cache, [0.5, 1.0]; sigma_0=3.0, method=:Arnoldi, parallel=true, sparse=true)
-        rp_dense  = solve(cache, [0.5, 1.0]; sigma_0=3.0, method=:Arnoldi, parallel=true, sparse=false)
-        @test rp_sparse[1].converged && rp_dense[1].converged
-        @test abs(rp_sparse[1].eigenvalues[1] - rp_dense[1].eigenvalues[1]) < 1e-6
-
-        # An unknown method makes the inner solve throw → caught → failed_result
-        rf_dense = solve(cache, [0.5]; sigma_0=3.0, method=:NoSuchMethod, sparse=false, verbose=true)
-        @test !rf_dense[1].converged
-        rf_sparse = solve(cache, [0.5]; sigma_0=3.0, method=:NoSuchMethod, sparse=true, verbose=true)
-        @test !rf_sparse[1].converged
-    end
-
     @testset "discretize: matrix-valued parameter operator" begin
         N = 8
         d = Domain(z = Chebyshev(N=N, lower=0.0, upper=1.0))
@@ -437,8 +385,9 @@ using SparseArrays
 
         cache = discretize(p; augment_derived=false)
         @test haskey(cache.derived_caches, :v)
-        res = solve(cache, [1.0]; sigma_0=0.1, method=:Arnoldi, sparse=false)  # dense in-place
-        @test res[1] isa SolverResults
+        A, B = assemble(cache, 1.0)                     # exercises derived in-place assembly
+        ev = eigvals(Matrix(A), Matrix(B))
+        @test any(e -> isfinite(e), ev)
     end
 
     # ── Direct unit tests for discretize.jl internal tree/operator helpers ──────

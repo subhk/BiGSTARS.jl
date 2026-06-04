@@ -243,6 +243,8 @@
 #
 # ## Load required packages
 using BiGSTARS
+using MPI
+import PetscWrap, SlepcWrap   # import: PetscWrap exports `solve`, which would shadow BiGSTARS.solve
 using Printf
 
 # ## 1. Domain
@@ -316,7 +318,10 @@ prob[:eps2inv] = 1.0 / eps^2     # 1/ε²
 # ## 8. Solve
 function solve_Stone1971(k_val::Float64)
     cache = discretize(prob)
-    results = solve(cache, [k_val]; sigma_0=0.02, method=:Krylov)
+    results = solve(cache, [k_val]; sigma_0=0.02)
+
+    ## Only rank 0 has populated results.
+    MPI.Comm_rank(MPI.COMM_WORLD) == 0 || return true
 
     if results[1].converged
         lambda = results[1].eigenvalues[1]

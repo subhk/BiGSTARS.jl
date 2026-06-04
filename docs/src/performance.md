@@ -19,15 +19,12 @@ The only genuinely dense case is a coefficient field that truly needs `O(N)` spe
 (very steep / non-smooth relative to the resolution) — there the operator *is* dense, and
 dense storage is the right choice.
 
-### Sparse vs dense solve path
+### Distributed sparse solve
 
-[`solve`](@ref) estimates the assembled fill and automatically routes to a sparse
-(`SparseMatrixCSC` + sparse LU) or dense path. Override with the `sparse` keyword:
-
-```julia
-solve(cache, k_values; sigma_0 = 0.02, sparse = true)   # force sparse
-solve(cache, k_values; sigma_0 = 0.02, sparse = false)  # force dense
-```
+[`solve`](@ref) ships each assembled pencil to PETSc as a distributed sparse
+`MatMPIAIJ` and factorizes it with a parallel direct solver (`mat_solver`, default
+`:mumps`) for the shift-and-invert inner solves — there is no separate dense path.
+The banded / block sparsity above is what keeps that factorization cheap.
 
 ## Derived variables (`@derive`)
 
@@ -48,23 +45,26 @@ asking for the smallest-magnitude eigenvalue.
 
 ## Eigensolver tuning
 
-[`SolverConfig`](@ref) controls the shift-and-invert solve:
+[`solve`](@ref) keyword arguments control the shift-and-invert solve:
 
-- **`krylovdim`** (default `30`) — Krylov subspace dimension for `method = :Krylov`. The cost
-  scales steeply with this; the default is sized for `nev = 1`–few. Raise it only for hard /
-  clustered spectra. It is clamped at runtime to `[nev+2, n]`.
-- **`sortby`** (default `:nearest`) — order of the returned eigenvalues. `:nearest` puts the
-  mode closest to the shift `σ₀` first (what shift-and-invert targets). Use `:R` for the
-  largest growth rate, `:I`, or `:M` (magnitude).
-- **`nev`**, **`which`**, **`tol`**, **`maxiter`**, **`n_tries`** — number of eigenvalues,
-  target region, tolerance, iteration cap, and adaptive-shift retry budget.
+- **`nev`**, **`which`**, **`tol`**, **`maxiter`** — number of eigenvalues, target region
+  (`:LM` nearest σ, `:LR`, `:SR`, …), tolerance, and the SLEPc iteration cap.
+- **`n_tries`**, **`Δσ₀`**, **`incre`**, **`ϵ`** — the adaptive-σ retry budget: how many
+  shifts to try around `sigma_0`, their spacing / growth, and the successive-eigenvalue
+  tolerance that ends the loop.
+- **`mat_solver`** (default `:mumps`) — parallel direct solver for the inner factorization
+  (`:mumps`, `:superlu_dist`, `:petsc`); **`eps_type`** (default `:krylovschur`) the SLEPc EPS.
+
+Results come back sorted nearest the shift (`results[i].eigenvalues[1]` is the mode at `σ`);
+reorder with `sort_evals(λ, Χ, :R)` for the largest growth rate.
 
 ```julia
-solve(cache, k_values; sigma_0 = 0.5, method = :Krylov, nev = 3, krylovdim = 60, sortby = :R)
+solve(cache, k_values; sigma_0 = 0.5, nev = 3, which = :LR, mat_solver = :mumps)
 ```
 
 ## Time to first solve
 
-BiGSTARS ships a `PrecompileTools` workload that exercises `discretize → assemble → solve` on
-a tiny problem at build time, so the first real call in a fresh session avoids most of the
-compilation latency.
+BiGSTARS ships a `PrecompileTools` workload that exercises `discretize → assemble` on a tiny
+problem at build time, so the first real call in a fresh session avoids most of the
+discretization / assembly compilation latency. (The eigensolve lives in the SLEPc/PETSc
+extension and is not precompiled here.)

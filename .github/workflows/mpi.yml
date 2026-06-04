@@ -25,7 +25,6 @@ env:
 jobs:
   mpi-slepc:
     runs-on: ubuntu-latest
-    continue-on-error: true        # non-blocking until a green run confirms the wrapper API
     steps:
       - uses: actions/checkout@v4
 

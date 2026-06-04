@@ -1,50 +1,83 @@
 # Run with: mpiexec -n {1,2} julia --project=test/mpi test/mpi/test_slepc.jl
 # Requires a complex-scalar system PETSc/SLEPc (PETSC_DIR/PETSC_ARCH/SLEPC_DIR)
-# and MPI.jl bound to the same MPI via MPIPreferences.use_system_binary().
+# and MPI.jl bound to the same MPI.
 #
-# solve_mpi manages SlepcInitialize itself (the solver options go into the PETSc
-# options database at init time), so this script does not call SlepcInitialize.
+# `solve` manages SlepcInitialize itself (the static solver options go into the
+# PETSc options database at init time), so this script does not call it.
+# PetscWrap/SlepcWrap are imported only to ACTIVATE the BiGSTARSMPIExt extension
+# (which provides the real `solve`). Use `import`, NOT `using`: PetscWrap exports
+# `solve`, which would shadow BiGSTARS.solve used below.
 using BiGSTARS
 using MPI
-# PetscWrap & SlepcWrap are loaded only to activate BiGSTARSMPIExt. Use `import`,
-# not `using`: PetscWrap also exports `solve`, which would shadow BiGSTARS.solve
-# (used below) and error with an ambiguous-binding UndefVarError.
 import PetscWrap, SlepcWrap
 using Test
 using LinearAlgebra
 
-# Small Poisson-type EVP with a known serial answer (built on every rank).
-dom = Domain(x = FourierTransformed(), z = Chebyshev(N=16, lower=0.0, upper=1.0))
+# MPI.jl's COMM_WORLD handle is populated only by its own MPI.Init(); calling
+# MPI.Comm_rank before it aborts ("MPI_Comm_rank called before MPI_INIT").
+# `solve` also guards init, but this script touches the communicator first.
+MPI.Initialized() || MPI.Init()
+rank = MPI.Comm_rank(MPI.COMM_WORLD)
+
+# ── Analytic reference (no serial solver exists anymore) ──────────────────────
+# σ u = -dx²u - dz²u, u(0)=u(1)=0 on z∈[0,1], at wavenumber k.
+# dx → ×k² (FourierTransformed); -dz² has eigenvalues (nπ)² ⇒ σ_n = k² + (nπ)².
+dom = Domain(x = FourierTransformed(), z = Chebyshev(N=24, lower=0.0, upper=1.0))
 prob = EVP(dom, variables=[:u], eigenvalue=:sigma)
 @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
 @bc prob left(u) == 0
 @bc prob right(u) == 0
 cache = discretize(prob)
 
-# Distributed solve (collective across all ranks); solve_mpi initializes SLEPc.
-res = solve_mpi(cache, [1.0]; sigma_0=10.0, nev=1, which=:LM, tol=1e-10)
+k = 1.0
+analytic(n) = k^2 + (n * π)^2          # σ_1 ≈ 10.8696, σ_2 ≈ 40.48, σ_3 ≈ 89.83
 
-# Verify on rank 0 against the serial :Krylov result and the eigenpair residual.
-rank = MPI.Comm_rank(MPI.COMM_WORLD)
+res1 = solve(cache, [k]; sigma_0=10.0, nev=1, which=:LM, tol=1e-10)
+res3 = solve(cache, [k]; sigma_0=10.0, nev=3, which=:LM, tol=1e-10)
+
 if rank == 0
-    ref = solve(cache, [1.0]; sigma_0=10.0, method=:Krylov, nev=1, verbose=false)
-    A, B = BiGSTARS.assemble(cache, 1.0)        # serial matrices for the residual
+    A, B = BiGSTARS.assemble(cache, k)   # serial matrices for the residual check
+    ts = @testset "SLEPc analytic reference" begin
+        @test res1[1].converged
+        λ1 = res1[1].eigenvalues[1]
+        @test isapprox(real(λ1), analytic(1); rtol=1e-4)   # matches analytic σ_1
+        @test abs(imag(λ1)) < 1e-6
 
-    ts = @testset "solve_mpi vs serial" begin
-        @test res[1].converged
-        @test ref[1].converged
+        χ = res1[1].eigenvectors[:, 1]
+        @test norm(A * χ - λ1 * (B * χ)) / norm(χ) < 1e-6  # residual (also checks the gather)
 
-        λ_mpi = res[1].eigenvalues[1]
-        λ_ser = ref[1].eigenvalues[1]
-        @test abs(λ_mpi - λ_ser) < 1e-6         # eigenvalue matches serial
+        @test res3[1].converged
+        @test length(res3[1].eigenvalues) ≥ 3
+        got = sort(real.(res3[1].eigenvalues[1:3]))
+        for n in 1:3
+            @test minimum(abs.(got .- analytic(n))) < 1e-3  # σ_1,σ_2,σ_3 all present
+        end
 
-        χ = res[1].eigenvectors[:, 1]           # gathered eigenvector
-        resid = norm(A * χ - λ_mpi * (B * χ)) / norm(χ)
-        @test resid < 1e-6                      # phase-independent: checks the gather too
-
-        println("MPI λ=$(λ_mpi)  serial λ=$(λ_ser)  residual=$(resid)")
+        @test !isempty(res1[1].history.attempts)            # adaptive history populated
+        println("σ_1 SLEPc=$(real(λ1))  analytic=$(analytic(1))")
     end
-
-    # Make CI go red on any failure (a bare @test does not set the exit code).
     ts.anynonpass && exit(1)
+end
+
+# ── Spurious-mode filter on a singular-B descriptor system ────────────────────
+# Augmented derived system has zero rows in B (constraint + BC rows) → infinite
+# modes; the filter must drop them. Physical σ = -1/(nπ)²; nearest -0.1 is -1/π².
+dom2 = Domain(z = Chebyshev(N=48, lower=0.0, upper=1.0))
+prob2 = EVP(dom2, variables=[:psi], eigenvalue=:sigma)
+@derive prob2 v dz(dz(v)) = psi
+@derive_bc prob2 v left(v) == 0
+@derive_bc prob2 v right(v) == 0
+@equation prob2 sigma * psi == v
+@bc prob2 left(psi) == 0
+@bc prob2 right(psi) == 0
+cache2 = discretize(prob2; augment_derived=true)
+
+res_sp = solve(cache2; sigma_0=-0.1, nev=4, n_tries=2)
+if rank == 0
+    ts2 = @testset "SLEPc spurious-mode filter (singular B)" begin
+        @test res_sp[1].converged
+        @test all(e -> abs(e) < 0.5, res_sp[1].eigenvalues)              # no infinite modes survive
+        @test minimum(abs.(res_sp[1].eigenvalues .- (-1 / π^2))) < 1e-3  # physical n=1 present
+    end
+    ts2.anynonpass && exit(1)
 end

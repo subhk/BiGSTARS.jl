@@ -1,13 +1,10 @@
 # Distributed (MPI) eigensolver
 
-!!! warning "Experimental"
-    The distributed backend is new and not yet covered by a green integration
-    run. Verify your results against an in-process method on a smaller problem
-    before relying on it. The API may change.
-
-For problems too large for the in-process backends, BiGSTARS can run the
-eigensolve across MPI ranks using SLEPc over PETSc. Assembly stays serial on
-rank 0; the shift-and-invert factorization and Krylov eigensolve are distributed.
+BiGSTARS solves eigenproblems across MPI ranks using SLEPc over PETSc — this is
+the package's only eigensolver. Assembly stays serial on rank 0; the
+shift-and-invert factorization and the Krylov eigensolve are distributed. The
+entrypoint is [`solve`](@ref), provided by the package extension `BiGSTARSMPIExt`,
+which activates when `MPI`, `PetscWrap`, and `SlepcWrap` are all imported.
 
 ## Requirements
 
@@ -15,19 +12,23 @@ rank 0; the shift-and-invert factorization and Krylov eigensolve are distributed
   (`./configure --with-scalar-type=complex`), with `PETSC_DIR`, `PETSC_ARCH`,
   and `SLEPC_DIR` exported.
 - Julia packages `MPI`, `PetscWrap`, `SlepcWrap` installed. Importing all three
-  activates the `BiGSTARSMPIExt` extension and the `solve_mpi` entrypoint.
+  activates the `BiGSTARSMPIExt` extension and the real `solve`. `]add BiGSTARS`
+  works everywhere, but **solving** requires the complex PETSc/SLEPc build above;
+  without it `solve` raises an install hint.
 
 ## Usage
 
 ```julia
-using BiGSTARS, MPI, PetscWrap, SlepcWrap
+using BiGSTARS
+using MPI
+import PetscWrap, SlepcWrap   # import (not using): PetscWrap exports `solve`, which would shadow BiGSTARS.solve
 
 cache = discretize(prob)
-# solve_mpi initializes SLEPc itself — the solver options must be in the PETSc
+# solve initializes SLEPc itself — the static solver options must be in the PETSc
 # options database at init time, so do NOT call SlepcInitialize yourself.
-results = solve_mpi(cache, k_values;
-                    sigma_0=0.02, nev=5, which=:LM,
-                    tol=1e-10, mat_solver=:mumps)
+results = solve(cache, k_values;
+                sigma_0=0.02, nev=5, which=:LM,
+                tol=1e-10, mat_solver=:mumps)
 # results is fully populated on rank 0; other ranks get empty markers.
 ```
 
@@ -35,16 +36,14 @@ Run with `mpiexec -n P julia --project=. script.jl`.
 
 ## Worked example: Eady baroclinic instability
 
-The MPI counterpart of [`examples/Eady.jl`](https://github.com/subhk/BiGSTARS.jl/blob/main/examples/Eady.jl)
-— the same problem, but the eigensolve is spread across ranks. The full runnable
-script is [`examples/eady_mpi.jl`](https://github.com/subhk/BiGSTARS.jl/blob/main/examples/eady_mpi.jl).
-
-You build the problem with the **same DSL** as the serial path; only the solve
-call changes (`solve_mpi` instead of `solve`/`EigenSolver`).
+The full runnable script is
+[`examples/eady_mpi.jl`](https://github.com/subhk/BiGSTARS.jl/blob/main/examples/eady_mpi.jl).
+You build the problem with the **same DSL** as always; `solve` runs it across ranks.
 
 ```julia
 using BiGSTARS
-using MPI, PetscWrap, SlepcWrap
+using MPI
+import PetscWrap, SlepcWrap
 using Printf
 
 # Build the EVP (runs on every rank; only rank-0's matrices get used)
@@ -70,10 +69,9 @@ cache = discretize(prob)
 
 # Distributed solve: one eigenproblem at k = 1.0, across all ranks.
 # sigma_0 is the shift-and-invert target; the nev modes nearest it come back.
-# solve_mpi initializes SLEPc itself, so don't call SlepcInitialize.
-results = solve_mpi(cache, [1.0];
-                    sigma_0=0.2, nev=6, which=:LM,
-                    tol=1e-10, mat_solver=:mumps)
+results = solve(cache, [1.0];
+                sigma_0=0.2, nev=6, which=:LM,
+                tol=1e-10, mat_solver=:mumps)
 
 # Only rank 0 has populated results; other ranks get empty markers.
 rank = MPI.Comm_rank(MPI.COMM_WORLD)
@@ -109,9 +107,10 @@ mpiexec -n 4 julia --project=test/mpi examples/eady_mpi.jl
 
 ## Notes
 
-- `which=:LM` targets eigenvalues nearest `sigma_0` (shift-and-invert), matching
-  the serial backends. `:LR`/`:SR`/`:LI`/`:SI` select by real/imaginary extremes.
+- `which=:LM` targets eigenvalues nearest `sigma_0` (shift-and-invert).
+  `:LR`/`:SR`/`:LI`/`:SI` select by real/imaginary extremes.
 - `mat_solver` picks the parallel direct solver for the inner solves
   (`:mumps`, `:superlu_dist`, or `:petsc`).
-- v1 does a single solve at `sigma_0` (no adaptive-σ retry) and gathers
-  eigenvectors to rank 0 for reconstruction.
+- `solve` runs an adaptive-σ retry loop (`n_tries`, `Δσ₀`, `incre`, `ϵ`) around
+  `sigma_0`, and gathers eigenvectors to rank 0 for reconstruction.
+```
