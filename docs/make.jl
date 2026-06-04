@@ -46,12 +46,15 @@ examples = [
 #                     include_output=true)
 # end
 
+# execute = false: the examples now solve via SLEPc/PETSc (the only backend),
+# which needs a complex-scalar PETSc/SLEPc + MPI not available in the docs CI.
+# They render as code; run them yourself with `mpiexec -n P julia ...`.
 for example in examples
     example_filepath = joinpath(EXAMPLES_DIR, example)
     Literate.markdown(example_filepath,
                       OUTPUT_DIR;
                       flavor = Literate.DocumenterFlavor(),
-                      execute = true)
+                      execute = false)
 end
 
 # for example in examples

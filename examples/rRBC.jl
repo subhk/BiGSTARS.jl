@@ -173,6 +173,8 @@
 #
 # ## Load required packages
 using BiGSTARS
+using MPI
+import PetscWrap, SlepcWrap   # import: PetscWrap exports `solve`, which would shadow BiGSTARS.solve
 using Printf
 using LinearAlgebra
 
@@ -244,10 +246,11 @@ function solve_rRBC(k_val::Float64)
 
     ## For rRBC, the critical Ra is the smallest positive eigenvalue.
     ## nev=10 finds several eigenvalues so we can filter for the physical one.
-    A, B = assemble(cache, k_val)
-    solver = EigenSolver(A, B; σ₀=10.0, method=:Arnoldi, nev=10, which=:LM, sortby=:R)
-    solve!(solver)
-    λ, Χ = get_results(solver)
+    results = solve(cache, [k_val]; sigma_0=10.0, nev=10, which=:LM)
+
+    ## Only rank 0 has populated results.
+    MPI.Comm_rank(MPI.COMM_WORLD) == 0 || return true
+    λ, Χ = results[1].eigenvalues, results[1].eigenvectors
 
     ## Filter for positive real eigenvalues (Ra must be real and positive)
     λ, Χ = remove_evals(λ, Χ, 10.0, 1.0e15, "R")

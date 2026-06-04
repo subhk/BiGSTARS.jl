@@ -71,27 +71,6 @@ using Test
         @test abs(real_pos[1] - (π / 2)^2) < 0.1
     end
 
-    @testset "Sparse solve path matches dense path" begin
-        domain = Domain(
-            x = FourierTransformed(),
-            z = Chebyshev(N=24, lower=-1.0, upper=1.0)
-        )
-        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
-        @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
-        @bc prob left(u) == 0
-        @bc prob right(u) == 0
-        cache = discretize(prob)
-        ks = [0.5, 1.5]
-
-        rd = solve(cache, ks; sigma_0=3.0, method=:Arnoldi, sparse=false)
-        rs = solve(cache, ks; sigma_0=3.0, method=:Arnoldi, sparse=true)
-
-        for i in eachindex(ks)
-            @test rd[i].converged && rs[i].converged
-            @test abs(rd[i].eigenvalues[1] - rs[i].eigenvalues[1]) < 1e-6
-        end
-    end
-
     @testset "Variable-coefficient field multiply stays banded (Olver–Townsend)" begin
         mkc(N) = begin
             d = Domain(x=FourierTransformed(), z=Chebyshev(N=N, lower=-1.0, upper=1.0))
@@ -245,30 +224,6 @@ using Test
         A, _ = assemble(mkc(64), 0.0)
         @test issparse(A)
         @test nnz(A) / length(A) < 0.10        # banded, far from dense
-    end
-
-    @testset "Spurious modes filtered from descriptor (augmented) solve" begin
-        # The augmented system has a singular B (zero rows for the constraint and
-        # boundary equations) → infinite eigenvalues. The solver must return only
-        # physical modes, for BOTH methods. Physical: σ=-1/(nπ)²; nearest -0.1 is -1/π².
-        domain = Domain(z=Chebyshev(N=48, lower=0.0, upper=1.0))
-        prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
-        @derive prob v dz(dz(v)) = psi
-        @derive_bc prob v left(v) == 0
-        @derive_bc prob v right(v) == 0
-        @equation prob sigma * psi == v
-        @bc prob left(psi) == 0
-        @bc prob right(psi) == 0
-        cache = discretize(prob; augment_derived=true)
-
-        for method in (:Arnoldi, :Krylov)
-            res = solve(cache; sigma_0=-0.1, method=method, nev=4, n_tries=2)
-            @test res[1].converged
-            # no huge spurious (infinite) modes survive the filter
-            @test all(e -> abs(e) < 0.5, res[1].eigenvalues)
-            # the physical n=1 mode is present
-            @test minimum(abs.(res[1].eigenvalues .- (-1/π^2))) < 1e-4
-        end
     end
 
     @testset "Derived variables are augmented by default" begin

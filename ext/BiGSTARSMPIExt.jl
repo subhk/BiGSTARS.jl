@@ -1,70 +1,54 @@
 module BiGSTARSMPIExt
 
 using BiGSTARS
-using BiGSTARS: _to_csr, _csr_row_block, _csr_block_nnz_split, SolverResults,
-                ConvergenceHistory, sort_eigenvalues!, _filter_physical_modes,
-                _eps_options, sparse_from_csr
+using BiGSTARS: _to_csr, _csr_row_block, _csr_block_nnz_split, _eps_options,
+                _sigma_schedule, sparse_from_csr, SolverResults, ConvergenceHistory,
+                sort_eigenvalues!, _filter_physical_modes
 using MPI
 using PetscWrap
 using SlepcWrap
 using SparseArrays
 using LinearAlgebra: norm
+using Printf: @printf
 
 # ==============================================================================
-# BiGSTARSMPIExt - distributed (MPI) eigensolver backend over SLEPc/PETSc.
+# BiGSTARSMPIExt — distributed eigensolver backend over SLEPc/PETSc, the package's
+# sole eigensolve backend (loaded when MPI, PetscWrap, SlepcWrap are all imported).
 #
-# Rank 0 assembles A,B serially with the existing BiGSTARS pipeline and converts
-# them to 0-based CSR (BiGSTARS._to_csr). Each rank's owned row-block is scattered
-# from rank 0 and inserted into a distributed PETSc MatMPIAIJ. SLEPc's EPS then
-# solves the generalized pencil with a shift-and-invert spectral transform across
-# all ranks. Eigenvectors are gathered to rank 0, where SolverResults is built.
+# Rank 0 assembles A,B serially with the BiGSTARS pipeline and converts them to
+# 0-based CSR. Each rank's owned row-block is scattered from rank 0 and inserted
+# into a distributed PETSc MatMPIAIJ. SLEPc's EPS solves the generalized pencil
+# with a shift-and-invert spectral transform; an adaptive-σ loop retargets the
+# transform per attempt via EPSSetTarget until the eigenvalue at the shift is
+# stable. Eigenvectors are gathered to rank 0, where SolverResults is built.
 #
-# API target: PetscWrap 0.1.5 / SlepcWrap 0.1.x (the versions SlepcWrap requires).
-# These expose the C-style names — MatCreate/MatSetSizes/MatSetValues/
-# MatGetOwnershipRange/MatAssemblyBegin/MatCreateVecs (which RETURNS (vr, vi))/
-# VecGetArray/EPSCreate/EPSGetEigenpair — matching the maintainer's Helmholtz
-# example. There is no programmatic options inserter and no EPSSetDimensions/
-# ST setter wrappers, so SLEPc is configured by the options string passed to
-# `SlepcInitialize(opts)` at init time; `EPSSetFromOptions` then reads
-# nev/tol/sinvert/mat_solver/target from the database. `solve_mpi` performs that
-# initialization itself (manage_init).
-#
-# Every PETSc/SLEPc/MPI call name and signature here has been checked against
-# source: PetscWrap 0.1.5 src (MatCreate/MatSetValues/MatGetOwnershipRange/
-# MatCreateVecs→(vr,vi)/VecGetArray→(arr,ref)/VecRestoreArray(vec,ref)), SlepcWrap
-# 0.1.3 (EPSCreate/EPSSetOperators/EPSGetEigenpair, options via SlepcInitialize),
-# and MPI.jl v0.19.2 (positional send/recv, VBuffer Gatherv! with `nothing` on
-# non-root). What remains unverified is only runtime numerics (convergence,
-# eigenvector layout) — that needs a live complex PETSc/SLEPc, i.e. the CI job.
-#
-# Mat{MPI,Seq}AIJSetPreallocation are called via `_prealloc!` but gated on
-# `isdefined(PetscWrap, …)`: if the wrapper build lacks them, the build degrades
-# to MatSetUp's default allocation (correct, just slower). Whether 0.1.5 exposes
-# them, and the exact-count split, are validated by the CI job, not here.
+# API target: PetscWrap 0.1.5 / SlepcWrap 0.1.x. The static solver options enter
+# the PETSc options database via SlepcInitialize(opts) at init time (no programmatic
+# nev/tol/ST setters in these wrappers); only the numeric σ target is set per
+# attempt, programmatically, via the wrapped EPSSetTarget. With -st_type sinvert,
+# SLEPc uses the EPS target as the shift, so STSetShift (unwrapped) is not needed.
+# Runtime numerics (convergence, eigenvector layout) are verified by the mpi.yml
+# CI job on a complex PETSc/SLEPc, not locally.
 # ==============================================================================
 
-# Tracks whether this extension initialized SLEPc (so repeated solve_mpi calls
-# don't double-initialize). SLEPc/PETSc may only be initialized once per process.
+# SLEPc/PETSc may only be initialized once per process. Track init + the options
+# string. The static options enter the database at init; the per-attempt σ target
+# is set via EPSSetTarget, so the string never changes per solve.
 const _SLEPC_INITED = Ref(false)
-# The options string SLEPc was initialized with. PETSc/SLEPc options enter the
-# database once, at the single per-process SlepcInitialize, and there is no
-# programmatic per-solve setter in these wrappers — so a later solve_mpi call with
-# different solver options (σ₀, nev, tol, …) would be SILENTLY ignored. We record
-# the options here and error on mismatch instead of returning a wrong-target solve.
 const _SLEPC_OPTS = Ref{String}("")
+
+"""Throw a clear error if PETSc was built with real scalars (results would be wrong)."""
+function _assert_complex_scalars()
+    if !(PetscScalar <: Complex)
+        error("BiGSTARS.solve requires a complex-scalar PETSc/SLEPc build " *
+              "(configure with --with-scalar-type=complex); got PetscScalar=$(PetscScalar).")
+    end
+end
 
 # ------------------------------------------------------------------------------
 # Build the distributed PETSc matrix from scattered CSR row-blocks
 # ------------------------------------------------------------------------------
 
-"""
-    _build_petsc_mat(A_csr, N, comm) -> PetscMat
-
-Collectively build an N×N distributed `MatMPIAIJ` on `MPI.COMM_WORLD`. PETSc
-decides the row ownership; rank 0 (which holds the full CSR `(rowptr, colind,
-vals)`) ships each rank exactly its owned rows, which the rank inserts with
-global column indices. Non-root ranks pass `nothing` for the CSR.
-"""
 function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     rank = MPI.Comm_rank(comm)
     nproc = MPI.Comm_size(comm)
@@ -72,34 +56,25 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     M = MatCreate()                                # defaults to MPI.COMM_WORLD
     MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
     MatSetFromOptions(M)
-    # Row ownership is fixed by the sizes + comm (set above), so it is available
-    # before MatSetUp. We preallocate from exact nnz counts BEFORE inserting (and
-    # before any MatSetUp), the canonical PETSc order — calling a preallocation
-    # routine is what "sets up" the matrix, so MatSetUp is only the fallback below.
     rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
 
-    # Gather every rank's ownership range to rank 0 (MPI 0.19: positional root).
     starts = MPI.Gather(Int(rstart), 0, comm)
     ends   = MPI.Gather(Int(rend),   0, comm)
 
     if rank == 0
         rowptr, colind, vals = A_csr
-        # Send each non-root rank its CSR row-block plus its exact per-row nnz
-        # split (diagonal/off-diagonal). Square matrix with the default layout ⇒
-        # column ownership equals row ownership, so [pstart,pend) is the diagonal
-        # column range for rank p.
         for p in 1:(nproc - 1)
             ps, pe = starts[p + 1], ends[p + 1]
             lrp, lci, lv = _csr_row_block(rowptr, colind, vals, ps, pe)
             d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, ps, pe, ps, pe)
-            MPI.send((lrp, lci, lv, d_nnz, o_nnz), p, 0, comm)  # MPI 0.19: send(obj, dest, tag, comm)
+            MPI.send((lrp, lci, lv, d_nnz, o_nnz), p, 0, comm)
         end
         lrp, lci, lv = _csr_row_block(rowptr, colind, vals, rstart, rend)
         d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, rstart, rend, rstart, rend)
         _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
         _insert_rows!(M, rstart, lrp, lci, lv)
     else
-        (lrp, lci, lv, d_nnz, o_nnz), _ = MPI.recv(0, 0, comm)  # MPI 0.19: recv(src, tag, comm) -> (obj, status)
+        (lrp, lci, lv, d_nnz, o_nnz), _ = MPI.recv(0, 0, comm)
         _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
         _insert_rows!(M, rstart, lrp, lci, lv)
     end
@@ -109,16 +84,6 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     return M
 end
 
-"""
-    _prealloc!(M, nproc, d_nnz, o_nnz) -> Bool
-
-Exact-count preallocation of the AIJ matrix `M` from per-row nonzero counts.
-Parallel (`nproc>1`) uses `MatMPIAIJSetPreallocation(M, 0, d_nnz, 0, o_nnz)`;
-serial uses `MatSeqAIJSetPreallocation(M, 0, d_nnz)` (every entry is diagonal).
-Both are gated on `isdefined` so that a wrapper build lacking these symbols
-simply degrades to the caller's `MatSetUp` fallback (correct, just unallocated).
-Returns `true` iff a preallocation routine was actually invoked.
-"""
 function _prealloc!(M, nproc::Integer, d_nnz, o_nnz)
     if nproc == 1
         if isdefined(PetscWrap, :MatSeqAIJSetPreallocation)
@@ -135,16 +100,7 @@ function _prealloc!(M, nproc::Integer, d_nnz, o_nnz)
     return false
 end
 
-"""
-    _insert_rows!(M, rstart, local_rowptr, local_colind, local_vals)
-
-Insert one rank's owned rows into the distributed matrix `M` via `MatSetValues`,
-one row at a time, using global (0-based) row and column indices. `MatSetValues`
-sets the `rows × cols` block, so a single global row index plus its column list
-inserts that whole row.
-"""
-function _insert_rows!(M, rstart::Integer,
-                       local_rowptr, local_colind, local_vals)
+function _insert_rows!(M, rstart::Integer, local_rowptr, local_colind, local_vals)
     nrows = length(local_rowptr) - 1
     for r in 1:nrows
         k0 = local_rowptr[r] + 1
@@ -153,91 +109,35 @@ function _insert_rows!(M, rstart::Integer,
         row  = PetscInt(rstart + r - 1)            # global 0-based row
         cols = PetscInt.(local_colind[k0:k1])      # global 0-based columns
         vs   = PetscScalar.(local_vals[k0:k1])
-        # PetscWrap 0.1.5 MatSetValues takes explicit counts:
-        # (mat, nrows, rows, ncols, cols, V, mode). Insert this single global row.
         MatSetValues(M, PetscInt(1), [row], PetscInt(length(cols)), cols, vs, INSERT_VALUES)
     end
     return M
 end
 
 # ------------------------------------------------------------------------------
-# Run the SLEPc EPS solve (options already in the database via SlepcInitialize)
+# Gather eigenpairs to rank 0
 # ------------------------------------------------------------------------------
 
-"""
-    _solve_one(A_csr, B_csr, N, comm; sigma_0) -> SolverResults
-
-Distributed solve of one generalized pencil `A x = λ B x`. SLEPc options
-(`nev`, `tol`, shift-and-invert ST, target, direct solver) were placed in the
-options database at `SlepcInitialize` time, so `EPSSetFromOptions` configures the
-solver. Returns a populated `SolverResults` on rank 0 and an empty marker result
-on other ranks. `A_csr`/`B_csr` are the rank-0 CSR tuples (or `nothing` off-root).
-"""
-function _solve_one(A_csr, B_csr, N::Integer, comm::MPI.Comm; sigma_0)
-    rank = MPI.Comm_rank(comm)
-    t0 = MPI.Wtime()
-
-    A = _build_petsc_mat(A_csr, N, comm)
-    B = _build_petsc_mat(B_csr, N, comm)
-
-    eps = EPSCreate()
-    EPSSetOperators(eps, A, B)
-    EPSSetFromOptions(eps)
-    EPSSolve(eps)
-
-    nconv = EPSGetConverged(eps)
-    λ, Χ = _gather_eigenpairs(eps, A, nconv, N, comm)
-
-    solve_time = MPI.Wtime() - t0
-    result = if rank == 0
-        _assemble_results(λ, Χ, B_csr, sigma_0, nconv, solve_time)
-    else
-        SolverResults(ComplexF64[], zeros(ComplexF64, 0, 0), false,
-                      :Slepc, Float64(sigma_0), 0, solve_time, ConvergenceHistory())
-    end
-
-    EPSDestroy(eps)
-    MatDestroy(A)
-    MatDestroy(B)
-    return result
-end
-
-# ------------------------------------------------------------------------------
-# Gather eigenpairs to rank 0 and assemble SolverResults
-# ------------------------------------------------------------------------------
-
-"""
-    _gather_eigenpairs(eps, A, nconv, N, comm) -> (λ::Vector{ComplexF64}, Χ::Matrix{ComplexF64})
-
-Pull the `nconv` converged eigenpairs onto rank 0. Eigenvalues are scalars
-replicated on every rank. Each eigenvector is a distributed `Vec`; its locally
-owned slice is gathered to rank 0 with `MPI.Gatherv!` using the matrix row
-ownership counts. Non-root ranks get empty arrays.
-"""
 function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
     rank = MPI.Comm_rank(comm)
     rstart, rend = MatGetOwnershipRange(A)
     nlocal = rend - rstart
-    counts = Cint.(MPI.Allgather(Int(nlocal), comm))   # local sizes per rank, on every rank
+    counts = Cint.(MPI.Allgather(Int(nlocal), comm))
 
     λ = rank == 0 ? Vector{ComplexF64}(undef, nconv) : ComplexF64[]
     Χ = rank == 0 ? Matrix{ComplexF64}(undef, N, nconv) : zeros(ComplexF64, 0, 0)
 
     vr, vi = MatCreateVecs(A)                      # vectors compatible with A (returns a pair)
     for ie in 0:(nconv - 1)
-        # EPSGetEigenpair returns the raw PetscScalar eigenvalue components. On a
-        # complex build PetscScalar==ComplexF64, so `vpr` is the FULL complex
-        # eigenvalue and `vpi`≈0 — take ComplexF64(vpr), not ComplexF64(vpr, vpi).
+        # On a complex build PetscScalar==ComplexF64, so vpr is the FULL complex
+        # eigenvalue and vpi≈0 — take ComplexF64(vpr), not ComplexF64(vpr, vpi).
         vpr, vpi, _, _ = EPSGetEigenpair(eps, ie, vr, vi)
-        # PetscWrap 0.1.5 VecGetArray returns (array, ref); the array is
-        # PetscScalar (ComplexF64 on a complex build) and aliases PETSc memory,
-        # so copy it out before restoring, and restore with the ref (not the array).
-        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries
+        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries (aliases PETSc memory)
         sendbuf = Vector{ComplexF64}(local_arr)
         if rank == 0
             recvbuf = Vector{ComplexF64}(undef, N)
             MPI.Gatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), 0, comm)
-            λ[ie + 1] = ComplexF64(vpr)            # vpr is the complex eigenvalue (complex build)
+            λ[ie + 1] = ComplexF64(vpr)
             Χ[:, ie + 1] = recvbuf
         else
             MPI.Gatherv!(sendbuf, nothing, 0, comm)
@@ -249,65 +149,105 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
     return λ, Χ
 end
 
-"""
-    _assemble_results(λ, Χ, B_csr, sigma_0, nconv, solve_time) -> SolverResults
+# ------------------------------------------------------------------------------
+# Adaptive-σ solve of one pencil (collective across all ranks)
+# ------------------------------------------------------------------------------
 
-Rank-0 assembly of the final result: drop spurious (singular-B) modes, sort by
-distance from the shift, and wrap in `SolverResults`. `converged` is true when at
-least one eigenpair was found.
 """
-function _assemble_results(λ, Χ, B_csr, sigma_0, nconv, solve_time)
-    B = sparse_from_csr(B_csr)                      # rank-0 SparseMatrixCSC for mass filter
-    if nconv ≥ 1
-        λ, Χ = _filter_physical_modes(λ, Χ, B)
-        λ, Χ = sort_eigenvalues!(λ, Χ, :nearest; σ=sigma_0)
-    end
+    _solve_one_adaptive(A_csr, B_csr, N, comm; sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+        -> SolverResults
+
+Build the distributed pencil once, then sweep the σ schedule. Each attempt
+retargets SLEPc via `EPSSetTarget` and re-solves; rank 0 filters spurious modes,
+sorts nearest σ, and decides whether to stop (successive |Δλ₁| < ϵ). The stop
+flag is BROADCAST so every rank's control flow is identical — required, or the
+collective `EPSSolve`/`MatDestroy` calls desync and deadlock.
+"""
+function _solve_one_adaptive(A_csr, B_csr, N::Integer, comm::MPI.Comm;
+                             sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+    rank = MPI.Comm_rank(comm)
+    t0 = MPI.Wtime()
+    A = _build_petsc_mat(A_csr, N, comm)
+    B = _build_petsc_mat(B_csr, N, comm)
+    schedule = _sigma_schedule(sigma_0, n_tries, Δσ₀, incre)
+
     hist = ConvergenceHistory()
-    return SolverResults(ComplexF64.(λ), ComplexF64.(Χ), nconv ≥ 1,
-                         :Slepc, Float64(sigma_0), Int(nconv), solve_time, hist)
-end
+    λ_prev = nothing
+    best_λ = ComplexF64[]
+    best_Χ = rank == 0 ? zeros(ComplexF64, N, 0) : zeros(ComplexF64, 0, 0)
+    final_shift = Float64(sigma_0)
 
-# ------------------------------------------------------------------------------
-# Public solve_mpi methods, SLEPc init/options, and validation
-# ------------------------------------------------------------------------------
+    for σ in schedule
+        eps = EPSCreate()
+        EPSSetOperators(eps, A, B)
+        EPSSetTarget(eps, PetscScalar(σ))
+        EPSSetFromOptions(eps)
+        EPSSolve(eps)
+        nconv = EPSGetConverged(eps)
+        λ, Χ = _gather_eigenpairs(eps, A, nconv, N, comm)
+        EPSDestroy(eps)
 
-"""Throw a clear error if PETSc was built with real scalars (results would be wrong)."""
-function _assert_complex_scalars()
-    if !(PetscScalar <: Complex)
-        error("BiGSTARS solve_mpi requires a complex-scalar PETSc/SLEPc build " *
-              "(configure with --with-scalar-type=complex); got PetscScalar=$(PetscScalar).")
+        stop = false
+        if rank == 0
+            push!(hist.attempts, σ)
+            if nconv ≥ 1
+                λf, Χf = _filter_physical_modes(λ, Χ, sparse_from_csr(B_csr))
+                λf, Χf = sort_eigenvalues!(λf, Χf, :nearest; σ=σ)
+                push!(hist.converged, true)
+                push!(hist.eigenvalues, λf[1])
+                push!(hist.errors, "")
+                best_λ = ComplexF64.(λf)
+                best_Χ = ComplexF64.(Χf)
+                final_shift = σ
+                if λ_prev !== nothing && abs(λf[1] - λ_prev) < ϵ
+                    stop = true
+                end
+                λ_prev = λf[1]
+                verbose && @printf("  ✓ σ=%.6f  λ₁=%.6f%+.6fi\n", σ, real(λf[1]), imag(λf[1]))
+            else
+                push!(hist.converged, false)
+                push!(hist.eigenvalues, NaN + 0im)
+                push!(hist.errors, "no convergence")
+                verbose && @printf("  ✗ σ=%.6f  no convergence\n", σ)
+            end
+        end
+        stop = MPI.bcast(stop, 0, comm)   # collective: identical control flow on every rank
+        stop && break
+    end
+
+    solve_time = MPI.Wtime() - t0
+    MatDestroy(A)
+    MatDestroy(B)
+
+    if rank == 0
+        hist.final_shift = final_shift
+        converged = !isempty(best_λ)
+        return SolverResults(best_λ, best_Χ, converged, :Slepc, final_shift,
+                             length(hist.attempts), solve_time, hist)
+    else
+        return SolverResults(ComplexF64[], zeros(ComplexF64, 0, 0), false, :Slepc,
+                             final_shift, 0, solve_time, ConvergenceHistory())
     end
 end
 
-"""
-    solve_mpi(cache, k_values; sigma_0, nev=1, which=:LM, tol=1e-10, maxiter=300,
-              ncv=0, mat_solver=:mumps, eps_type=:krylovschur,
-              manage_init=true, verbose=false) -> Vector{SolverResults}
+# ------------------------------------------------------------------------------
+# Public solve methods + SLEPc init
+# ------------------------------------------------------------------------------
 
-Distributed eigensolve for each wavenumber. Collective: every MPI rank must call
-it. Rank 0 returns fully populated results; other ranks return empty markers.
-
-SLEPc has no programmatic per-solve options inserter in these wrappers, so the
-solver options are placed in the PETSc options database at init time. With
-`manage_init=true` (default) `solve_mpi` calls `SlepcInitialize` with the built
-options string the first time it runs (finalization is left to SLEPc's atexit
-hook). To manage initialization yourself, pass `manage_init=false` and call
-`SlepcInitialize(BiGSTARS._eps_options(...))` before `solve_mpi`.
-"""
-function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache,
-                            k_values::AbstractVector;
-                            sigma_0::Real, nev::Integer=1, which::Symbol=:LM,
-                            tol::Real=1e-10, maxiter::Integer=300, ncv::Integer=0,
-                            mat_solver::Symbol=:mumps, eps_type::Symbol=:krylovschur,
-                            manage_init::Bool=true, verbose::Bool=false)
-    opts = _eps_options(; sigma_0=Float64(sigma_0), nev=Int(nev), which=which,
-                        tol=Float64(tol), maxiter=Int(maxiter), ncv=Int(ncv),
+function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
+                        k_values::AbstractVector;
+                        sigma_0::Real, nev::Integer=1, which::Symbol=:LM,
+                        tol::Real=1e-10, maxiter::Integer=300, ncv::Integer=0,
+                        mat_solver::Symbol=:mumps, eps_type::Symbol=:krylovschur,
+                        n_tries::Integer=8, Δσ₀::Real=0.2, incre::Real=1.2, ϵ::Real=1e-5,
+                        manage_init::Bool=true, verbose::Bool=false)
+    opts = _eps_options(; nev=Int(nev), which=which, tol=Float64(tol),
+                        maxiter=Int(maxiter), ncv=Int(ncv),
                         mat_solver=String(mat_solver), eps_type=String(eps_type))
 
-    # MPI.jl populates its COMM_WORLD handle only through its own MPI.Init(); the
-    # C-level MPI_Init that PETSc runs inside SlepcInitialize does NOT, so COMM_WORLD
-    # stays the null sentinel (Comm_rank → MPI_ERR_COMM). Init MPI.jl first, then let
-    # PETSc reuse the already-initialized MPI.
+    # MPI.jl populates COMM_WORLD only through its own MPI.Init(); the C-level
+    # MPI_Init PETSc runs inside SlepcInitialize does NOT. Init MPI.jl first, then
+    # let PETSc reuse the already-initialized MPI.
     MPI.Initialized() || MPI.Init()
     if manage_init
         if !_SLEPC_INITED[]
@@ -315,12 +255,11 @@ function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache,
             _SLEPC_INITED[] = true
             _SLEPC_OPTS[] = opts
         elseif opts != _SLEPC_OPTS[]
-            error("solve_mpi: SLEPc is already initialized in this process with " *
+            error("solve: SLEPc is already initialized in this process with " *
                   "different options, and PETSc/SLEPc options can only be set once " *
                   "per process. Restart Julia for new solver settings, or pass " *
                   "manage_init=false and drive SlepcInitialize yourself.\n" *
-                  "  initialized with: $(_SLEPC_OPTS[])\n" *
-                  "  requested now:    $(opts)")
+                  "  initialized with: $(_SLEPC_OPTS[])\n  requested now:    $(opts)")
         end
     end
     _assert_complex_scalars()
@@ -339,18 +278,19 @@ function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache,
             B_csr = _to_csr(B)
         end
         N = MPI.bcast(N, 0, comm)                   # all ranks need the global size
-
         verbose && rank == 0 &&
-            println("solve_mpi: k=$(k)  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
-
-        results[i] = _solve_one(A_csr, B_csr, N, comm; sigma_0=Float64(sigma_0))
+            println("solve: k=$(k)  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
+        results[i] = _solve_one_adaptive(A_csr, B_csr, N, comm;
+                        sigma_0=Float64(sigma_0), n_tries=Int(n_tries),
+                        Δσ₀=Float64(Δσ₀), incre=Float64(incre), ϵ=Float64(ϵ),
+                        verbose=verbose)
     end
     return results
 end
 
 """Single-problem overload (no wavenumber sweep)."""
-function BiGSTARS.solve_mpi(cache::BiGSTARS.DiscretizationCache; sigma_0::Real, kwargs...)
-    return BiGSTARS.solve_mpi(cache, [0.0]; sigma_0=sigma_0, kwargs...)
+function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache; sigma_0::Real, kwargs...)
+    return BiGSTARS.solve(cache, [0.0]; sigma_0=sigma_0, kwargs...)
 end
 
 end # module

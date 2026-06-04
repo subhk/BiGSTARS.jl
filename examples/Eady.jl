@@ -106,6 +106,8 @@
 #
 # ## Load required packages
 using BiGSTARS
+using MPI
+import PetscWrap, SlepcWrap   # import: PetscWrap exports `solve`, which would shadow BiGSTARS.solve
 using Printf
 
 # ## 1. Domain
@@ -156,21 +158,15 @@ cache = discretize(prob)
 
 # ## 8. Solve over wavenumbers with adaptive shift
 function solve_eady(cache, k_values, Ri)
-    growth_rates = zeros(length(k_values))
-    sigma_shift = 0.02
+    ## Distributed SLEPc solve over all wavenumbers (adaptive-σ is internal);
+    ## which=:LR selects the largest-real (most unstable) modes near the shift.
+    results = solve(cache, collect(Float64.(k_values)); sigma_0=0.02, nev=1, which=:LR)
 
-    for (i, k_val) in enumerate(k_values)
-        A, B = assemble(cache, Float64(k_val))
-        solver = EigenSolver(A, B; σ₀=sigma_shift, method=:Krylov, nev=1, which=:LR, sortby=:R)
-        try
-            solve!(solver; verbose=false)
-            λ, _ = get_results(solver)
-            growth_rates[i] = real(λ[1])
-            sigma_shift = real(λ[1])  ## adapt shift for next wavenumber
-        catch
-            growth_rates[i] = NaN
-        end
-    end
+    ## Only rank 0 has populated results.
+    MPI.Comm_rank(MPI.COMM_WORLD) == 0 || return Float64[]
+
+    growth_rates = [r.converged && !isempty(r.eigenvalues) ?
+                    maximum(real, r.eigenvalues) : NaN for r in results]
 
     ## Results
     valid_idx = findall(!isnan, growth_rates)

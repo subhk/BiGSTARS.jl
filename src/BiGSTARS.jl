@@ -4,11 +4,6 @@ module BiGSTARS
     using SparseArrays
     using LinearAlgebra
     using FFTW
-    using ArnoldiMethod: partialschur, partialeigen, LR, LI, LM
-    using Arpack
-    using LinearMaps
-    using KrylovKit
-    using VectorInterface: MinimalSVec, MinimalMVec, MinimalVec
     using PrecompileTools: @setup_workload, @compile_workload
 
     export
@@ -44,15 +39,9 @@ module BiGSTARS
         @compute,
         @compute_setup,
 
-        # Eigenvalue solver
-        EigenSolver,
-        solve!,
-        get_results,
-        SolverConfig,
+        # Eigenvalue solver (SLEPc/PETSc backend; `solve` is exported above)
         SolverResults,
         ConvergenceHistory,
-        compare_methods!,
-        solve_mpi,
         print_summary,
 
         # Utilities
@@ -86,14 +75,18 @@ module BiGSTARS
     include("k_separation.jl")
     include("boundary.jl")
 
-    # Eigenvalue solver
-    include("construct_linear_map.jl")
-    include("eig_solver.jl")
+    # Eigenproblem result types (shared by the solver and reconstruction)
+    include("results.jl")
+
+    # Pure-Julia matrix prep for the distributed backend
     include("mpi_prep.jl")
 
-    # Discretization and solving
+    # Discretization (defines DiscretizationCache + assemble)
     include("discretize.jl")
+
+    # Public solve entrypoint (stub + fallback; real impl in ext/BiGSTARSMPIExt.jl)
     include("solve.jl")
+
     include("reconstruct.jl")
 
     # Utilities
@@ -111,9 +104,7 @@ module BiGSTARS
             @bc prob left(u) == 0
             @bc prob right(u) == 0
             cache = discretize(prob)
-            # `solve` swallows non-convergence (returns a failed result), so the
-            # workload never throws during precompilation regardless of the shift.
-            solve(cache, [1.0]; sigma_0 = 10.0, method = :Krylov, nev = 1, verbose = false)
+            assemble(cache, 1.0)   # exercise discretize→assemble; no eigensolve (needs SLEPc)
         end
     end
 

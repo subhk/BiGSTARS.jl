@@ -2074,3 +2074,22 @@ function assemble!(ws::AssemblyWorkspace, cache::DiscretizationCache, k::Float64
 
     return ws
 end
+
+"""
+    _assembled_density(cache) -> Float64
+
+Estimate the fill fraction (nnz / N²) of the assembled operator from the cached
+k-components — an upper bound on the per-wavenumber fill. Any derived cache forces
+the dense estimate (`1.0`). Retained as an assembly-banding diagnostic for tests;
+the SLEPc solve path does not consume it.
+"""
+function _assembled_density(cache::DiscretizationCache)
+    isempty(cache.derived_caches) || return 1.0
+    N = cache.N_total
+    N == 0 && return 1.0
+    pat = spzeros(ComplexF64, N, N)
+    for (_, M) in cache.A_kcomponents
+        pat += M
+    end
+    return nnz(pat) / (N * N)
+end
