@@ -1876,12 +1876,13 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 
 """
-    assemble(cache, k) -> (A, B)
+    _k_values(cache, k) -> Dict{Symbol,Float64}
 
-Assemble the full A and B matrices for a given wavenumber k (allocating).
-A(k) = Σ_p k^p * A_p + derived variable contributions with H(k).
+Build the wavenumber dict for a single scalar `k`: `:_total_k => k` when there are
+no FourierTransformed directions, else `Symbol(:k_, dim) => k` for each. Shared by
+`assemble` and the row-wise `assemble_rows` so they agree exactly.
 """
-function assemble(cache::DiscretizationCache, k::Float64)
+function _k_values(cache::DiscretizationCache, k::Float64)
     k_vals = Dict{Symbol, Float64}()
     if isempty(cache.domain.transformed_dims)
         k_vals[:_total_k] = k
@@ -1890,7 +1891,11 @@ function assemble(cache::DiscretizationCache, k::Float64)
             k_vals[Symbol(:k_, dim)] = k
         end
     end
-    return _assemble(cache, k_vals)
+    return k_vals
+end
+
+function assemble(cache::DiscretizationCache, k::Float64)
+    return _assemble(cache, _k_values(cache, k))
 end
 
 function _assemble(cache::DiscretizationCache, k_vals::Dict{Symbol, Float64})

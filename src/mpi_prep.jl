@@ -162,3 +162,100 @@ function sparse_from_csr(csr)
     end
     return sparse(I, J, V, N, N)
 end
+
+"""
+    _place_in_block_rows(mat, eq_idx, var_idx, N_per_var, N_vars, rstart, rend) -> SparseMatrixCSC
+
+Row-restricted `place_in_block`: an `(rend-rstart) × (N_per_var*N_vars)` sparse
+matrix equal to `place_in_block(mat, eq_idx, var_idx, N_vars, N_per_var)[rstart+1:rend, :]`.
+`rstart`/`rend` are 0-based half-open global rows. Only the `eq_idx` block rows that
+intersect `[rstart,rend)` carry `mat`'s rows, at the `var_idx` column block.
+"""
+function _place_in_block_rows(mat::AbstractMatrix, eq_idx::Integer, var_idx::Integer,
+                              N_per_var::Integer, N_vars::Integer,
+                              rstart::Integer, rend::Integer)
+    N_total = N_per_var * N_vars
+    nrows = rend - rstart
+    bs = (eq_idx - 1) * N_per_var          # 0-based block row start
+    be = eq_idx * N_per_var
+    cs = (var_idx - 1) * N_per_var         # 0-based block col start
+    lo = max(bs, rstart); hi = min(be, rend)
+    I = Int[]; J = Int[]; V = ComplexF64[]
+    if lo < hi
+        sub = mat[(lo - bs + 1):(hi - bs), :]      # mat rows for the overlap (1-based)
+        rv = rowvals(sub); nz = nonzeros(sub)
+        for col in 1:size(sub, 2)
+            for idx in nzrange(sub, col)
+                push!(I, rv[idx] + (lo - rstart))  # 1-based row in the output slice
+                push!(J, cs + col)                 # global column (1-based)
+                push!(V, nz[idx])
+            end
+        end
+    end
+    return sparse(I, J, V, nrows, N_total)
+end
+
+"""
+    assemble_rows(cache, k, rstart, rend) -> (A_rows, B_rows)
+
+Owned-row slice of the assembled pencil: each is an `(rend-rstart) × N_total`
+`SparseMatrixCSC` equal to `assemble(cache,k)[rstart+1:rend, :]`, built WITHOUT
+materializing any full N×N matrix. `rstart`/`rend` are 0-based half-open global rows.
+Mirrors `_assemble` (discretize.jl) term-by-term, sliced to the owned rows.
+"""
+function assemble_rows(cache, k::Float64,
+                       rstart::Integer, rend::Integer)
+    N = cache.N_total
+    (0 ≤ rstart ≤ rend ≤ N) ||
+        throw(ArgumentError("row range [$rstart,$rend) out of [0,$N]"))
+    k_vals = _k_values(cache, k)
+    nrows = rend - rstart
+
+    A_rows = spzeros(ComplexF64, nrows, N)
+    for (kp, Ap) in cache.A_kcomponents
+        c = _k_coeff(kp, k_vals); c == 0.0 && continue
+        A_rows = A_rows + c * Ap[(rstart + 1):rend, :]
+    end
+
+    B_rows = spzeros(ComplexF64, nrows, N)
+    for (kp, Bp) in cache.B_kcomponents
+        c = _k_coeff(kp, k_vals); c == 0.0 && continue
+        B_rows = B_rows + c * Bp[(rstart + 1):rend, :]
+    end
+
+    for (_, dc) in cache.derived_caches
+        isempty(dc.terms) && continue
+        op_k = dc.op_k0
+        for (kp, mat) in dc.op_k_components
+            c = _k_coeff(kp, k_vals); c == 0.0 && continue
+            op_k = op_k + c * mat
+        end
+        H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
+        for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
+            w = _k_coeff(total_kp, k_vals); w == 0.0 && continue
+            combined = coeff_mat * H_k * rhs_mat
+            A_rows = A_rows + w * _place_in_block_rows(combined, eq_idx, var_idx,
+                                                       cache.N_per_var, cache.N_vars,
+                                                       rstart, rend)
+        end
+    end
+    return A_rows, B_rows
+end
+
+"""
+    _assemble_B_full(cache, k) -> SparseMatrixCSC
+
+The full mass matrix `B = Σ_p k^p · B_kcomponents[p]` (B has no derived terms).
+Cheap; built on the group root for the singular-`B` spurious-mode filter when the
+distributed path means no rank holds a full `B`.
+"""
+function _assemble_B_full(cache, k::Float64)
+    k_vals = _k_values(cache, k)
+    N = cache.N_total
+    B = spzeros(ComplexF64, N, N)
+    for (kp, Bp) in cache.B_kcomponents
+        c = _k_coeff(kp, k_vals); c == 0.0 && continue
+        B = B + c * Bp
+    end
+    return B
+end
