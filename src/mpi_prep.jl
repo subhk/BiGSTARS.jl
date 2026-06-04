@@ -85,12 +85,14 @@ end
     _sigma_schedule(σ₀, n_tries, Δσ₀, incre) -> Vector{Float64}
 
 Adaptive shift schedule: `σ₀` first, then `n_tries` geometrically growing
-increments above and below it (`Δσ₀ * incre^(i-1) * |σ₀|`). Pure-Julia, so the
-adaptive-σ logic is unit-tested without PETSc. Mirrors the schedule the old
-serial solver used.
+increments above and below it (`Δσ₀ * incre^(i-1) * base`, where `base = |σ₀|`,
+floored to `1.0` when `σ₀ == 0` so the retries actually vary instead of all
+re-targeting zero). Pure-Julia, so the adaptive-σ logic is unit-tested without
+PETSc. Mirrors the schedule the old serial solver used.
 """
 function _sigma_schedule(σ₀::Real, n_tries::Integer, Δσ₀::Real, incre::Real)
-    up = Float64[Δσ₀ * incre^(i - 1) * abs(σ₀) for i in 1:n_tries]
+    base = abs(σ₀) > 0 ? abs(σ₀) : 1.0
+    up = Float64[Δσ₀ * incre^(i - 1) * base for i in 1:n_tries]
     return vcat(Float64(σ₀), σ₀ .+ up, σ₀ .- up)
 end
 
