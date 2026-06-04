@@ -2,8 +2,8 @@ module BiGSTARSMPIExt
 
 using BiGSTARS
 using BiGSTARS: _to_csr, _csr_row_block, _csr_block_nnz_split, _eps_options,
-                _sigma_schedule, sparse_from_csr, SolverResults, ConvergenceHistory,
-                sort_eigenvalues!, _filter_physical_modes
+                _sigma_schedule, _group_indices, sparse_from_csr, SolverResults,
+                ConvergenceHistory, sort_eigenvalues!, _filter_physical_modes
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -53,7 +53,7 @@ function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
     rank = MPI.Comm_rank(comm)
     nproc = MPI.Comm_size(comm)
 
-    M = MatCreate()                                # defaults to MPI.COMM_WORLD
+    M = MatCreate(comm)                            # create on the (group) communicator
     MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
     MatSetFromOptions(M)
     rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
@@ -178,7 +178,7 @@ function _solve_one_adaptive(A_csr, B_csr, N::Integer, comm::MPI.Comm;
     final_shift = Float64(sigma_0)
 
     for σ in schedule
-        eps = EPSCreate()
+        eps = EPSCreate(comm)
         EPSSetOperators(eps, A, B)
         EPSSetTarget(eps, PetscScalar(σ))
         EPSSetFromOptions(eps)
@@ -240,7 +240,7 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
                         tol::Real=1e-10, maxiter::Integer=300, ncv::Integer=0,
                         mat_solver::Symbol=:mumps, eps_type::Symbol=:krylovschur,
                         n_tries::Integer=8, Δσ₀::Real=0.2, incre::Real=1.2, ϵ::Real=1e-5,
-                        manage_init::Bool=true, verbose::Bool=false)
+                        ngroups::Integer=1, manage_init::Bool=true, verbose::Bool=false)
     opts = _eps_options(; nev=Int(nev), which=which, tol=Float64(tol),
                         maxiter=Int(maxiter), ncv=Int(ncv),
                         mat_solver=String(mat_solver), eps_type=String(eps_type))
@@ -264,27 +264,74 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
     end
     _assert_complex_scalars()
 
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    results = Vector{SolverResults}(undef, length(k_values))
+    world = MPI.COMM_WORLD
+    P = MPI.Comm_size(world)
+    wrank = MPI.Comm_rank(world)
+    # Validate identically on every rank (pre-split, so a bad ngroups errors
+    # collectively — no deadlock).
+    (1 ≤ ngroups ≤ P) ||
+        error("solve: ngroups=$(ngroups) must be in 1:$(P) (number of MPI ranks)")
+    (P % ngroups == 0) ||
+        error("solve: nprocs=$(P) is not divisible by ngroups=$(ngroups)")
 
-    for (i, k) in enumerate(k_values)
-        # Rank 0 assembles serially with the existing pipeline; others hold nothing.
+    nk = length(k_values)
+    # Full-length result vector; non-(global-root) ranks return empty markers.
+    results = SolverResults[
+        SolverResults(ComplexF64[], zeros(ComplexF64, 0, 0), false, :Slepc,
+                      Float64(sigma_0), 0, 0.0, ConvergenceHistory()) for _ in 1:nk]
+
+    # Form groups. ngroups==1 keeps COMM_WORLD verbatim (the v4.0.0 path).
+    if ngroups == 1
+        group_comm = world; group_id = 0; psize = P
+    else
+        psize = P ÷ ngroups
+        group_id = wrank ÷ psize
+        group_comm = MPI.Comm_split(world, group_id, wrank)
+    end
+    grank = MPI.Comm_rank(group_comm)
+
+    # Each group solves its round-robin subset, sequentially, distributed on group_comm.
+    local_pairs = Tuple{Int,SolverResults}[]
+    for i in _group_indices(nk, ngroups, group_id)
         A_csr = nothing; B_csr = nothing; N = 0
-        if rank == 0
-            A, B = BiGSTARS.assemble(cache, Float64(k))
+        if grank == 0
+            A, B = BiGSTARS.assemble(cache, Float64(k_values[i]))
             N = size(A, 1)
             A_csr = _to_csr(A)
             B_csr = _to_csr(B)
         end
-        N = MPI.bcast(N, 0, comm)                   # all ranks need the global size
-        verbose && rank == 0 &&
-            println("solve: k=$(k)  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
-        results[i] = _solve_one_adaptive(A_csr, B_csr, N, comm;
+        N = MPI.bcast(N, 0, group_comm)            # group-collective
+        verbose && grank == 0 &&
+            println("solve: group $(group_id)  k=$(k_values[i])  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
+        r = _solve_one_adaptive(A_csr, B_csr, N, group_comm;
                         sigma_0=Float64(sigma_0), n_tries=Int(n_tries),
                         Δσ₀=Float64(Δσ₀), incre=Float64(incre), ϵ=Float64(ϵ),
                         verbose=verbose)
+        grank == 0 && push!(local_pairs, (i, r))
     end
+
+    # Collect group-root results to global rank 0 (point-to-point over WORLD).
+    if ngroups == 1
+        wrank == 0 && for (i, r) in local_pairs
+            results[i] = r
+        end
+    else
+        TAG = 7777
+        if wrank == 0
+            for (i, r) in local_pairs                 # own group's results
+                results[i] = r
+            end
+            for g in 1:(ngroups - 1)                   # the other groups' roots
+                pairs, _ = MPI.recv(g * psize, TAG, world)
+                for (i, r) in pairs
+                    results[i] = r
+                end
+            end
+        elseif grank == 0
+            MPI.send(local_pairs, 0, TAG, world)       # group root → global root
+        end
+    end
+
     return results
 end
 

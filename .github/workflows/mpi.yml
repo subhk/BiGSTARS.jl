@@ -100,3 +100,6 @@ jobs:
 
       - name: Run integration test (n=2)
         run: mpiexec --oversubscribe -n 2 julia --project=test/mpi test/mpi/test_slepc.jl
+
+      - name: Run integration test (n=4, groups)
+        run: mpiexec --oversubscribe -n 4 julia --project=test/mpi test/mpi/test_slepc.jl

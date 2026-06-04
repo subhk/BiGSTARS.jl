@@ -34,6 +34,24 @@ results = solve(cache, k_values;
 
 Run with `mpiexec -n P julia --project=. script.jl`.
 
+### Parallel across wavenumbers (`ngroups`)
+
+By default (`ngroups=1`) all ranks collaborate on one wavenumber's pencil at a
+time. Set `ngroups=G` to split the `P` ranks into `G` equal groups (requires
+`P % G == 0`): the wavenumbers are distributed round-robin across groups, each
+group solving its subset on its own sub-communicator while the matrix of each
+pencil is still distributed across that group's ranks. Results are gathered to
+global rank 0.
+
+```julia
+# 8 ranks, 4 groups of 2: 4 wavenumbers solved concurrently, each pencil on 2 ranks
+mpiexec -n 8 julia --project=. -e '... solve(cache, k_values; sigma_0=0.02, nev=5, ngroups=4) ...'
+```
+
+Pick `ngroups` to balance across-wavenumber concurrency (more groups) against
+per-solve distribution (larger groups). Assembly of each pencil is still serial on
+its group's rank 0.
+
 ## Worked example: Eady baroclinic instability
 
 The full runnable script is

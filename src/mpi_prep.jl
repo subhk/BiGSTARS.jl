@@ -82,6 +82,18 @@ function _csr_block_nnz_split(rowptr::AbstractVector{<:Integer},
 end
 
 """
+    _group_indices(nk, ngroups, group_id) -> Vector{Int}
+
+1-based indices of `1:nk` assigned to group `group_id` (0-based) under a
+round-robin split into `ngroups` groups: index `i` goes to group `(i-1) % ngroups`.
+Pure-Julia, so the across-wavenumber routing is unit-tested without MPI. Returns
+an empty vector when a group gets no work (more groups than wavenumbers).
+"""
+function _group_indices(nk::Integer, ngroups::Integer, group_id::Integer)
+    return Int[i for i in 1:nk if (i - 1) % ngroups == group_id]
+end
+
+"""
     _sigma_schedule(σ₀, n_tries, Δσ₀, incre) -> Vector{Float64}
 
 Adaptive shift schedule: `σ₀` first, then `n_tries` geometrically growing

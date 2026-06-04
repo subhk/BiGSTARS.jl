@@ -85,3 +85,25 @@ if rank == 0
     end
     ts2.anynonpass && exit(1)
 end
+
+# ── Across-wavenumber groups (Phase 1) ────────────────────────────────────────
+# Split ranks into 2 groups when nprocs is even (n=2 → 2×1, n=4 → 2×2); each group
+# solves a round-robin subset of the wavenumbers and global rank 0 collects all.
+# σ_1(k) = k² + π² for this Poisson pencil.
+nprocs = MPI.Comm_size(MPI.COMM_WORLD)
+ng = (nprocs % 2 == 0) ? 2 : 1
+ks = [0.5, 1.0, 1.5, 2.0]
+res_g = solve(cache, ks; sigma_0=10.0, nev=4, which=:LM, tol=1e-10, ngroups=ng)
+if rank == 0
+    ts3 = @testset "across-k groups (ngroups=$(ng))" begin
+        @test length(res_g) == length(ks)
+        for (j, kj) in enumerate(ks)
+            @test res_g[j].converged
+            σ1 = minimum(real, res_g[j].eigenvalues)   # smallest = k² + π²
+            @test isapprox(σ1, kj^2 + π^2; rtol=1e-3)
+        end
+        println("groups ng=$(ng): " *
+                join(["k=$(ks[j]) σ1=$(minimum(real,res_g[j].eigenvalues))" for j in 1:length(ks)], "  "))
+    end
+    ts3.anynonpass && exit(1)
+end

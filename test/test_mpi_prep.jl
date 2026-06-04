@@ -127,6 +127,21 @@ using LinearAlgebra
         @test BiGSTARS._WHICH_OPT[:SI] == "smallest_imaginary"
     end
 
+    @testset "_group_indices round-robin partition" begin
+        # 5 wavenumbers, 2 groups
+        @test BiGSTARS._group_indices(5, 2, 0) == [1, 3, 5]
+        @test BiGSTARS._group_indices(5, 2, 1) == [2, 4]
+        # 1 group gets everything
+        @test BiGSTARS._group_indices(4, 1, 0) == [1, 2, 3, 4]
+        # every index assigned exactly once, across all groups (coverage + disjoint)
+        let nk = 7, ng = 3
+            all_idx = reduce(vcat, BiGSTARS._group_indices(nk, ng, g) for g in 0:(ng-1))
+            @test sort(all_idx) == collect(1:nk)
+        end
+        # empty group (more groups than wavenumbers)
+        @test BiGSTARS._group_indices(2, 4, 3) == Int[]
+    end
+
     @testset "_eps_options builds the SLEPc options string (no numeric target)" begin
         s = BiGSTARS._eps_options(; nev=5, which=:LM, tol=1e-10,
                                   maxiter=300, ncv=0, mat_solver="mumps",
