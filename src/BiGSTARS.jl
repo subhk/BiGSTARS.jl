@@ -32,6 +32,7 @@ module BiGSTARS
         allocate_workspace,
         AssemblyWorkspace,
         solve,
+        discretize_distributed,
         DiscretizationCache,
         reconstruct,
         reconstruct_all,

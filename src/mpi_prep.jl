@@ -94,6 +94,25 @@ function _group_indices(nk::Integer, ngroups::Integer, group_id::Integer)
 end
 
 """
+    _petsc_ownership(N, nproc, rank) -> (rstart, rend)
+
+PETSc's default contiguous row split (`PETSC_DECIDE`) for an `N`-row object over
+`nproc` ranks: rank `r` owns `N÷nproc` rows, plus one extra for the first
+`N % nproc` ranks. Returns the 0-based half-open owned range `[rstart, rend)`.
+Pure-Julia replica of PETSc's `PetscSplitOwnership`, so a rank's owned rows can be
+computed WITHOUT a PETSc probe (and unit-tested without MPI). The PETSc matrix
+built later uses the same split; `assemble_rows` asserts the resulting range
+matches the cache's `row_range`.
+"""
+function _petsc_ownership(N::Integer, nproc::Integer, rank::Integer)
+    base = N ÷ nproc
+    rem  = N % nproc
+    rstart = rank * base + min(rank, rem)
+    rend   = rstart + base + (rank < rem ? 1 : 0)
+    return rstart, rend
+end
+
+"""
     _sigma_schedule(σ₀, n_tries, Δσ₀, incre) -> Vector{Float64}
 
 Adaptive shift schedule: `σ₀` first, then `n_tries` geometrically growing
@@ -196,31 +215,62 @@ function _place_in_block_rows(mat::AbstractMatrix, eq_idx::Integer, var_idx::Int
 end
 
 """
+    restrict_cache_rows(cache, rstart, rend) -> DiscretizationCache
+
+Return a cache whose k-independent components (`A_kcomponents`/`B_kcomponents`) are
+sliced to the owned global rows `[rstart,rend)` (0-based half-open), with
+`row_range=(rstart,rend)` set. `derived_caches` are kept full (k-dependent `H(k)`).
+Errors if `cache` is already restricted. Pure (no MPI/PETSc).
+"""
+function restrict_cache_rows(cache, rstart::Integer, rend::Integer)
+    cache.row_range === nothing ||
+        throw(ArgumentError("cache already restricted to $(cache.row_range)"))
+    function _slice_rows(d)
+        out = empty(d)
+        for (kp, M) in d
+            out[kp] = M[(rstart + 1):rend, :]
+        end
+        return out
+    end
+    return DiscretizationCache(cache.A_components, cache.B_components,
+        _slice_rows(cache.A_kcomponents), _slice_rows(cache.B_kcomponents),
+        cache.derived_caches, cache.N_total, cache.N_per_var, cache.N_vars,
+        cache.domain, cache.derived_var_order, (Int(rstart), Int(rend)))
+end
+
+"""
     assemble_rows(cache, k, rstart, rend) -> (A_rows, B_rows)
 
 Owned-row slice of the assembled pencil: each is an `(rend-rstart) × N_total`
 `SparseMatrixCSC` equal to `assemble(cache,k)[rstart+1:rend, :]`, built WITHOUT
 materializing any full N×N matrix. `rstart`/`rend` are 0-based half-open global rows.
 Mirrors `_assemble` (discretize.jl) term-by-term, sliced to the owned rows.
+When `cache.row_range` is set (restricted cache), the k-components are already
+sliced and are summed directly; the requested range must match exactly.
 """
 function assemble_rows(cache, k::Float64,
                        rstart::Integer, rend::Integer)
     N = cache.N_total
     (0 ≤ rstart ≤ rend ≤ N) ||
         throw(ArgumentError("row range [$rstart,$rend) out of [0,$N]"))
+    if cache.row_range !== nothing
+        cache.row_range == (Int(rstart), Int(rend)) ||
+            throw(ArgumentError("requested rows ($rstart,$rend) ≠ cache.row_range $(cache.row_range)"))
+    end
+    sliced = cache.row_range === nothing          # full cache → slice; restricted → use as-is
     k_vals = _k_values(cache, k)
     nrows = rend - rstart
 
     A_rows = spzeros(ComplexF64, nrows, N)
     for (kp, Ap) in cache.A_kcomponents
         c = _k_coeff(kp, k_vals); c == 0.0 && continue
-        A_rows = A_rows + c * Ap[(rstart + 1):rend, :]
+        A_rows = A_rows + c * (sliced ? Ap[(rstart + 1):rend, :] : Ap)
     end
 
     B_rows = spzeros(ComplexF64, nrows, N)
     for (kp, Bp) in cache.B_kcomponents
         c = _k_coeff(kp, k_vals); c == 0.0 && continue
-        B_rows = B_rows + c * Bp[(rstart + 1):rend, :]
+        B_rows = B_rows + c * (sliced ? Bp[(rstart + 1):rend, :] : Bp)
     end
 
     for (_, dc) in cache.derived_caches

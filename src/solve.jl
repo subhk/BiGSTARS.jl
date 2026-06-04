@@ -36,3 +36,20 @@ function solve(@nospecialize(args...); kwargs...)
           "MPI, PetscWrap, and SlepcWrap, plus a complex-scalar system PETSc/SLEPc " *
           "build (set PETSC_DIR, PETSC_ARCH, SLEPC_DIR). See docs/src/mpi.md.")
 end
+
+"""
+    discretize_distributed(prob; ngroups=1, kwargs...) -> DiscretizationCache
+
+MPI-coupled discretize: builds the full cache, then returns a per-rank row-restricted
+cache (group roots keep the full cache, for the singular-B mass filter). Provided by
+the extension `BiGSTARSMPIExt` (requires MPI, PetscWrap, SlepcWrap + a complex-scalar
+PETSc/SLEPc). Use the SAME `ngroups` in the subsequent `solve`. `kwargs` are forwarded
+to `discretize` (e.g. `augment_derived`). Run under `mpiexec -n P julia …`.
+"""
+function discretize_distributed end
+
+function discretize_distributed(@nospecialize(args...); kwargs...)
+    error("BiGSTARS.discretize_distributed requires the SLEPc/PETSc backend: install " *
+          "and import MPI, PetscWrap, and SlepcWrap, plus a complex-scalar PETSc/SLEPc " *
+          "build. See docs/src/mpi.md.")
+end

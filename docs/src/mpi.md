@@ -52,6 +52,24 @@ Pick `ngroups` to balance across-wavenumber concurrency (more groups) against
 per-solve distribution (larger groups). Assembly of each pencil is still serial on
 its group's rank 0.
 
+### Lower per-rank memory: `discretize_distributed`
+
+For very large problems, build the cache with `discretize_distributed(prob; ngroups=G)`
+instead of `discretize(prob)`. It returns, on each non-root rank, a cache holding only
+that rank's owned rows of the operator components (group roots keep the full cache for
+the spurious-mode filter), reducing steady-state per-rank memory. Pass the **same**
+`ngroups` to `solve`:
+
+```julia
+cache = discretize_distributed(prob; ngroups=4)
+results = solve(cache, k_values; sigma_0=0.02, nev=5, ngroups=4)
+```
+
+Notes: the full cache is still built transiently on every rank (peak memory is
+unchanged), legacy `augment_derived=false` terms are not reduced, and the returned
+cache is tied to this rank + `ngroups` (not portable). A plain `discretize` cache
+works with `solve` exactly as before.
+
 ## Worked example: Eady baroclinic instability
 
 The full runnable script is

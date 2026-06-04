@@ -32,6 +32,7 @@ struct DiscretizationCache
     N_vars::Int
     domain::Domain
     derived_var_order::Vector{Symbol}
+    row_range::Union{Nothing, Tuple{Int, Int}}
 end
 
 const FieldMultiplyCacheKey = Tuple{Symbol, Symbol, Union{Nothing, Symbol}}
@@ -70,7 +71,7 @@ function DiscretizationCache(A_components::Dict{Int, SparseMatrixCSC{ComplexF64,
     B_kcomponents = _legacy_components_to_k(B_components, domain)
     return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents,
                                derived_caches, N_total, N_per_var, N_vars, domain,
-                               derived_var_order)
+                               derived_var_order, nothing)
 end
 
 function _legacy_components_to_k(components::Dict{Int, SparseMatrixCSC{ComplexF64, Int}},
@@ -1821,7 +1822,7 @@ function discretize(prob::EVP; augment_derived::Bool=true)
     end
 
     return DiscretizationCache(A_components, B_components, A_kcomponents, B_kcomponents, derived_caches,
-                               N_total, N_per_var, N_vars, prob.domain, derived_var_order)
+                               N_total, N_per_var, N_vars, prob.domain, derived_var_order, nothing)
 end
 
 """
