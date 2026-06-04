@@ -142,6 +142,20 @@ using LinearAlgebra
         @test BiGSTARS._group_indices(2, 4, 3) == Int[]
     end
 
+    @testset "_place_in_block_rows matches place_in_block row-slice" begin
+    Npv, Nvars = 4, 3
+    N = Npv * Nvars
+    mat = sparse(ComplexF64[ (10i + j) for i in 1:Npv, j in 1:Npv ])  # dense-ish block
+    full = BiGSTARS.place_in_block(mat, 2, 3, Nvars, Npv)             # eq 2, var 3
+    for (rs, re) in ((0, N), (Npv, 2Npv), (0, Npv), (5, 7), (2Npv, N))
+        got = BiGSTARS._place_in_block_rows(mat, 2, 3, Npv, Nvars, rs, re)
+        @test got == full[(rs+1):re, :]
+    end
+    # block that does not overlap the owned rows → all-zero slice
+    z = BiGSTARS._place_in_block_rows(mat, 1, 1, Npv, Nvars, 2Npv, N)
+    @test nnz(z) == 0 && size(z) == (N - 2Npv, N)
+end
+
     @testset "_eps_options builds the SLEPc options string (no numeric target)" begin
         s = BiGSTARS._eps_options(; nev=5, which=:LM, tol=1e-10,
                                   maxiter=300, ncv=0, mat_solver="mumps",
@@ -165,5 +179,49 @@ using LinearAlgebra
         @test_throws ArgumentError BiGSTARS._eps_options(;
             nev=1, which=:XX, tol=1e-10, maxiter=10, ncv=0,
             mat_solver="mumps", eps_type="krylovschur")
+    end
+
+    @testset "assemble_rows == assemble row-slice" begin
+        function mkcache_plain()
+            dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+            p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+            @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+            @bc p left(u) == 0
+            @bc p right(u) == 0
+            discretize(p)
+        end
+        function mkcache_augmented()
+            dom = Domain(z=Chebyshev(N=12, lower=0.0, upper=1.0))
+            p = EVP(dom, variables=[:psi], eigenvalue=:sigma)
+            @derive p v dz(dz(v)) = psi
+            @derive_bc p v left(v) == 0
+            @derive_bc p v right(v) == 0
+            @equation p sigma * psi == v
+            @bc p left(psi) == 0
+            @bc p right(psi) == 0
+            discretize(p; augment_derived=true)
+        end
+        function mkcache_legacy()
+            dom = Domain(x=FourierTransformed(), y=Fourier(8,[0.0,1.0]), z=Chebyshev(8,[0.0,1.0]))
+            p = EVP(dom, variables=[:w,:zeta], eigenvalue=:sigma)
+            @derive p v dx(dx(v)) + dy(dy(v)) = dy(dz(w)) - dx(zeta)
+            @equation p sigma * w == v - dz(dz(w))
+            @equation p sigma * zeta == dz(w)
+            @bc p left(w) == 0; @bc p right(w) == 0
+            @bc p left(dz(zeta)) == 0; @bc p right(dz(zeta)) == 0
+            discretize(p; augment_derived=false)
+        end
+        for (mk, k) in ((mkcache_plain, 1.3), (mkcache_augmented, 0.0), (mkcache_legacy, 1.0))
+            cache = mk()
+            Afull, Bfull = assemble(cache, k)
+            N = cache.N_total
+            for (rs, re) in ((0, N), (0, 0), (0, cld(N,3)), (cld(N,3), 2*cld(N,3)), (N-1, N))
+                A_rows, B_rows = BiGSTARS.assemble_rows(cache, k, rs, re)
+                @test size(A_rows) == (re - rs, N) && size(B_rows) == (re - rs, N)
+                @test A_rows ≈ Afull[(rs+1):re, :]
+                @test B_rows ≈ Bfull[(rs+1):re, :]
+            end
+            @test BiGSTARS._assemble_B_full(cache, k) ≈ Bfull
+        end
     end
 end

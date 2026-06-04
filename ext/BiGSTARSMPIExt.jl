@@ -1,9 +1,10 @@
 module BiGSTARSMPIExt
 
 using BiGSTARS
-using BiGSTARS: _to_csr, _csr_row_block, _csr_block_nnz_split, _eps_options,
-                _sigma_schedule, _group_indices, sparse_from_csr, SolverResults,
-                ConvergenceHistory, sort_eigenvalues!, _filter_physical_modes
+using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
+                _sigma_schedule, _group_indices, assemble_rows,
+                _assemble_B_full, SolverResults, ConvergenceHistory,
+                sort_eigenvalues!, _filter_physical_modes
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -15,8 +16,8 @@ using Printf: @printf
 # BiGSTARSMPIExt — distributed eigensolver backend over SLEPc/PETSc, the package's
 # sole eigensolve backend (loaded when MPI, PetscWrap, SlepcWrap are all imported).
 #
-# Rank 0 assembles A,B serially with the BiGSTARS pipeline and converts them to
-# 0-based CSR. Each rank's owned row-block is scattered from rank 0 and inserted
+# Each rank assembles ONLY its owned rows of A,B locally (assemble_rows slices the
+# replicated cache components — no rank-0 full build, no scatter) and inserts them
 # into a distributed PETSc MatMPIAIJ. SLEPc's EPS solves the generalized pencil
 # with a shift-and-invert spectral transform; an adaptive-σ loop retargets the
 # transform per attempt via EPSSetTarget until the eigenvalue at the shift is
@@ -49,39 +50,35 @@ end
 # Build the distributed PETSc matrix from scattered CSR row-blocks
 # ------------------------------------------------------------------------------
 
-function _build_petsc_mat(A_csr, N::Integer, comm::MPI.Comm)
-    rank = MPI.Comm_rank(comm)
-    nproc = MPI.Comm_size(comm)
-
-    M = MatCreate(comm)                            # create on the (group) communicator
-    MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
-    MatSetFromOptions(M)
-    rstart, rend = MatGetOwnershipRange(M)         # 0-based [rstart, rend)
-
-    starts = MPI.Gather(Int(rstart), 0, comm)
-    ends   = MPI.Gather(Int(rend),   0, comm)
-
-    if rank == 0
-        rowptr, colind, vals = A_csr
-        for p in 1:(nproc - 1)
-            ps, pe = starts[p + 1], ends[p + 1]
-            lrp, lci, lv = _csr_row_block(rowptr, colind, vals, ps, pe)
-            d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, ps, pe, ps, pe)
-            MPI.send((lrp, lci, lv, d_nnz, o_nnz), p, 0, comm)
-        end
-        lrp, lci, lv = _csr_row_block(rowptr, colind, vals, rstart, rend)
-        d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, rstart, rend, rstart, rend)
-        _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
-        _insert_rows!(M, rstart, lrp, lci, lv)
-    else
-        (lrp, lci, lv, d_nnz, o_nnz), _ = MPI.recv(0, 0, comm)
-        _prealloc!(M, nproc, d_nnz, o_nnz) || MatSetUp(M)
-        _insert_rows!(M, rstart, lrp, lci, lv)
-    end
-
+"""Fill an already-created PETSc matrix `M` from a local owned-row slice `rows`
+(`nrows × N`, global columns), owned global rows `[rstart,rend)`. No scatter."""
+function _fill_mat!(M, rows, rstart::Integer, rend::Integer, comm::MPI.Comm)
+    rowptr, colind, vals = _to_csr(rows)                       # CSR of the local slice
+    d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, 0, rend - rstart, rstart, rend)
+    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || MatSetUp(M)
+    _insert_rows!(M, rstart, rowptr, colind, vals)            # global rows rstart..rend-1
     MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
     MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
     return M
+end
+
+"""Build distributed PETSc A and B for one wavenumber, each rank assembling only
+its owned rows locally from the replicated cache (no rank-0 full matrix, no scatter)."""
+function _build_petsc_mats_local(cache, k, N::Integer, comm::MPI.Comm)
+    A = MatCreate(comm)
+    MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    MatSetFromOptions(A)
+    rstart, rend = MatGetOwnershipRange(A)                    # 0-based [rstart,rend)
+    A_rows, B_rows = assemble_rows(cache, Float64(k), rstart, rend)
+    _fill_mat!(A, A_rows, rstart, rend, comm)
+
+    B = MatCreate(comm)
+    MatSetSizes(B, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    MatSetFromOptions(B)
+    rstartB, rendB = MatGetOwnershipRange(B)
+    @assert (rstartB, rendB) == (rstart, rend)               # same N+comm ⇒ same layout
+    _fill_mat!(B, B_rows, rstart, rend, comm)
+    return A, B
 end
 
 function _prealloc!(M, nproc::Integer, d_nnz, o_nnz)
@@ -154,7 +151,7 @@ end
 # ------------------------------------------------------------------------------
 
 """
-    _solve_one_adaptive(A_csr, B_csr, N, comm; sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+    _solve_one_adaptive(cache, k, N, comm; sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
         -> SolverResults
 
 Build the distributed pencil once, then sweep the σ schedule. Each attempt
@@ -163,12 +160,11 @@ sorts nearest σ, and decides whether to stop (successive |Δλ₁| < ϵ). The s
 flag is BROADCAST so every rank's control flow is identical — required, or the
 collective `EPSSolve`/`MatDestroy` calls desync and deadlock.
 """
-function _solve_one_adaptive(A_csr, B_csr, N::Integer, comm::MPI.Comm;
+function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
                              sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
     rank = MPI.Comm_rank(comm)
     t0 = MPI.Wtime()
-    A = _build_petsc_mat(A_csr, N, comm)
-    B = _build_petsc_mat(B_csr, N, comm)
+    A, B = _build_petsc_mats_local(cache, k, N, comm)
     schedule = _sigma_schedule(sigma_0, n_tries, Δσ₀, incre)
 
     hist = ConvergenceHistory()
@@ -191,7 +187,7 @@ function _solve_one_adaptive(A_csr, B_csr, N::Integer, comm::MPI.Comm;
         if rank == 0
             push!(hist.attempts, σ)
             if nconv ≥ 1
-                λf, Χf = _filter_physical_modes(λ, Χ, sparse_from_csr(B_csr))
+                λf, Χf = _filter_physical_modes(λ, Χ, _assemble_B_full(cache, Float64(k)))
                 λf, Χf = sort_eigenvalues!(λf, Χf, :nearest; σ=σ)
                 push!(hist.converged, true)
                 push!(hist.eigenvalues, λf[1])
@@ -293,17 +289,10 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
     # Each group solves its round-robin subset, sequentially, distributed on group_comm.
     local_pairs = Tuple{Int,SolverResults}[]
     for i in _group_indices(nk, ngroups, group_id)
-        A_csr = nothing; B_csr = nothing; N = 0
-        if grank == 0
-            A, B = BiGSTARS.assemble(cache, Float64(k_values[i]))
-            N = size(A, 1)
-            A_csr = _to_csr(A)
-            B_csr = _to_csr(B)
-        end
-        N = MPI.bcast(N, 0, group_comm)            # group-collective
+        N = cache.N_total                          # replicated; no assemble-on-root, no bcast
         verbose && grank == 0 &&
             println("solve: group $(group_id)  k=$(k_values[i])  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
-        r = _solve_one_adaptive(A_csr, B_csr, N, group_comm;
+        r = _solve_one_adaptive(cache, Float64(k_values[i]), N, group_comm;
                         sigma_0=Float64(sigma_0), n_tries=Int(n_tries),
                         Δσ₀=Float64(Δσ₀), incre=Float64(incre), ϵ=Float64(ϵ),
                         verbose=verbose)
