@@ -13,6 +13,10 @@ import PetscWrap, SlepcWrap
 using Test
 using LinearAlgebra
 
+# MPI.jl's COMM_WORLD handle is populated only by its own MPI.Init(); calling
+# MPI.Comm_rank before it aborts ("MPI_Comm_rank called before MPI_INIT").
+# `solve` also guards init, but this script touches the communicator first.
+MPI.Initialized() || MPI.Init()
 rank = MPI.Comm_rank(MPI.COMM_WORLD)
 
 # ── Analytic reference (no serial solver exists anymore) ──────────────────────
