@@ -5,7 +5,7 @@
 <!-- description --> 
   **Bi**-**G**lobal **St**ability **A**nalysis of **R**otating **S**tratified Flows (BiGSTARS): A linear stability analysis tool for geophysical flows with Julia. 
 
-Bi-global stability analysis offers a pragmatic alternative between 1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground with a symbolic equation DSL, ultraspherical spectral discretizations, and shift-and-invert eigensolvers — so you can resolve key instabilities without massive computational resources.
+Bi-global stability analysis offers a pragmatic alternative between 1D (too idealized) and fully tri-global (often too expensive) approaches. BiGSTARS.jl gives geophysical fluid dynamicists a practical middle ground with a symbolic equation DSL, ultraspherical spectral discretizations, and a distributed shift-and-invert eigensolver built on SLEPc/PETSc — so you can resolve key instabilities without massive computational resources.
 
 Write your equations — the code does the rest.
 
@@ -19,17 +19,19 @@ cache = discretize(prob)
 results = solve(cache, k_values; sigma_0=0.02)
 ```
 
+> `solve` runs on the SLEPc/PETSc backend — import `MPI`, `PetscWrap`, `SlepcWrap`
+> and launch with `mpiexec -n P julia ...` (see [Installation](#installation)).
+
 ### Key Features
 
 - **Symbolic equation DSL** — Write PDEs with `dx`, `dy`, `dz`; automatic discretization into sparse GEVP matrices
 - **Ultraspherical spectral method** — Fully sparse Chebyshev operators (Olver & Townsend, 2013); Fourier in coefficient space
 - **Generalized BCs** — Dirichlet, Neumann, Robin, higher-order, coupled, and eigenvalue-dependent boundary conditions
 - **Derived variables** (`@derive`) — auxiliary fields augmented into the sparse system by default (no dense inverse); opt out with `augment_derived=false`
-- **Wavenumber-separated caching** — Discretize once, assemble cheaply per wavenumber; parallel sweeps with `parallel=true`
+- **Wavenumber-separated caching** — Discretize once, assemble cheaply per wavenumber; one distributed eigenproblem per wavenumber across MPI ranks
 - **2D background fields** — Full support for fields varying in both Fourier and Chebyshev directions
 - **Post-processing** (`@compute`) — Evaluate any expression on eigenvectors using the same DSL syntax
-- **Multiple solvers** — Arnoldi, ARPACK, KrylovKit with adaptive shift-and-invert
-- **Distributed (MPI) backend** *(experimental)* — solve one large eigenproblem across MPI ranks with **SLEPc/PETSc** via `solve_mpi`
+- **SLEPc/PETSc eigensolver** — the sole backend: generalized shift-and-invert with adaptive-σ retry, each eigenproblem distributed across MPI ranks via `solve`. Shipped as a package extension, so the base install stays light
 
 
 ## Docs
@@ -63,14 +65,17 @@ julia> ]
 
 BiGSTARS.jl requires **Julia 1.10** or newer.
 
-### Optional: distributed (MPI) backend
+### Solving: the SLEPc/PETSc backend
 
-The `solve_mpi` backend is provided by a package extension that loads only when
-`MPI`, `PetscWrap`, and `SlepcWrap` are installed, so the base install stays
-lightweight. It additionally needs a **complex-scalar** system build of PETSc and
-SLEPc (`./configure --with-scalar-type=complex`). This backend is experimental —
-see the [Distributed (MPI)](https://subhk.github.io/BiGSTARS.jl/stable/mpi/)
-docs page for setup and a worked example.
+`solve` — the eigensolver — is provided by a package extension that activates when
+`MPI`, `PetscWrap`, and `SlepcWrap` are imported, so `add BiGSTARS` stays
+lightweight and loads everywhere (the DSL and discretization are pure Julia).
+**To actually solve** you additionally need a **complex-scalar** system build of
+PETSc and SLEPc (`./configure --with-scalar-type=complex`, with `PETSC_DIR` /
+`PETSC_ARCH` / `SLEPC_DIR` exported) and MPI.jl bound to that MPI; launch with
+`mpiexec`. Without the backend, `solve` raises an install hint. See the
+[Distributed (MPI)](https://subhk.github.io/BiGSTARS.jl/stable/mpi/) docs page for
+setup and a worked example.
 
 
 ## Examples
