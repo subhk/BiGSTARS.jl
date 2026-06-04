@@ -32,28 +32,30 @@ cache = discretize(prob)
 k = 1.0
 analytic(n) = k^2 + (n * π)^2          # σ_1 ≈ 10.8696, σ_2 ≈ 40.48, σ_3 ≈ 89.83
 
-res1 = solve(cache, [k]; sigma_0=10.0, nev=1, which=:LM, tol=1e-10)
-res3 = solve(cache, [k]; sigma_0=10.0, nev=3, which=:LM, tol=1e-10)
+# SLEPc options (nev/which/tol/…) enter the PETSc database once per process and
+# CANNOT change between solves; only the σ target may (via EPSSetTarget). So every
+# solve() in this script MUST use the SAME nev/which/tol. One nev=4 solve covers
+# both the σ_1 and σ_1..3 checks.
+res = solve(cache, [k]; sigma_0=10.0, nev=4, which=:LM, tol=1e-10)
 
 if rank == 0
     A, B = BiGSTARS.assemble(cache, k)   # serial matrices for the residual check
     ts = @testset "SLEPc analytic reference" begin
-        @test res1[1].converged
-        λ1 = res1[1].eigenvalues[1]
-        @test isapprox(real(λ1), analytic(1); rtol=1e-4)   # matches analytic σ_1
+        @test res[1].converged
+        λ1 = res[1].eigenvalues[1]
+        @test isapprox(real(λ1), analytic(1); rtol=1e-4)   # nearest the shift = σ_1
         @test abs(imag(λ1)) < 1e-6
 
-        χ = res1[1].eigenvectors[:, 1]
+        χ = res[1].eigenvectors[:, 1]
         @test norm(A * χ - λ1 * (B * χ)) / norm(χ) < 1e-6  # residual (also checks the gather)
 
-        @test res3[1].converged
-        @test length(res3[1].eigenvalues) ≥ 3
-        got = sort(real.(res3[1].eigenvalues[1:3]))
+        @test length(res[1].eigenvalues) ≥ 3
+        got = sort(real.(res[1].eigenvalues))
         for n in 1:3
             @test minimum(abs.(got .- analytic(n))) < 1e-3  # σ_1,σ_2,σ_3 all present
         end
 
-        @test !isempty(res1[1].history.attempts)            # adaptive history populated
+        @test !isempty(res[1].history.attempts)            # adaptive history populated
         println("σ_1 SLEPc=$(real(λ1))  analytic=$(analytic(1))")
     end
     ts.anynonpass && exit(1)
@@ -72,7 +74,9 @@ prob2 = EVP(dom2, variables=[:psi], eigenvalue=:sigma)
 @bc prob2 right(psi) == 0
 cache2 = discretize(prob2; augment_derived=true)
 
-res_sp = solve(cache2; sigma_0=-0.1, nev=4, n_tries=2)
+# Same static options (nev/which/tol) as the solve above — required, since they
+# are fixed once per process. Only sigma_0 differs (set via EPSSetTarget).
+res_sp = solve(cache2; sigma_0=-0.1, nev=4, which=:LM, tol=1e-10, n_tries=2)
 if rank == 0
     ts2 = @testset "SLEPc spurious-mode filter (singular B)" begin
         @test res_sp[1].converged

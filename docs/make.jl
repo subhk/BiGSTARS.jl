@@ -46,15 +46,18 @@ examples = [
 #                     include_output=true)
 # end
 
-# execute = false: the examples now solve via SLEPc/PETSc (the only backend),
-# which needs a complex-scalar PETSc/SLEPc + MPI not available in the docs CI.
-# They render as code; run them yourself with `mpiexec -n P julia ...`.
+# The examples solve via SLEPc/PETSc (the only backend), which needs complex
+# PETSc/SLEPc + MPI not available in the docs CI. Render them as STATIC code:
+# `execute = false` stops Literate running them, and the postprocess rewrites
+# Documenter's ```@example fences to plain ```julia so `makedocs` does not run
+# them either. Run them yourself with `mpiexec -n P julia ...`.
 for example in examples
     example_filepath = joinpath(EXAMPLES_DIR, example)
     Literate.markdown(example_filepath,
                       OUTPUT_DIR;
                       flavor = Literate.DocumenterFlavor(),
-                      execute = false)
+                      execute = false,
+                      postprocess = s -> replace(s, r"```@example[^\n]*" => "```julia"))
 end
 
 # for example in examples
