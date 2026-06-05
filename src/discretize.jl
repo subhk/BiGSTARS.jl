@@ -278,6 +278,7 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
             # Square matrix parameter: use directly as a pre-computed operator.
             return ComplexF64.(val)
         else
+            _field_param_is_zero(expr, prob) && return spzeros(ComplexF64, N_per_var, N_per_var)
             return _converted_field_multiply(expr, prob, N_per_var, highest_cheb_order, ctx)
         end
 
@@ -346,11 +347,13 @@ function discretize_expr(expr::ExprNode, prob::EVP, N_per_var::Int, highest_cheb
 
                 if !isnothing(left_fp) && !isnothing(cheb_dim)
                     param, sc = left_fp
+                    _field_param_is_zero(param, prob) && return spzeros(ComplexF64, N_per_var, N_per_var)
                     G = discretize_expr(expr.right, prob, N_per_var, highest_cheb_order, ctx)
                     result = _field_times_operator(param, G, prob, cheb_dim, highest_cheb_order, N_per_var, ctx)
                     return sc == ComplexF64(1.0) ? result : sc .* result
                 elseif !isnothing(right_fp) && !isnothing(cheb_dim)
                     param, sc = right_fp
+                    _field_param_is_zero(param, prob) && return spzeros(ComplexF64, N_per_var, N_per_var)
                     G = discretize_expr(expr.left, prob, N_per_var, highest_cheb_order, ctx)
                     result = _field_times_operator(param, G, prob, cheb_dim, highest_cheb_order, N_per_var, ctx)
                     return sc == ComplexF64(1.0) ? result : sc .* result
@@ -755,6 +758,14 @@ end
 Extract field parameter info from an expression that may be wrapped in negation
 or scalar multiplication. Returns (ParamNode, scalar_factor) or nothing.
 """
+# A field parameter whose value array is identically zero contributes a zero
+# operator (field · anything = 0). Detecting it lets discretize skip building the
+# (potentially dense 2D Fourier block-Toeplitz) multiply operator entirely — a big
+# saving when a model sets background fields to zero in some limit.
+_field_param_is_zero(param::ParamNode, prob::EVP) =
+    haskey(prob.parameters, param.name) &&
+    (v = prob.parameters[param.name]; v isa AbstractArray && all(iszero, v))
+
 function _extract_field_param(expr::ExprNode, prob::EVP)
     if expr isa ParamNode && haskey(prob.parameters, expr.name) &&
        !(prob.parameters[expr.name] isa Number) &&
