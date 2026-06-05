@@ -220,9 +220,10 @@ using SparseArrays
         @test bcs[1].expr isa DerivNode          # deriv_order==1 ⇒ dz(v)
         @test bcs[1].side == :left
 
-        # non-derivative inner expression ⇒ deriv-counting loop breaks at order 0
-        @derive_bc prob v right(abs(v)) == 0
-        @test length(prob.derived_vars[:v].bcs) == 2
+        # A non-derivative inner expression (e.g. abs(v)) is not a valid derived-var BC —
+        # it must be on v or its derivatives; reject it rather than silently applying to v.
+        @test_throws Exception (@macroexpand @derive_bc prob v right(abs(v)) == 0)
+        @test length(prob.derived_vars[:v].bcs) == 1
     end
 
     @testset "macros: @bc with explicit coordinate argument" begin
