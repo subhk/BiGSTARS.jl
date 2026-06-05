@@ -18,18 +18,18 @@ function Base.show(io::IO, ::MIME"text/plain", ev::EigenvalueDisplay)
 end
 
 """
-    print_evals(λs::AbstractVector{<:Number}; n::Int=length(λs), by::Symbol=:abs)
+    print_evals(λs::Vector{<:Complex})
 
-Pretty-print the top `n` eigenvalues from the list `λs`, optionally sorted by `:real`, `:imag`, or `:abs`.
+Pretty-print every eigenvalue in `λs`, highest index first, in the order given — this
+does NOT sort. Call `sort_evals` first if you want a particular ordering.
 """
 function print_evals(λs::Vector{<:Complex})
-    n = length(λs) 
-    λs_sorted = λs #sort(λs, by=abs, rev=true)
-    println("Top $n eigenvalues (sorted):")
+    n = length(λs)
+    println("$n eigenvalues (input order):")
     println("Idx │ Real Part     Imag Part")
     println("────┼──────────────────────────────")
     for p in n:-1:1
-        show(stdout, "text/plain", EigenvalueDisplay(λs_sorted[p], p))
+        show(stdout, "text/plain", EigenvalueDisplay(λs[p], p))
         println()  # ensure newline after each
     end
 end
