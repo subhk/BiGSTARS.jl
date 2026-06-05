@@ -439,4 +439,29 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test cache.derived_var_order == Symbol[]
     end
 
+    @testset "discretize allocation stays bounded (no += churn)" begin
+        # Measured green ratio ≈ 25.14×; old += churn was ~35×+ of component
+        # bytes per bucket, giving a ratio far above 38. THRESHOLD = 38 =
+        # ceil(25.14 * 1.5) provides headroom above COO path while still
+        # catching any regression to the churn pattern.
+        dom = Domain(x = FourierTransformed(),
+                     y = Fourier(12, [0.0, 2π]),
+                     z = Chebyshev(8, [0.0, 1.0]))
+        prob = EVP(dom, variables = [:w, :b], eigenvalue = :Ra)
+        Y, Z = meshgrid(dom, :y, :z)
+        prob[:F] = vec(@. exp(-((Y - π)^2)))          # y-varying field → multiple terms/key
+        @substitution D2(A) = dx(dx(A)) + dy(dy(A)) + dz(dz(A))
+        @equation Ra * w = D2(w) + F * dy(b)
+        @equation 0 = b + D2(b) - F * w
+        @bc left(w) = 0; @bc right(w) = 0
+        @bc left(b) = 0; @bc right(b) = 0
+
+        discretize(prob)                               # warm up (compile)
+        bytes  = @allocated discretize(prob)
+        cache  = discretize(prob)
+        steady = (sum(nnz, values(cache.A_components)) +
+                  sum(nnz, values(cache.B_components))) * 16   # ComplexF64 = 16 bytes
+        @test bytes < 38 * steady   # green ratio ≈ 25.14×; old += churn was ~35×+ → ratio >> 38
+    end
+
 end
