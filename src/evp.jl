@@ -71,6 +71,10 @@ mutable struct EVP
     derived_vars::Dict{Symbol, DerivedVariable}
 
     function EVP(domain::Domain; variables::Vector{Symbol}, eigenvalue::Symbol)
+        allunique(variables) ||
+            throw(ArgumentError("Duplicate variable names in $variables; each variable must be unique."))
+        eigenvalue in variables &&
+            throw(ArgumentError("Eigenvalue symbol :$eigenvalue cannot also be a variable name."))
         prob = new(domain, variables, eigenvalue,
             Dict{Symbol, Any}(),
             Equation[],
