@@ -160,6 +160,38 @@ function _add_legacy_component!(components::Dict{Int, SparseMatrixCSC{ComplexF64
     return components
 end
 
+# COO-triplet accumulator for building a k-power component without repeated
+# sparse `+=` (which reallocates the whole accumulator each term). Blocks are
+# scattered into per-key (I, J, V) buffers and finalized with one `sparse()`,
+# which sums duplicate (i, j) entries — identical result to sequential `+=`.
+const _COOBuf = Tuple{Vector{Int}, Vector{Int}, Vector{ComplexF64}}
+
+function _scatter_block!(buffers::Dict{KPowerKey, _COOBuf}, key::KPowerKey,
+                         mat::SparseMatrixCSC{ComplexF64, Int},
+                         eq_idx::Int, var_idx::Int, N_per_var::Int)
+    row_off = (eq_idx - 1) * N_per_var
+    col_off = (var_idx - 1) * N_per_var
+    I, J, V = get!(() -> (Int[], Int[], ComplexF64[]), buffers, key)
+    rows = rowvals(mat)
+    vals = nonzeros(mat)
+    for col in 1:size(mat, 2)
+        for idx in nzrange(mat, col)
+            push!(I, rows[idx] + row_off)
+            push!(J, col + col_off)
+            push!(V, vals[idx])
+        end
+    end
+    return buffers
+end
+
+function _finalize_components(buffers::Dict{KPowerKey, _COOBuf}, N_total::Int)
+    out = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
+    for (key, (I, J, V)) in buffers
+        out[key] = sparse(I, J, V, N_total, N_total)
+    end
+    return out
+end
+
 function Base.show(io::IO, c::DiscretizationCache)
     println(io, "DiscretizationCache")
     println(io, "  System size: $(c.N_total) x $(c.N_total) ($(c.N_vars) variables, $(c.N_per_var) per var)")

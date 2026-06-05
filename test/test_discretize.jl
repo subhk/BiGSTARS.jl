@@ -8,6 +8,33 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
 
 @testset "Discretize and Assemble" begin
 
+    @testset "COO accumulation helpers" begin
+        N_per_var = 3; N_total = 6
+        buffers = Dict{BiGSTARS.KPowerKey, BiGSTARS._COOBuf}()
+
+        # Two blocks at the SAME key and SAME block position (eq 1, var 1) must SUM.
+        m1 = sparse([1, 2], [1, 2], ComplexF64[1.0, 2.0], 3, 3)
+        m2 = sparse([1],    [1],    ComplexF64[10.0],      3, 3)
+        BiGSTARS._scatter_block!(buffers, (), m1, 1, 1, N_per_var)
+        BiGSTARS._scatter_block!(buffers, (), m2, 1, 1, N_per_var)
+
+        # A different key at a different block position (eq 2, var 2).
+        m3 = sparse([1], [2], ComplexF64[5.0], 3, 3)
+        BiGSTARS._scatter_block!(buffers, (:k_x => 2,), m3, 2, 2, N_per_var)
+
+        comps = BiGSTARS._finalize_components(buffers, N_total)
+
+        A0 = comps[()]
+        @test size(A0) == (6, 6)
+        @test A0[1, 1] == ComplexF64(11.0)   # 1.0 + 10.0 summed (duplicate (i,j))
+        @test A0[2, 2] == ComplexF64(2.0)
+        @test nnz(A0) == 2
+
+        A2 = comps[(:k_x => 2,)]
+        @test A2[1 + 3, 2 + 3] == ComplexF64(5.0)   # offset by (eq2,var2) = (+3,+3)
+        @test nnz(A2) == 1
+    end
+
     @testset "1D: -u'' = sigma*u, u(-1)=u(1)=0" begin
         domain = Domain(z = Chebyshev(N=32, lower=-1.0, upper=1.0))
         prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
