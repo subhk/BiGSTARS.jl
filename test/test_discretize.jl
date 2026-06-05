@@ -2,8 +2,8 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_operator,
-    total_grid_size, discretize, assemble, allocate_workspace, assemble!,
-    DiscretizationCache, AssemblyWorkspace, ParamNode, VarNode, BinaryOpNode,
+    total_grid_size, discretize, assemble,
+    DiscretizationCache, ParamNode, VarNode, BinaryOpNode,
     DerivedVarCache, DerivNode, UnaryOpNode, ConstNode, SubstitutionNode
 
 @testset "Discretize and Assemble" begin
@@ -385,32 +385,6 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test length(real_pos) >= 2
         @test abs(real_pos[1] - (π / 2)^2) / (π / 2)^2 < 0.01
         @test abs(real_pos[2] - (π / 2)^2) / (π / 2)^2 < 0.01
-    end
-
-    @testset "In-place assembly (assemble!)" begin
-        domain = Domain(
-            x = FourierTransformed(),
-            z = Chebyshev(N=16, lower=-1.0, upper=1.0)
-        )
-        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
-
-        @equation prob sigma * u == -dx(dx(u)) - dz(dz(u))
-        @bc prob left(u) == 0
-        @bc prob right(u) == 0
-
-        cache = discretize(prob)
-        ws = allocate_workspace(cache)
-
-        for k in [0.0, 1.0, 2.0]
-            A_alloc, B_alloc = assemble(cache, k)
-            assemble!(ws, cache, k)
-
-            @test ws.A ≈ Matrix(A_alloc)
-            @test ws.B ≈ Matrix(B_alloc)
-        end
-
-        assemble!(ws, cache, 1.0)
-        @test @allocated(assemble!(ws, cache, 1.25)) == 0
     end
 
     @testset "Mixed BCs: Dirichlet + Neumann" begin

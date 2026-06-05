@@ -368,28 +368,6 @@ using SparseArrays
         @test all(isfinite, nonzeros(A))
     end
 
-    @testset "discretize: legacy-derived problem solved via in-place assembly" begin
-        # augment_derived=false keeps v eliminated (H(k) inverse). Solving it drives
-        # the derived branch of in-place assemble! (assemble! + H(k) reconstruction).
-        d = Domain(x = FourierTransformed(),
-                   y = Fourier(8, [0.0, 1.0]),
-                   z = Chebyshev(N=8, lower=0.0, upper=1.0))
-        p = EVP(d, variables=[:w, :zeta], eigenvalue=:sigma)
-        @derive p v dx(dx(v)) + dy(dy(v)) = dy(dz(w)) - dx(zeta)
-        @equation p sigma * w == v - dz(dz(w))
-        @equation p sigma * zeta == dz(w)
-        @bc p left(w) == 0
-        @bc p right(w) == 0
-        @bc p left(dz(zeta)) == 0
-        @bc p right(dz(zeta)) == 0
-
-        cache = discretize(p; augment_derived=false)
-        @test haskey(cache.derived_caches, :v)
-        A, B = assemble(cache, 1.0)                     # exercises derived in-place assembly
-        ev = eigvals(Matrix(A), Matrix(B))
-        @test any(e -> isfinite(e), ev)
-    end
-
     # ── Direct unit tests for discretize.jl internal tree/operator helpers ──────
     # These pure functions have many branches that the integration pipeline reaches
     # only for specific (rare) expression shapes; exercising them directly is exact

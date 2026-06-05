@@ -28,9 +28,6 @@ module BiGSTARS
         # Discretization and solving
         discretize,
         assemble,
-        assemble!,
-        allocate_workspace,
-        AssemblyWorkspace,
         solve,
         discretize_distributed,
         DiscretizationCache,
