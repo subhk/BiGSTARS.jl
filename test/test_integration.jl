@@ -403,4 +403,40 @@ using Test
         @test_throws Exception BiGSTARS.parse_expr_ast(:([1, 2]), :(p))
     end
 
+    @testset "zero field coefficient contributes nothing (perf short-circuit)" begin
+        # A term multiplying an all-zero background field must assemble to exactly
+        # the same operator as omitting it (the field-multiply is short-circuited
+        # to spzeros instead of being built). Covers field×operator in 1D (z-only)
+        # and 2D (y,z) fields.
+        function with_and_without(fieldspec)
+            d = Domain(x=FourierTransformed(), y=Fourier(8,[0.0,1.0]), z=Chebyshev(8,[0.0,1.0]))
+            pz = EVP(d, variables=[:u], eigenvalue=:s); pz[:Zf] = fieldspec(d)
+            @equation pz s * u == -dz(dz(u)) - dy(dy(u)) + Zf * dz(u)
+            @bc pz left(u) == 0; @bc pz right(u) == 0
+            Az, _ = assemble(discretize(pz), 1.0)
+
+            pn = EVP(d, variables=[:u], eigenvalue=:s)
+            @equation pn s * u == -dz(dz(u)) - dy(dy(u))
+            @bc pn left(u) == 0; @bc pn right(u) == 0
+            An, _ = assemble(discretize(pn), 1.0)
+            return Az, An
+        end
+        Az,  An  = with_and_without(d -> zeros(length(gridpoints(d, :z)) * d.coords[:y].N))  # 2D zero field
+        @test Az ≈ An
+        Az1, An1 = with_and_without(d -> zeros(length(gridpoints(d, :z))))                   # 1D zero field
+        @test Az1 ≈ An1
+
+        # Sanity: a NONZERO field DOES change the operator (guard doesn't over-fire).
+        dd = Domain(x=FourierTransformed(), z=Chebyshev(8,[0.0,1.0]))
+        pnz = EVP(dd, variables=[:u], eigenvalue=:s); pnz[:Zf] = ones(length(gridpoints(dd, :z)))
+        @equation pnz s * u == -dz(dz(u)) + Zf * dz(u)
+        @bc pnz left(u) == 0; @bc pnz right(u) == 0
+        Anz, _ = assemble(discretize(pnz), 1.0)
+        pb = EVP(dd, variables=[:u], eigenvalue=:s)
+        @equation pb s * u == -dz(dz(u))
+        @bc pb left(u) == 0; @bc pb right(u) == 0
+        Ab, _ = assemble(discretize(pb), 1.0)
+        @test !(Anz ≈ Ab)
+    end
+
 end
