@@ -67,11 +67,11 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         cache = discretize(prob)
 
         # Should have k^0 and k^2 components in A
-        @test haskey(cache.A_components, 0)
-        @test haskey(cache.A_components, 2)
+        @test haskey(cache.A_components, ())
+        @test haskey(cache.A_components, (:k_x => 2,))
 
         # B should only have k^0
-        @test haskey(cache.B_components, 0)
+        @test haskey(cache.B_components, ())
 
         # A at different k values should differ
         A1, B1 = assemble(cache, 1.0)
@@ -149,8 +149,8 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         prob[:U] = ones(N)
 
         cache = DiscretizationCache(
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
             Dict{Symbol,DerivedVarCache}(),
             N, N, 1, domain
         )
@@ -164,8 +164,8 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         domain = Domain(z = Chebyshev(N=N, lower=-1.0, upper=1.0))
         prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
         cache = DiscretizationCache(
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
             Dict{Symbol,DerivedVarCache}(),
             N, N, 1, domain
         )
@@ -185,8 +185,8 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         domain = Domain(y = Fourier(N=N_y, L=2π), z = Chebyshev(N=N_z, lower=-1.0, upper=1.0))
         prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
         cache = DiscretizationCache(
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
-            Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
+            Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(),
             Dict{Symbol,DerivedVarCache}(),
             N_z * N_y, N_z * N_y, 1, domain
         )
@@ -324,8 +324,8 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @bc prob right(u) == 0
 
         cache = discretize(prob)
-        @test haskey(cache.A_kcomponents, (:k_x => 2,))
-        @test haskey(cache.A_kcomponents, (:k_y => 2,))
+        @test haskey(cache.A_components, (:k_x => 2,))
+        @test haskey(cache.A_components, (:k_y => 2,))
 
         A, B = assemble(cache; k_x=1.0, k_y=0.5)
         lambdas = eigvals(Matrix(A), Matrix(B))
@@ -432,10 +432,10 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
 
     @testset "DiscretizationCache carries derived_var_order" begin
         domain = Domain(z=Chebyshev(N=8, lower=0.0, upper=1.0))
-        A0 = Dict{Int,SparseMatrixCSC{ComplexF64,Int}}(0 => spzeros(ComplexF64, 8, 8))
-        B0 = Dict{Int,SparseMatrixCSC{ComplexF64,Int}}()
+        A0 = Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}(() => spzeros(ComplexF64, 8, 8))
+        B0 = Dict{BiGSTARS.KPowerKey,SparseMatrixCSC{ComplexF64,Int}}()
         dc = Dict{Symbol,BiGSTARS.DerivedVarCache}()
-        cache = BiGSTARS.DiscretizationCache(A0, B0, dc, 8, 8, 1, domain)  # legacy 7-arg ctor
+        cache = BiGSTARS.DiscretizationCache(A0, B0, dc, 8, 8, 1, domain)
         @test cache.derived_var_order == Symbol[]
     end
 

@@ -515,7 +515,7 @@ using SparseArrays
             zeros(ComplexF64, 8), DerivNode(VarNode(:u), :y), :left, :z, pu)
     end
 
-    @testset "discretize internals: _try_strip, _legacy_k_key, chained-deriv-any" begin
+    @testset "discretize internals: _try_strip, chained-deriv-any" begin
         s = EigenvalueNode(:sigma)
         @test BiGSTARS._try_strip(s) == ConstNode(1.0)
         @test BiGSTARS._try_strip(BinaryOpNode(:*, VarNode(:u), s)) == VarNode(:u)   # right σ
@@ -532,13 +532,6 @@ using SparseArrays
         @test BiGSTARS._strip_eigenvalue_from_term(
             BinaryOpNode(:*, BinaryOpNode(:*, ConstNode(2.0), s), VarNode(:u)), :sigma) ==
             BinaryOpNode(:*, ConstNode(2.0), VarNode(:u))
-
-        # _legacy_k_key: one vs many transformed directions
-        d1 = Domain(x = FourierTransformed(), z = Chebyshev(N=8, lower=0.0, upper=1.0))
-        d2 = Domain(x = FourierTransformed(), y = FourierTransformed(),
-                    z = Chebyshev(N=8, lower=0.0, upper=1.0))
-        @test BiGSTARS._legacy_k_key(2, d1) == (:k_x => 2,)
-        @test BiGSTARS._legacy_k_key(2, d2) == (:_total_k => 2,)
 
         # count/unwrap chained derivatives in a non-matching direction
         @test BiGSTARS.count_chained_derivs_any(DerivNode(VarNode(:u), :y), :z) == 0
