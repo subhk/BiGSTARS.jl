@@ -197,4 +197,17 @@ using BiGSTARS: VarNode, DerivNode, BinaryOpNode, ConstNode, ParamNode,
         @test_throws ErrorException discretize(prob)
     end
 
+    @testset "Imaginary inhomogeneous BC is detected (add_bc! bypass)" begin
+        # @bc casts rhs to Float64 (rejects complex), but direct add_bc! does not.
+        # An imaginary inhomogeneous RHS must still be flagged, not silently zeroed.
+        domain = Domain(z = Chebyshev(N=8, lower=-1.0, upper=1.0))
+        prob = EVP(domain, variables=[:u], eigenvalue=:sigma)
+
+        @equation prob sigma * u == -dz(dz(u))
+        @bc prob left(u) == 0
+        BiGSTARS.add_bc!(prob, :right, :z, VarNode(:u), 1im)  # complex inhomogeneous
+
+        @test_throws ErrorException discretize(prob)
+    end
+
 end

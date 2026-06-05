@@ -15,6 +15,11 @@ struct FourierBasisSpec
     L::Float64
     lower::Float64
     upper::Float64
+    function FourierBasisSpec(N::Integer, L::Real, lower::Real, upper::Real)
+        N >= 1 || throw(ArgumentError("Fourier requires N ≥ 1, got N=$N"))
+        L > 0 || throw(ArgumentError("Fourier requires a positive domain length, got L=$L"))
+        new(Int(N), Float64(L), Float64(lower), Float64(upper))
+    end
 end
 
 """Specification for a resolved Chebyshev direction."""
@@ -22,6 +27,11 @@ struct ChebyshevBasisSpec
     N::Int
     lower::Float64
     upper::Float64
+    function ChebyshevBasisSpec(N::Integer, lower::Real, upper::Real)
+        N >= 2 || throw(ArgumentError("Chebyshev requires N ≥ 2, got N=$N"))
+        lower < upper || throw(ArgumentError("Chebyshev requires lower < upper, got [$lower, $upper]"))
+        new(Int(N), Float64(lower), Float64(upper))
+    end
 end
 
 # User-facing constructors — multiple calling conventions:

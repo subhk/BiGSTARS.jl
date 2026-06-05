@@ -156,7 +156,10 @@ When a BC contains the eigenvalue symbol, the DSL automatically splits it into A
 @bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
 ```
 
-For multiple Chebyshev directions, use coordinate-qualified form: `left(expr, :z)`.
+To state the boundary coordinate explicitly, use the coordinate-qualified form with a
+**bare** coordinate name (not a `:symbol`): `left(expr, z)`. Only a **single** Chebyshev
+direction is supported (optionally combined with one Fourier direction); 2-D Chebyshev ×
+Chebyshev domains are not.
 
 ## Discretize and Solve
 
