@@ -80,14 +80,6 @@ function differentiate(f::AbstractVector, domain::Domain, coord::Symbol;
         N = spec.N
         @assert length(f) == N "Input length ($(length(f))) must match grid size ($N)"
 
-        # Complex input: the DCT path is real-only, so differentiate real/imag parts
-        # separately and recombine (differentiation is linear).
-        if eltype(f) <: Complex
-            dr = differentiate(real.(f), domain, coord; order=order, filter=filter)
-            di = differentiate(imag.(f), domain, coord; order=order, filter=filter)
-            return complex.(dr, di)
-        end
-
         scale = 2.0 / (spec.upper - spec.lower)
 
         # Physical values → T coefficients
@@ -186,32 +178,6 @@ function to_physical(c::AbstractVector, coord_type::Symbol;
         return eltype(c) <: Real ? real.(result) : result
     else
         error("Unknown coordinate type: $coord_type")
-    end
-end
-
-"""
-    to_physical(c, domain, coord; x=nothing) -> Vector
-
-Domain-aware inverse transform. For a Chebyshev `coord`, `x` are **physical** evaluation
-points (in `[lower, upper]`); they are mapped to the reference `[-1, 1]` internally before
-the Chebyshev evaluation (the bare-`Symbol` overload expects reference points). For a
-Fourier `coord`, `x` is ignored and the inverse FFT is returned. Element type is preserved,
-so complex coefficients (reconstructed eigenfunctions) give a complex field. This is the
-overload used in the visualization examples.
-"""
-function to_physical(c::AbstractVector, domain::Domain, coord::Symbol;
-                     x::Union{AbstractVector, Nothing}=nothing)
-    spec = domain.coords[coord]
-    if spec isa ChebyshevBasisSpec
-        isnothing(x) && error("Must provide physical evaluation points x for Chebyshev coordinate :$coord")
-        ξ = @. (2 * x - spec.lower - spec.upper) / (spec.upper - spec.lower)   # physical → [-1,1]
-        return chebyshev_evaluate(c, ξ)
-    elseif spec isa FourierBasisSpec
-        N = length(c)
-        result = ifft(c * N)
-        return eltype(c) <: Real ? real.(result) : result
-    else
-        error("Cannot map FourierTransformed coordinate :$coord to physical space")
     end
 end
 
