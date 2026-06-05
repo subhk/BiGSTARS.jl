@@ -76,7 +76,9 @@ function _build_petsc_mats_local(cache, k, N::Integer, comm::MPI.Comm)
     MatSetSizes(B, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
     MatSetFromOptions(B)
     rstartB, rendB = MatGetOwnershipRange(B)
-    @assert (rstartB, rendB) == (rstart, rend)               # same N+comm ⇒ same layout
+    (rstartB, rendB) == (rstart, rend) ||                    # same N+comm ⇒ same layout
+        error("PETSc returned different row ownership for A $((rstart, rend)) and " *
+              "B $((rstartB, rendB)) with identical size/comm — cannot assemble the pencil.")
     _fill_mat!(B, B_rows, rstart, rend, comm)
     return A, B
 end

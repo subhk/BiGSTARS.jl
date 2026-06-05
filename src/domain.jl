@@ -152,7 +152,7 @@ Get the 1D spectral differentiation operator for a resolved dimension.
 Includes domain scaling for Chebyshev directions.
 """
 function get_diff_operator(domain::Domain, dim::Symbol, order::Int)
-    @assert order >= 0 "Derivative order must be non-negative"
+    order >= 0 || throw(ArgumentError("Derivative order must be non-negative, got $order"))
     spec = domain.coords[dim]
     if spec isa FourierBasisSpec
         return fourier_diff_operator(spec.N, spec.L, order)
