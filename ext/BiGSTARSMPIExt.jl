@@ -141,7 +141,7 @@ function _gather_eigenpairs(eps, A, B, nconv::Integer, N::Integer, comm::MPI.Com
 
         nv2g = MPI.Allreduce(nv2, +, comm)         # collective (every rank)
         nb2g = MPI.Allreduce(nb2, +, comm)
-        masses[ie + 1] = sqrt(nb2g) / sqrt(max(nv2g, eps()))
+        masses[ie + 1] = sqrt(nb2g) / sqrt(max(nv2g, Base.eps(Float64)))
 
         if rank == 0
             recvbuf = Vector{ComplexF64}(undef, N)
