@@ -68,8 +68,6 @@ function DiscretizationCache(A_components::Dict{KPowerKey, SparseMatrixCSC{Compl
                                N_total, N_per_var, N_vars, domain, derived_var_order, nothing)
 end
 
-_total_k_power(key::KPowerKey) = sum(last, key; init=0)
-
 function _k_coeff(key::KPowerKey, k_vals::Dict{Symbol, Float64})
     coeff = 1.0
     for (name, power) in key
