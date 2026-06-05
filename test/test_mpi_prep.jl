@@ -261,6 +261,15 @@ end
             @test BiGSTARS._assemble_B_full(cache, k) ≈ Bfull
         end
     end
+
+    @testset "_keep_by_mass keeps physical, drops near-zero" begin
+        @test BiGSTARS._keep_by_mass([1.0, 1e-12, 2.0]) == [1, 3]    # middle is spurious (≈0)
+        @test BiGSTARS._keep_by_mass([1.0, 2.0, 3.0]) == [1, 2, 3]   # all physical
+        @test BiGSTARS._keep_by_mass([5.0]) == [1]                   # single
+        @test BiGSTARS._keep_by_mass(Float64[]) == Int[]            # empty
+        @test BiGSTARS._keep_by_mass([0.0, 0.0]) == [1, 2]          # all-zero → keep all (fallback)
+        @test BiGSTARS._keep_by_mass([1.0, 0.0, 1.0]) == [1, 3]     # exact-zero dropped
+    end
 end
 
 @testset "_petsc_ownership matches PETSC_DECIDE split" begin

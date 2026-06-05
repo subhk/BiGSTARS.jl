@@ -88,6 +88,23 @@ function _filter_physical_modes(λ::AbstractVector, Χ::AbstractMatrix, B; rtol:
 end
 
 """
+    _keep_by_mass(masses; rtol=1e-6) -> Vector{Int}
+
+Indices of physical modes from precomputed per-mode masses `‖Bχᵢ‖/‖χᵢ‖`: keep
+those above `rtol · maximum(masses)` (drop singular-B infinite modes, mass ≈ 0).
+The keep-rule of `_filter_physical_modes`, but on masses computed distributedly.
+Keeps everything when the set is empty / all-zero / nothing would survive.
+"""
+function _keep_by_mass(masses::AbstractVector{<:Real}; rtol::Float64=1e-6)
+    isempty(masses) && return Int[]
+    scale = maximum(masses)
+    scale == 0.0 && return collect(eachindex(masses))
+    keep = findall(>(rtol * scale), masses)
+    isempty(keep) && return collect(eachindex(masses))
+    return keep
+end
+
+"""
     print_summary(r::SolverResults)
 
 Print a compact summary of one solve result.

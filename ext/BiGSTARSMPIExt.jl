@@ -3,8 +3,8 @@ module BiGSTARSMPIExt
 using BiGSTARS
 using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
                 _sigma_schedule, _group_indices, _petsc_ownership, assemble_rows,
-                _assemble_B_full, SolverResults, ConvergenceHistory,
-                sort_eigenvalues!, _filter_physical_modes, restrict_cache_rows
+                SolverResults, ConvergenceHistory, _keep_by_mass,
+                sort_eigenvalues!, restrict_cache_rows
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -115,7 +115,7 @@ end
 # Gather eigenpairs to rank 0
 # ------------------------------------------------------------------------------
 
-function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
+function _gather_eigenpairs(eps, A, B, nconv::Integer, N::Integer, comm::MPI.Comm)
     rank = MPI.Comm_rank(comm)
     rstart, rend = MatGetOwnershipRange(A)
     nlocal = rend - rstart
@@ -123,14 +123,26 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
 
     λ = rank == 0 ? Vector{ComplexF64}(undef, nconv) : ComplexF64[]
     Χ = rank == 0 ? Matrix{ComplexF64}(undef, N, nconv) : zeros(ComplexF64, 0, 0)
+    masses = Vector{Float64}(undef, nconv)         # replicated on every rank (via Allreduce)
 
-    vr, vi = MatCreateVecs(A)                      # vectors compatible with A (returns a pair)
+    vr, vi = MatCreateVecs(A)
+    Bvr = VecDuplicate(vr)
     for ie in 0:(nconv - 1)
-        # On a complex build PetscScalar==ComplexF64, so vpr is the FULL complex
-        # eigenvalue and vpi≈0 — take ComplexF64(vpr), not ComplexF64(vpr, vpi).
         vpr, vpi, _, _ = EPSGetEigenpair(eps, ie, vr, vi)
-        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries (aliases PETSc memory)
+        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries
         sendbuf = Vector{ComplexF64}(local_arr)
+        nv2 = sum(abs2, local_arr)                 # ‖vr‖² (local part)
+        VecRestoreArray(vr, local_ref)             # restore before MatMult uses vr
+
+        MatMult(B, vr, Bvr)                         # distributed B·vr
+        bl, bref = VecGetArray(Bvr)
+        nb2 = sum(abs2, bl)                         # ‖B vr‖² (local part)
+        VecRestoreArray(Bvr, bref)
+
+        nv2g = MPI.Allreduce(nv2, +, comm)         # collective (every rank)
+        nb2g = MPI.Allreduce(nb2, +, comm)
+        masses[ie + 1] = sqrt(nb2g) / sqrt(max(nv2g, eps()))
+
         if rank == 0
             recvbuf = Vector{ComplexF64}(undef, N)
             MPI.Gatherv!(sendbuf, MPI.VBuffer(recvbuf, counts), 0, comm)
@@ -139,11 +151,11 @@ function _gather_eigenpairs(eps, A, nconv::Integer, N::Integer, comm::MPI.Comm)
         else
             MPI.Gatherv!(sendbuf, nothing, 0, comm)
         end
-        VecRestoreArray(vr, local_ref)
     end
+    VecDestroy(Bvr)
     VecDestroy(vr)
     VecDestroy(vi)
-    return λ, Χ
+    return λ, Χ, masses
 end
 
 # ------------------------------------------------------------------------------
@@ -180,15 +192,15 @@ function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
         EPSSetFromOptions(eps)
         EPSSolve(eps)
         nconv = EPSGetConverged(eps)
-        λ, Χ = _gather_eigenpairs(eps, A, nconv, N, comm)
+        λ, Χ, masses = _gather_eigenpairs(eps, A, B, nconv, N, comm)
         EPSDestroy(eps)
 
         stop = false
         if rank == 0
             push!(hist.attempts, σ)
             if nconv ≥ 1
-                λf, Χf = _filter_physical_modes(λ, Χ, _assemble_B_full(cache, Float64(k)))
-                λf, Χf = sort_eigenvalues!(λf, Χf, :nearest; σ=σ)
+                keep = _keep_by_mass(masses)
+                λf, Χf = sort_eigenvalues!(λ[keep], Χ[:, keep], :nearest; σ=σ)
                 push!(hist.converged, true)
                 push!(hist.eigenvalues, λf[1])
                 push!(hist.errors, "")
@@ -345,8 +357,7 @@ function BiGSTARS.discretize_distributed(prob; ngroups::Integer=1, kwargs...)
     # same split, and assemble_rows asserts the resulting range matches row_range.
     rstart, rend = _petsc_ownership(cache.N_total, psize, grank)
 
-    # Group roots keep the FULL cache (the mass filter needs full B); others restrict.
-    return grank == 0 ? cache : restrict_cache_rows(cache, rstart, rend)
+    return restrict_cache_rows(cache, rstart, rend)   # every rank (mass filter is now distributed)
 end
 
 end # module
