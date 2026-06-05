@@ -958,8 +958,21 @@ function _sparse_block_inverse(op::AbstractMatrix, domain::Domain;
     N = size(op, 1)
 
     if isnothing(cheb_dim) || isnothing(fourier_dim)
-        # 1D: just invert directly
-        return sparse(Matrix(op) \ Matrix(ComplexF64(1.0) * I, N, N))
+        # 1D (or no Fourier dim): apply boundary bordering — replace the last rows with
+        # BC rows before inverting — matching the 2D block path below. Without this a
+        # null-space operator (e.g. dz(dz(v)) with Dirichlet BCs) is singular and the
+        # solve throws (LAPACKException), which broke the legacy augment_derived=false path.
+        M = Matrix(op)
+        if !isempty(bcs) && !isnothing(cheb_dim)
+            spec = domain.coords[cheb_dim]
+            for (i, bc) in enumerate(bcs)
+                deriv_order = count_bc_deriv_order(bc.expr)
+                row = chebyshev_boundary_row(bc.side, deriv_order, N;
+                                             a=spec.lower, b=spec.upper)
+                M[N - i + 1, :] = ComplexF64.(row)
+            end
+        end
+        return sparse(M \ Matrix(ComplexF64(1.0) * I, N, N))
     end
 
     N_z = domain.coords[cheb_dim].N

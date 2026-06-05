@@ -259,6 +259,12 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
     MPI.Initialized() || MPI.Init()
     if manage_init
         if !_SLEPC_INITED[]
+            # SlepcInitialize is *documented* to call PetscInitialize, but with some
+            # SLEPc/SlepcWrap builds PETSc is left uninitialized (PetscInitialized()
+            # == false), so the first MatCreate fails with PETSc error 98 (wrong state).
+            # Initialize PETSc explicitly first (idempotent — SlepcInitialize skips
+            # re-init when PETSc is already up), then SLEPc.
+            PetscInitialize(opts)
             SlepcInitialize(opts)
             _SLEPC_INITED[] = true
             _SLEPC_OPTS[] = opts

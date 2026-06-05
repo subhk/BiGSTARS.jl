@@ -41,7 +41,8 @@ end
     discretize_distributed(prob; ngroups=1, kwargs...) -> DiscretizationCache
 
 MPI-coupled discretize: builds the full cache, then returns a per-rank row-restricted
-cache (group roots keep the full cache, for the singular-B mass filter). Provided by
+cache (every rank keeps only its owned rows; the singular-B mass filter is computed
+distributedly, so no rank needs the full cache). Provided by
 the extension `BiGSTARSMPIExt` (requires MPI, PetscWrap, SlepcWrap + a complex-scalar
 PETSc/SLEPc). Use the SAME `ngroups` in the subsequent `solve`. `kwargs` are forwarded
 to `discretize` (e.g. `augment_derived`). Run under `mpiexec -n P julia …`.
