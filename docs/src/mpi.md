@@ -55,10 +55,11 @@ its group's rank 0.
 ### Lower per-rank memory: `discretize_distributed`
 
 For very large problems, build the cache with `discretize_distributed(prob; ngroups=G)`
-instead of `discretize(prob)`. It returns, on each non-root rank, a cache holding only
-that rank's owned rows of the operator components (group roots keep the full cache for
-the spurious-mode filter), reducing steady-state per-rank memory. Pass the **same**
-`ngroups` to `solve`:
+instead of `discretize(prob)`. It returns a cache holding only that rank's owned rows of
+the operator components on every rank. Every rank (including group roots) holds only its
+owned rows: the singular-B spurious-mode filter is computed distributedly (`MatMult` +
+`MPI.Allreduce`), so no rank needs the full mass matrix. Pass the **same** `ngroups` to
+`solve`:
 
 ```julia
 cache = discretize_distributed(prob; ngroups=4)

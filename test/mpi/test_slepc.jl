@@ -122,3 +122,15 @@ if rank == 0
     end
     ts4.anynonpass && exit(1)
 end
+
+# 2b-ii: distributed mass filter on an ALL-RANKS-RESTRICTED cache (singular B).
+dcache_sp = discretize_distributed(prob2; ngroups=ng, augment_derived=true)
+res_dsp = solve(dcache_sp; sigma_0=-0.1, nev=4, which=:LM, tol=1e-10, n_tries=2, ngroups=ng)
+if rank == 0
+    ts5 = @testset "distributed filter, all-ranks-restricted (ngroups=$(ng))" begin
+        @test res_dsp[1].converged
+        @test all(e -> abs(e) < 0.5, res_dsp[1].eigenvalues)              # infinite modes dropped
+        @test minimum(abs.(res_dsp[1].eigenvalues .- (-1 / π^2))) < 1e-3  # physical n=1 kept
+    end
+    ts5.anynonpass && exit(1)
+end
