@@ -217,7 +217,7 @@ end
 """
     restrict_cache_rows(cache, rstart, rend) -> DiscretizationCache
 
-Return a cache whose k-independent components (`A_kcomponents`/`B_kcomponents`) are
+Return a cache whose components (`A_components`/`B_components`) are
 sliced to the owned global rows `[rstart,rend)` (0-based half-open), with
 `row_range=(rstart,rend)` set. `derived_caches` are kept full (k-dependent `H(k)`).
 Errors if `cache` is already restricted. Pure (no MPI/PETSc).
@@ -232,8 +232,7 @@ function restrict_cache_rows(cache, rstart::Integer, rend::Integer)
         end
         return out
     end
-    return DiscretizationCache(cache.A_components, cache.B_components,
-        _slice_rows(cache.A_kcomponents), _slice_rows(cache.B_kcomponents),
+    return DiscretizationCache(_slice_rows(cache.A_components), _slice_rows(cache.B_components),
         cache.derived_caches, cache.N_total, cache.N_per_var, cache.N_vars,
         cache.domain, cache.derived_var_order, (Int(rstart), Int(rend)))
 end
@@ -262,13 +261,13 @@ function assemble_rows(cache, k::Float64,
     nrows = rend - rstart
 
     A_rows = spzeros(ComplexF64, nrows, N)
-    for (kp, Ap) in cache.A_kcomponents
+    for (kp, Ap) in cache.A_components
         c = _k_coeff(kp, k_vals); c == 0.0 && continue
         A_rows = A_rows + c * (sliced ? Ap[(rstart + 1):rend, :] : Ap)
     end
 
     B_rows = spzeros(ComplexF64, nrows, N)
-    for (kp, Bp) in cache.B_kcomponents
+    for (kp, Bp) in cache.B_components
         c = _k_coeff(kp, k_vals); c == 0.0 && continue
         B_rows = B_rows + c * (sliced ? Bp[(rstart + 1):rend, :] : Bp)
     end
@@ -295,7 +294,7 @@ end
 """
     _assemble_B_full(cache, k) -> SparseMatrixCSC
 
-The full mass matrix `B = Σ_p k^p · B_kcomponents[p]` (B has no derived terms).
+The full mass matrix `B = Σ_p k^p · B_components[p]` (B has no derived terms).
 Cheap; built on the group root for the singular-`B` spurious-mode filter when the
 distributed path means no rank holds a full `B`.
 """
@@ -303,7 +302,7 @@ function _assemble_B_full(cache, k::Float64)
     k_vals = _k_values(cache, k)
     N = cache.N_total
     B = spzeros(ComplexF64, N, N)
-    for (kp, Bp) in cache.B_kcomponents
+    for (kp, Bp) in cache.B_components
         c = _k_coeff(kp, k_vals); c == 0.0 && continue
         B = B + c * Bp
     end
