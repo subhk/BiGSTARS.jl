@@ -110,6 +110,15 @@ function parse_expr_ast(ex, prob_ref)
                 end
             end
 
+            # Reject unsupported operators (/, ^, etc.) with a clear message instead of
+            # mislabeling them later as a missing substitution.
+            if func isa Symbol && Base.isoperator(func)
+                error("Operator `$(func)` is not supported in the equation DSL — only " *
+                      "+, -, *, derivatives (dx/dy/dz) and @substitution names are allowed. " *
+                      "The DSL is linear: write (1/c)*u for division by a constant; " *
+                      "powers/products of unknowns (u^2, u*u) are nonlinear and unsupported.")
+            end
+
             # Any other function call → assume substitution
             if func isa Symbol && length(ex.args) >= 2
                 args_parsed = [parse_expr_ast(a, prob_ref) for a in ex.args[2:end]]
@@ -166,6 +175,12 @@ function parse_substitution_body(ex, arg_names::Vector, prob_ref=nothing)
                 end
                 return result
             end
+        end
+
+        # Reject unsupported operators (/, ^, etc.) clearly (see parse_expr_ast).
+        if func isa Symbol && Base.isoperator(func)
+            error("Operator `$(func)` is not supported in a substitution body — only " *
+                  "+, -, *, derivatives and substitution names are allowed (the DSL is linear).")
         end
 
         # Substitution call in body (nested substitutions)
@@ -453,6 +468,13 @@ macro derive_bc(args...)
             break
         end
     end
+
+    # The innermost symbol must be the derived variable itself — the BC borders v's
+    # operator inversion. Reject `left(w)`/`right(dz(w))` (a different variable) instead
+    # of silently applying the BC to v.
+    (inner isa Symbol && inner == var_name) ||
+        error("@derive_bc: boundary condition must be on the derived variable :$(var_name), " *
+              "got `$(inner)`. Write e.g. left($(var_name)) or right(dz($(var_name))).")
 
     coord_ast = :(first_chebyshev_coord($prob_expr))
 

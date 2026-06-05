@@ -108,6 +108,17 @@ function Base.setindex!(prob::EVP, value, name::Symbol)
     if name == prob.eigenvalue
         throw(ArgumentError("Cannot set parameter '$name': it is the eigenvalue symbol"))
     end
+    # Field parameters are real physical fields. A complex array with a nonzero
+    # imaginary part is rejected loudly here rather than being silently dropped
+    # (Float64.(real.(·))) or throwing a cryptic InexactError deep in discretize.
+    if value isa AbstractArray && eltype(value) <: Complex
+        scale = isempty(value) ? 1.0 : Float64(maximum(abs, value))
+        imax  = isempty(value) ? 0.0 : Float64(maximum(abs ∘ imag, value))
+        imax ≤ 1e-12 * max(scale, 1.0) ||
+            throw(ArgumentError("Parameter '$name' has a nonzero imaginary part " *
+                "(max |imag| = $imax); field parameters must be real-valued."))
+        value = real.(value)   # store real so the discretization's Float64 paths are exact
+    end
     prob.parameters[name] = value
 end
 
@@ -126,6 +137,12 @@ end
 
 """Register a derived (auxiliary) variable: Op(v) = rhs_expr."""
 function add_derived!(prob::EVP, name::Symbol, operator_name::Symbol, rhs::ExprNode)
+    name in prob.variables &&
+        throw(ArgumentError("Derived variable :$name collides with a declared variable."))
+    name == prob.eigenvalue &&
+        throw(ArgumentError("Derived variable :$name collides with the eigenvalue symbol."))
+    haskey(prob.derived_vars, name) &&
+        throw(ArgumentError("Derived variable :$name is already defined."))
     prob.derived_vars[name] = DerivedVariable(name, operator_name, rhs, BoundaryCondition[])
 end
 

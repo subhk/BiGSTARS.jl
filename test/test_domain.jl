@@ -100,4 +100,21 @@ using BiGSTARS: FourierBasisSpec, ChebyshevBasisSpec, get_diff_operator,
         @test S02 ≈ S1 * S0
     end
 
+    @testset "Constructor validation: ArgumentError for invalid inputs" begin
+        # Chebyshev needs N ≥ 2 and lower < upper
+        @test_throws ArgumentError Chebyshev(N=1, lower=0.0, upper=1.0)
+        @test_throws ArgumentError Chebyshev(N=16, lower=1.0, upper=0.0)   # reversed
+        @test_throws ArgumentError Chebyshev(N=16, lower=0.0, upper=0.0)   # empty
+        @test_throws ArgumentError Chebyshev(8, [1.0, 0.0])               # positional reversed
+
+        # Fourier needs N ≥ 1 and positive length
+        @test_throws ArgumentError Fourier(N=0, L=2π)
+        @test_throws ArgumentError Fourier(N=16, L=-1.0)                   # negative length
+        @test_throws ArgumentError Fourier(16, [2.0, 1.0])               # positional reversed
+
+        # Valid inputs still construct
+        @test Chebyshev(N=2, lower=0.0, upper=1.0) isa BiGSTARS.ChebyshevBasisSpec
+        @test Fourier(N=1, L=2π) isa BiGSTARS.FourierBasisSpec
+    end
+
 end

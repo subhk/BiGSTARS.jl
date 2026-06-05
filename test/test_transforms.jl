@@ -108,4 +108,50 @@ using FFTW
         @test maximum(abs.(df_custom - cos.(y))) < 1e-10
     end
 
+    @testset "to_physical domain-aware: maps physical points to reference" begin
+        # Coefficients of f(z)=z on a non-[-1,1] domain. Evaluating at the physical
+        # grid points must reproduce z (the reference-coords overload would be wrong
+        # by the affine map). Covers the visualization.md usage.
+        domain = Domain(z = Chebyshev(N=16, lower=0.0, upper=1.0))
+        z = gridpoints(domain, :z)
+        c = chebyshev_coefficients(z)                       # f(z) = z
+        v_phys = to_physical(c, domain, :z; x=z)            # physical x, mapped internally
+        @test maximum(abs.(v_phys - z)) < 1e-12
+
+        # A physical point between nodes also maps correctly.
+        zq = [0.3, 0.7]
+        @test maximum(abs.(to_physical(c, domain, :z; x=zq) - zq)) < 1e-12
+
+        # Fourier coord ignores x and inverse-FFTs.
+        dy = Domain(y = Fourier(N=16, L=2π))
+        yp = gridpoints(dy, :y)
+        fc = to_coefficients(sin.(yp), :fourier)
+        @test maximum(abs.(to_physical(fc, dy, :y) - sin.(yp))) < 1e-10
+    end
+
+    @testset "differentiate: complex input (Fourier keeps imaginary)" begin
+        domain = Domain(y = Fourier(N=32, L=2π))
+        y = gridpoints(domain, :y)
+        f = exp.(im .* y)                                   # d/dy = i·e^{iy}
+        df = differentiate(f, domain, :y)
+        @test eltype(df) <: Complex
+        @test maximum(abs.(df - im .* exp.(im .* y))) < 1e-10
+    end
+
+    @testset "differentiate: complex input (Chebyshev)" begin
+        domain = Domain(z = Chebyshev(N=32, lower=-1.0, upper=1.0))
+        z = gridpoints(domain, :z)
+        f = (z .^ 3) .+ im .* (z .^ 2)                      # d/dz = 3z² + i·2z
+        df = differentiate(f, domain, :z)
+        @test eltype(df) <: Complex
+        @test maximum(abs.(df - (3.0 .* z .^ 2 .+ im .* 2.0 .* z))) < 1e-8
+    end
+
+    @testset "differentiate: real input stays real" begin
+        domain = Domain(z = Chebyshev(N=16, lower=0.0, upper=1.0))
+        z = gridpoints(domain, :z)
+        df = differentiate(z .^ 2, domain, :z)
+        @test eltype(df) <: Real
+    end
+
 end

@@ -1289,7 +1289,10 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
 
     # Collect: (row_idx, k_powers, a_row_vec, b_row_vec)
     bc_info = Tuple{Int, KPowerKey, Vector{ComplexF64}, Vector{ComplexF64}}[]
-    rhs_values = Float64[]
+    # Keep the RHS complex so an imaginary inhomogeneous BC (e.g. a direct
+    # add_bc!(..., 1im) that bypasses @bc's Float64 coercion) is still detected
+    # by the inhomogeneous-BC check rather than silently dropped to zero.
+    rhs_values = ComplexF64[]
     bc_count = Dict{Symbol, Int}()
 
     for bc in prob.bcs
@@ -1328,7 +1331,7 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
                 end
 
                 push!(bc_info, (row_idx, (), a_row, zeros(ComplexF64, N_total)))
-                push!(rhs_values, Float64(real(bc.rhs)))
+                push!(rhs_values, ComplexF64(bc.rhs))
             end
         else
             # Dynamic BC: expression contains eigenvalue.
@@ -1397,7 +1400,7 @@ function build_bc_rows(prob::EVP, N_per_var::Int, N_total::Int)
                     end
 
                     push!(bc_info, (row_idx, kp, a_row, b_row))
-                    push!(rhs_values, Float64(real(bc.rhs)))
+                    push!(rhs_values, ComplexF64(bc.rhs))
                 end
             end
         end

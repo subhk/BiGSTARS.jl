@@ -66,11 +66,28 @@ dgdy = differentiate(g, domain_y, :y; filter=:2/3)     # cos(y), dealiased
 function differentiate(f::AbstractVector, domain::Domain, coord::Symbol;
                        order::Int=1, filter::Union{Symbol,Function}=:none)
     @assert order >= 1 "Derivative order must be ≥ 1"
+    if eltype(f) <: Complex
+        # Differentiation is linear — handle real & imaginary parts separately so complex
+        # inputs (e.g. reconstructed eigenfunctions) keep their imaginary part instead of
+        # throwing InexactError / being dropped in the Float64 paths below.
+        dr = differentiate(real.(f), domain, coord; order=order, filter=filter)
+        di = differentiate(imag.(f), domain, coord; order=order, filter=filter)
+        return complex.(dr, di)
+    end
     spec = domain.coords[coord]
 
     if spec isa ChebyshevBasisSpec
         N = spec.N
         @assert length(f) == N "Input length ($(length(f))) must match grid size ($N)"
+
+        # Complex input: the DCT path is real-only, so differentiate real/imag parts
+        # separately and recombine (differentiation is linear).
+        if eltype(f) <: Complex
+            dr = differentiate(real.(f), domain, coord; order=order, filter=filter)
+            di = differentiate(imag.(f), domain, coord; order=order, filter=filter)
+            return complex.(dr, di)
+        end
+
         scale = 2.0 / (spec.upper - spec.lower)
 
         # Physical values → T coefficients
@@ -104,7 +121,10 @@ function differentiate(f::AbstractVector, domain::Domain, coord::Symbol;
 
         D = fourier_diff_operator(N, spec.L, order)
         df_hat = D * f_hat
-        return real.(ifft(df_hat * N))
+        result = ifft(df_hat * N)
+        # Real input → real derivative (drop FFT round-off imag). Complex input
+        # (e.g. a reconstructed eigenfunction) → keep the full complex derivative.
+        return eltype(f) <: Real ? real.(result) : result
 
     else
         error("Cannot differentiate in FourierTransformed direction :$coord (no grid)")
@@ -166,5 +186,57 @@ function to_physical(c::AbstractVector, coord_type::Symbol;
         return eltype(c) <: Real ? real.(result) : result
     else
         error("Unknown coordinate type: $coord_type")
+    end
+end
+
+"""
+    to_physical(c, domain, coord; x=nothing) -> Vector
+
+Domain-aware inverse transform. For a Chebyshev `coord`, `x` are **physical** evaluation
+points (in `[lower, upper]`); they are mapped to the reference `[-1, 1]` internally before
+the Chebyshev evaluation (the bare-`Symbol` overload expects reference points). For a
+Fourier `coord`, `x` is ignored and the inverse FFT is returned. Element type is preserved,
+so complex coefficients (reconstructed eigenfunctions) give a complex field. This is the
+overload used in the visualization examples.
+"""
+function to_physical(c::AbstractVector, domain::Domain, coord::Symbol;
+                     x::Union{AbstractVector, Nothing}=nothing)
+    spec = domain.coords[coord]
+    if spec isa ChebyshevBasisSpec
+        isnothing(x) && error("Must provide physical evaluation points x for Chebyshev coordinate :$coord")
+        ξ = @. (2 * x - spec.lower - spec.upper) / (spec.upper - spec.lower)   # physical → [-1,1]
+        return chebyshev_evaluate(c, ξ)
+    elseif spec isa FourierBasisSpec
+        N = length(c)
+        result = ifft(c * N)
+        return eltype(c) <: Real ? real.(result) : result
+    else
+        error("Cannot map FourierTransformed coordinate :$coord to physical space")
+    end
+end
+
+"""
+    to_physical(c, domain, coord; x=nothing) -> Vector
+
+Domain-aware evaluation of spectral coefficients. Unlike the `coord_type` method
+(whose `x` must be reference coordinates ∈ [-1, 1]), this overload maps the supplied
+**physical** points to reference coordinates using `domain`'s bounds before evaluating —
+so you can pass `x = gridpoints(domain, coord)` directly.
+
+- Chebyshev `coord`: maps `x ∈ [lower, upper]` → `[-1, 1]`, then evaluates the expansion.
+- Fourier `coord`: inverse-FFTs (the `x` argument is ignored; the FFT grid is implied).
+"""
+function to_physical(c::AbstractVector, domain::Domain, coord::Symbol;
+                     x::Union{AbstractVector, Nothing}=nothing)
+    spec = domain.coords[coord]
+    if spec isa ChebyshevBasisSpec
+        isnothing(x) && error("Must provide evaluation points x for Chebyshev transform")
+        # Physical [lower,upper] → reference [-1,1] (inverse of chebyshev_points' map)
+        x_ref = @. 2.0 * (x - spec.lower) / (spec.upper - spec.lower) - 1.0
+        return chebyshev_evaluate(c, x_ref)
+    elseif spec isa FourierBasisSpec
+        return to_physical(c, :fourier)
+    else
+        error("Cannot evaluate to physical space in direction :$coord (no spectral grid)")
     end
 end
