@@ -3,18 +3,21 @@
 #══════════════════════════════════════════════════════════════════════════════#
 
 """
-    chebyshev_evaluate(c, x) -> Vector{Float64}
+    chebyshev_evaluate(c, x) -> Vector
 
 Evaluate a Chebyshev expansion with coefficients `c` at points `x` ∈ [-1, 1].
-Uses Clenshaw's algorithm for numerical stability.
+Uses Clenshaw's algorithm for numerical stability. The output element type is
+promoted from `c` (so complex coefficients — e.g. reconstructed eigenfunctions —
+give a complex result rather than throwing).
 """
 function chebyshev_evaluate(c::AbstractVector, x::AbstractVector)
     N = length(c)
-    result = similar(x, Float64)
+    T = promote_type(eltype(c), eltype(x), Float64)
+    result = similar(x, T)
     for (i, xi) in enumerate(x)
         # Clenshaw recurrence for T polynomials
-        b_kp1 = 0.0
-        b_kp2 = 0.0
+        b_kp1 = zero(T)
+        b_kp2 = zero(T)
         for k in N:-1:2
             b_temp = c[k] + 2xi * b_kp1 - b_kp2
             b_kp2 = b_kp1
@@ -157,7 +160,10 @@ function to_physical(c::AbstractVector, coord_type::Symbol;
         return chebyshev_evaluate(c, x)
     elseif coord_type == :fourier
         N = length(c)
-        return real.(ifft(c * N))
+        result = ifft(c * N)
+        # Real coefficients → real field (drop FFT round-off imag). Complex coefficients
+        # (e.g. a reconstructed eigenfunction) → keep the full complex field.
+        return eltype(c) <: Real ? real.(result) : result
     else
         error("Unknown coordinate type: $coord_type")
     end

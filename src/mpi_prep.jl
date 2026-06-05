@@ -299,6 +299,9 @@ Cheap; built on the group root for the singular-`B` spurious-mode filter when th
 distributed path means no rank holds a full `B`.
 """
 function _assemble_B_full(cache, k::Float64)
+    cache.row_range === nothing ||
+        throw(ArgumentError("_assemble_B_full needs a full (unrestricted) cache; got " *
+            "row_range=$(cache.row_range). Its B_components are row-sliced — use assemble_rows."))
     k_vals = _k_values(cache, k)
     N = cache.N_total
     B = spzeros(ComplexF64, N, N)
