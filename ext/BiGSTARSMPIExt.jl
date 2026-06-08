@@ -4,7 +4,7 @@ using BiGSTARS
 using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
                 _sigma_schedule, _group_indices, _petsc_ownership, assemble_rows,
                 SolverResults, ConvergenceHistory, _keep_by_mass,
-                sort_eigenvalues!, restrict_cache_rows
+                sort_eigenvalues!, _discretize_n_total
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -16,8 +16,8 @@ using Printf: @printf
 # BiGSTARSMPIExt — distributed eigensolver backend over SLEPc/PETSc, the package's
 # sole eigensolve backend (loaded when MPI, PetscWrap, SlepcWrap are all imported).
 #
-# Each rank assembles ONLY its owned rows of A,B locally (assemble_rows slices the
-# replicated cache components — no rank-0 full build, no scatter) and inserts them
+# Each rank builds ONLY its owned rows of A,B directly (discretize with row_range —
+# no full operator is materialized on any rank, no rank-0 build, no scatter) and inserts them
 # into a distributed PETSc MatMPIAIJ. SLEPc's EPS solves the generalized pencil
 # with a shift-and-invert spectral transform; an adaptive-σ loop retargets the
 # transform per attempt via EPSSetTarget until the eigenvalue at the shift is
@@ -63,7 +63,7 @@ function _fill_mat!(M, rows, rstart::Integer, rend::Integer, comm::MPI.Comm)
 end
 
 """Build distributed PETSc A and B for one wavenumber, each rank assembling only
-its owned rows locally from the replicated cache (no rank-0 full matrix, no scatter)."""
+its owned rows locally from its row-restricted cache (no rank-0 full matrix, no scatter)."""
 function _build_petsc_mats_local(cache, k, N::Integer, comm::MPI.Comm)
     A = MatCreate(comm)
     MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
@@ -349,23 +349,29 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache; sigma_0::Real, kwar
     return BiGSTARS.solve(cache, [0.0]; sigma_0=sigma_0, kwargs...)
 end
 
-function BiGSTARS.discretize_distributed(prob; ngroups::Integer=1, kwargs...)
+function BiGSTARS.discretize_distributed(prob; ngroups::Integer=1,
+                                         augment_derived::Bool=true, kwargs...)
     MPI.Initialized() || MPI.Init()
     world = MPI.COMM_WORLD
     P = MPI.Comm_size(world); wrank = MPI.Comm_rank(world)
     (1 ≤ ngroups ≤ P) || error("discretize_distributed: ngroups=$(ngroups) must be in 1:$(P)")
     (P % ngroups == 0) || error("discretize_distributed: nprocs=$(P) not divisible by ngroups=$(ngroups)")
 
-    cache = BiGSTARS.discretize(prob; kwargs...)          # full, on every rank
     psize = P ÷ ngroups
     grank = wrank % psize                                 # rank within its group (deterministic)
 
-    # Owned rows via PETSc's deterministic PETSC_DECIDE split (pure formula — no PETSc
-    # probe, so this needs no PetscInitialize). solve's per-group build Mat uses the
-    # same split, and assemble_rows asserts the resulting range matches row_range.
-    rstart, rend = _petsc_ownership(cache.N_total, psize, grank)
+    # Owned rows via PETSc's deterministic PETSC_DECIDE split (pure formula). N_total is the
+    # post-augmentation size, computed WITHOUT a build so the split is known before discretize
+    # runs. solve's per-group build Mat uses the same split; assemble_rows asserts the resulting
+    # range matches the cache's row_range.
+    N_total = _discretize_n_total(prob; augment_derived=augment_derived)
+    rstart, rend = _petsc_ownership(N_total, psize, grank)
 
-    return restrict_cache_rows(cache, rstart, rend)   # every rank (mass filter is now distributed)
+    # Distributed assembly: each rank builds ONLY its owned rows — no full operator is ever
+    # materialized (peak build memory and build time drop ~1/psize). The returned cache already
+    # has row_range set, so it plugs straight into assemble_rows.
+    return BiGSTARS.discretize(prob; augment_derived=augment_derived,
+                               row_range=(rstart, rend), kwargs...)
 end
 
 end # module
