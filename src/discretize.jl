@@ -45,9 +45,10 @@ mutable struct DiscretizationContext
     s_inv_full_cache::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}  # S_inv_full (N_per_var) per cheb_order
     sinv_1d_cache::Dict{Int, SparseMatrixCSC{ComplexF64, Int}}     # S_inv_1d (N_z) per cheb_order
     s_mf_sinv_cache::Dict{FieldOpCacheKey, SparseMatrixCSC{ComplexF64, Int}}  # S*M_f*S_inv per (field, order)
+    coeff_tol::Float64                                                        # Fourier-block drop tolerance (0 = exact)
 end
 
-function DiscretizationContext()
+function DiscretizationContext(coeff_tol::Float64=0.0)
     return DiscretizationContext(
         Dict{FieldMultiplyCacheKey, SparseMatrixCSC{ComplexF64, Int}}(),
         0,
@@ -56,8 +57,12 @@ function DiscretizationContext()
         Dict{Int, SparseMatrixCSC{ComplexF64, Int}}(),
         Dict{Int, SparseMatrixCSC{ComplexF64, Int}}(),
         Dict{FieldOpCacheKey, SparseMatrixCSC{ComplexF64, Int}}(),
+        coeff_tol,
     )
 end
+
+# coeff_tol carried on the (per-call) ctx; nothing → exact.
+_ctx_coeff_tol(ctx::Union{Nothing, DiscretizationContext}) = ctx === nothing ? 0.0 : ctx.coeff_tol
 
 function DiscretizationCache(A_components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}},
                              B_components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}},
@@ -535,7 +540,7 @@ State vector ordering: z varies fastest.
 """
 function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
                                    cheb_dim::Symbol, fourier_dim::Symbol,
-                                   highest_cheb_order::Int)
+                                   highest_cheb_order::Int; coeff_tol::Float64=0.0)
     spec_z = domain.coords[cheb_dim]
     spec_y = domain.coords[fourier_dim]
     N_z = spec_z.N
@@ -567,7 +572,7 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
         Mz_blocks[dm + 1] = S_1d * M_z
     end
 
-    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
+    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y; coeff_tol=coeff_tol)
 end
 
 """
@@ -578,7 +583,8 @@ Fourier mode of the field — avoiding the dense inverse-conversion `S_z⁻¹` a
 keeping the operator sparse (fill ∝ band/N_z).
 """
 function _build_2d_field_multiply_banded(f_vec::AbstractVector, domain::Domain,
-                                         cheb_dim::Symbol, fourier_dim::Symbol, λ::Int)
+                                         cheb_dim::Symbol, fourier_dim::Symbol, λ::Int;
+                                         coeff_tol::Float64=0.0)
     N_z = domain.coords[cheb_dim].N
     N_y = domain.coords[fourier_dim].N
 
@@ -596,7 +602,7 @@ function _build_2d_field_multiply_banded(f_vec::AbstractVector, domain::Domain,
         Mz_blocks[dm + 1] = ultraspherical_multiplication_operator(c, N_z, λ)
     end
 
-    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y)
+    return _assemble_2d_block_toeplitz(Mz_blocks, N_z, N_y; coeff_tol=coeff_tol)
 end
 
 """
@@ -606,7 +612,8 @@ the caller's fallback). Unifies the 1D (z-only, lifted) and 2D (varies in y and
 z) cases; both stay sparse (banded ultraspherical, no dense `S⁻¹`).
 """
 function _field_banded_operator(param::ParamNode, prob::EVP, cheb_dim::Symbol,
-                                highest_cheb_order::Int, N_per_var::Int)
+                                highest_cheb_order::Int, N_per_var::Int;
+                                coeff_tol::Float64=0.0)
     highest_cheb_order >= 1 || return nothing
     domain = prob.domain
     N_z = domain.coords[cheb_dim].N
@@ -620,7 +627,8 @@ function _field_banded_operator(param::ParamNode, prob::EVP, cheb_dim::Symbol,
         return size(M_z, 1) == N_per_var ? M_z : _lift_to_2d(M_z, cheb_dim, domain)
     else
         # 2D (y, z) field
-        return _build_2d_field_multiply_banded(f_vec, domain, cheb_dim, fourier_dim, highest_cheb_order)
+        return _build_2d_field_multiply_banded(f_vec, domain, cheb_dim, fourier_dim, highest_cheb_order;
+                                               coeff_tol=coeff_tol)
     end
 end
 
@@ -632,7 +640,8 @@ order ≥ 1; falls back to the T-basis multiply (`S·M_f·S⁻¹`) for order 0.
 function _field_times_operator(param::ParamNode, G, prob::EVP, cheb_dim::Symbol,
                                highest_cheb_order::Int, N_per_var::Int,
                                ctx::Union{Nothing, DiscretizationContext})
-    banded = _field_banded_operator(param, prob, cheb_dim, highest_cheb_order, N_per_var)
+    banded = _field_banded_operator(param, prob, cheb_dim, highest_cheb_order, N_per_var;
+                                    coeff_tol=_ctx_coeff_tol(ctx))
     isnothing(banded) || return banded * G
     M_f = _field_multiply_T(param, ComplexF64(1.0), prob, cheb_dim, ctx)
     return _apply_field_multiply(M_f, G, prob.domain, cheb_dim, highest_cheb_order,
@@ -665,12 +674,32 @@ function _build_2d_coeff_multiply(c_vec::AbstractVector, domain::Domain,
 end
 
 function _assemble_2d_block_toeplitz(Mz_blocks::AbstractVector{<:SparseMatrixCSC{ComplexF64, Int}},
-                                     N_z::Int, N_y::Int)
+                                     N_z::Int, N_y::Int; coeff_tol::Float64=0.0)
     length(Mz_blocks) == N_y ||
         throw(DimensionMismatch("Expected $N_y Fourier blocks, got $(length(Mz_blocks))"))
 
+    # Relative drop of near-zero Fourier-mode blocks: treat block dm as zero when its norm is
+    # ≤ coeff_tol × the largest block norm — truncating the field's y-spectrum (smooth field ⇒
+    # exponential decay ⇒ tiny error). Reference is the MAX block (not DC: zero-mean fields have
+    # DC ≈ 0). coeff_tol = 0 keeps every nonzero block (exact, current behavior).
+    keep = trues(N_y)
+    if coeff_tol > 0
+        norms = [iszero(nnz(b)) ? 0.0 : norm(nonzeros(b)) for b in Mz_blocks]
+        mx = maximum(norms)
+        if mx > 0
+            for dm in 1:N_y
+                keep[dm] = norms[dm] > coeff_tol * mx
+            end
+            ndrop = count(!, keep)
+            if ndrop > 0
+                kept_frac = sqrt(sum(abs2, norms[keep]) / sum(abs2, norms))
+                @debug "block-Toeplitz coeff_tol drop" coeff_tol kept=(N_y - ndrop) total=N_y dropped_frac=(1 - kept_frac)
+            end
+        end
+    end
+
     N_total = N_z * N_y
-    estimated_nnz = N_y * sum(nnz, Mz_blocks)
+    estimated_nnz = N_y * sum(dm -> keep[dm] ? nnz(Mz_blocks[dm]) : 0, 1:N_y)
     rows = Int[]
     cols = Int[]
     vals = ComplexF64[]
@@ -686,7 +715,7 @@ function _assemble_2d_block_toeplitz(Mz_blocks::AbstractVector{<:SparseMatrixCSC
             block = Mz_blocks[dm + 1]
             size(block) == (N_z, N_z) ||
                 throw(DimensionMismatch("Block $(dm + 1) has size $(size(block)), expected ($N_z, $N_z)"))
-            nnz(block) == 0 && continue
+            (nnz(block) == 0 || !keep[dm + 1]) && continue
 
             row_offset = m1 * N_z
             col_offset = m2 * N_z
@@ -851,7 +880,8 @@ function _field_multiply_T(param::ParamNode, scale::ComplexF64, prob::EVP, cheb_
     M = if !isnothing(fourier_dim)
         N_y = domain.coords[fourier_dim].N
         if length(f_vec) == N_y * N_z
-            _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0)
+            _build_2d_field_multiply(f_vec, domain, cheb_dim, fourier_dim, 0;
+                                     coeff_tol=_ctx_coeff_tol(ctx))
         elseif length(f_vec) == N_z
             c = chebyshev_coefficients(Float64.(f_vec))
             ComplexF64.(multiplication_operator(c, N_z))
@@ -1700,7 +1730,9 @@ but denser system). The augmented form is a singular-`B` descriptor system; `sol
 filters the resulting infinite/spurious modes, but shift-target the physical region.
 """
 function discretize(prob::EVP; augment_derived::Bool=true,
-                    row_range::Union{Nothing,Tuple{Int,Int}}=nothing)
+                    row_range::Union{Nothing,Tuple{Int,Int}}=nothing,
+                    coeff_tol::Float64=0.0)
+    (0.0 <= coeff_tol < 1.0) || throw(ArgumentError("coeff_tol=$(coeff_tol) must be in [0, 1)"))
     validate_problem(prob)
 
     # Augmented (descriptor) form: rewrite derived variables into regular
@@ -1725,7 +1757,7 @@ function discretize(prob::EVP; augment_derived::Bool=true,
 
     A_buffers = Dict{KPowerKey, _COOBuf}()
     B_buffers = Dict{KPowerKey, _COOBuf}()
-    ctx = DiscretizationContext()
+    ctx = DiscretizationContext(coeff_tol)
 
     # Compute per-equation highest Chebyshev derivative order.
     # Each equation lives in its own C^(p) basis where p is the max z-derivative

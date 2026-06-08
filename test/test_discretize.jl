@@ -593,4 +593,85 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test_throws ArgumentError assemble(restricted, 1.0)
     end
 
+    @testset "_assemble_2d_block_toeplitz coeff_tol drops near-zero Fourier blocks" begin
+        N_z, N_y = 2, 4
+        # Block norms decay geometrically; dm=0 (DC) is ZERO to confirm the reference
+        # is the max block, not DC. Each nonzero block = m·I (nnz = N_z).
+        mags = [0.0, 1.0, 1e-3, 1e-9]      # block norms for dm = 0,1,2,3
+        Mz = [ m == 0.0 ? spzeros(ComplexF64, N_z, N_z) :
+                          sparse(ComplexF64(m) * I, N_z, N_z) for m in mags ]
+
+        full = BiGSTARS._assemble_2d_block_toeplitz(Mz, N_z, N_y)                    # exact
+        cut  = BiGSTARS._assemble_2d_block_toeplitz(Mz, N_z, N_y; coeff_tol=1e-6)    # drop dm=3 (1e-9)
+        keepall = BiGSTARS._assemble_2d_block_toeplitz(Mz, N_z, N_y; coeff_tol=1e-12)
+
+        # each nonzero dm-block appears at N_y positions in the block-Toeplitz
+        @test nnz(full)    == N_y * (nnz(Mz[2]) + nnz(Mz[3]) + nnz(Mz[4]))  # dm=1,2,3
+        @test nnz(cut)     == N_y * (nnz(Mz[2]) + nnz(Mz[3]))               # dm=3 dropped
+        @test nnz(keepall) == nnz(full)                                     # nothing below 1e-12·max
+        @test nnz(cut) < nnz(full)
+    end
+
+    @testset "discretize coeff_tol: sparser operator, eigenvalues preserved" begin
+        dom = Domain(x=FourierTransformed(), y=Fourier(16,[0.0,2π]), z=Chebyshev(12,[0.0,1.0]))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        # Smooth periodic background with exponentially decaying Fourier modes.
+        # DFT modes at dm=4 and dm=12 have amplitude ~1e-10 (below coeff_tol=1e-8 × max),
+        # so those Toeplitz blocks get dropped. A plain Gaussian on [0,2π] is not periodic —
+        # its periodic extension has a C^1 kink → polynomial Fourier decay floor ~6e-4 that
+        # never drops below 1e-8 within N_y=16; we use an explicit trig polynomial instead.
+        y = gridpoints(dom, :y)
+        U_y = @. 1.0 + 0.5*cos(y - π) + 0.05*cos(2*(y - π)) +
+                  0.001*cos(3*(y - π)) + 1e-10*cos(4*(y - π))
+        p[:U] = vec([U_y[iy] for iz in 1:12, iy in 1:16])
+        @equation p sigma * u == -dz(dz(u)) - dx(dx(u)) + U * u
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+
+        c0 = discretize(p)                                 # exact
+        ct = discretize(p; coeff_tol=1e-8)                 # thresholded
+
+        nnz0 = sum(nnz, values(c0.A_components))
+        nnzt = sum(nnz, values(ct.A_components))
+        @test nnzt < nnz0                                  # blocks were dropped
+
+        # Filter out spurious BC-constraint eigenvalues (|λ| ≥ 1e6) before comparing
+        leading(A, B) = begin
+            e = eigvals(Matrix(A), Matrix(B))
+            e = filter(l -> isfinite(l) && abs(l) < 1e6, e)
+            e[argmax(real.(e))]
+        end
+        A0, B0 = assemble(c0, 0.5); At, Bt = assemble(ct, 0.5)
+        λ0 = leading(A0, B0); λt = leading(At, Bt)
+        rel_t = abs(λt - λ0) / abs(λ0)
+        @test rel_t < 1e-6                                 # accuracy preserved
+
+        # Load-bearing accuracy/sparsity trade: coeff_tol=1e-3 drops a MORE significant mode
+        # (±3, DFT amp ~5e-4) on top of ±4, while keeping ±2 (~0.025). It must be strictly
+        # sparser than the 1e-8 build AND shift the eigenvalue strictly more (a real mode left)
+        # — yet stay well within tolerance. This makes the trade non-vacuous: dropping ±2/±1
+        # would breach 1e-2, dropping nothing extra would fail the nnz check.
+        c3 = discretize(p; coeff_tol=1e-3)
+        @test sum(nnz, values(c3.A_components)) < nnzt     # ±3 pair dropped on top of ±4
+        A3, B3 = assemble(c3, 0.5); λ3 = leading(A3, B3)
+        rel_3 = abs(λ3 - λ0) / abs(λ0)
+        @test rel_3 > rel_t                                # bigger mode dropped → strictly larger shift
+        @test rel_3 < 1e-2                                 # still bounded / accurate
+
+        # zero-mean field: DC ≈ 0, so the max-reference (not DC) must still keep dominant modes
+        p2 = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        U_raw = p.parameters[:U]
+        Uz = U_raw .- sum(U_raw) / length(U_raw)
+        p2[:U] = Uz
+        @equation p2 sigma * u == -dz(dz(u)) - dx(dx(u)) + U * u
+        @bc p2 left(u) == 0
+        @bc p2 right(u) == 0
+        cz = discretize(p2; coeff_tol=1e-8)
+        @test sum(nnz, values(cz.A_components)) > 0        # not everything dropped (max ref works)
+
+        # coeff_tol must be in [0, 1)
+        @test_throws ArgumentError discretize(p; coeff_tol=1.0)
+        @test_throws ArgumentError discretize(p; coeff_tol=-0.1)
+    end
+
 end
