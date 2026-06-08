@@ -464,4 +464,133 @@ using BiGSTARS: conversion_operator, differentiation_operator, get_conversion_op
         @test bytes < 38 * steady   # green ratio ≈ 25.14×; old += churn was ~35×+ → ratio >> 38
     end
 
+    @testset "_scatter_block_rows! == _scatter_block! row-slice" begin
+        Npv, Nvars = 4, 3
+        N = Npv * Nvars
+        mat = sparse(ComplexF64[ (10i + j) for i in 1:Npv, j in 1:Npv ])  # dense-ish block
+        key = ()                              # KPowerKey: k-independent component
+        eq_idx, var_idx = 2, 3
+
+        # full scatter → N×N reference
+        full_bufs = Dict{BiGSTARS.KPowerKey, BiGSTARS._COOBuf}()
+        BiGSTARS._scatter_block!(full_bufs, key, mat, eq_idx, var_idx, Npv)
+        full = BiGSTARS._finalize_components(full_bufs, N)[key]
+
+        for (rs, re) in ((0, N), (Npv, 2Npv), (0, Npv), (5, 7), (2Npv, N), (3, 3))
+            bufs = Dict{BiGSTARS.KPowerKey, BiGSTARS._COOBuf}()
+            BiGSTARS._scatter_block_rows!(bufs, key, mat, eq_idx, var_idx, Npv, rs, re)
+            got = BiGSTARS._finalize_components(bufs, re - rs, N)
+            ref = full[(rs+1):re, :]
+            got_mat = haskey(got, key) ? got[key] : spzeros(ComplexF64, re - rs, N)
+            @test got_mat == ref
+            @test size(got_mat) == (re - rs, N)
+        end
+    end
+
+    @testset "_discretize_n_total matches discretize N_total" begin
+        # plain problem (no derived vars)
+        dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+        @test BiGSTARS._discretize_n_total(p) == discretize(p).N_total
+
+        # augmented problem (derived var adds an unknown block)
+        dom2 = Domain(z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p2 = EVP(dom2, variables=[:psi], eigenvalue=:sigma)
+        @derive p2 v dz(dz(v)) = psi
+        @derive_bc p2 v left(v) == 0
+        @derive_bc p2 v right(v) == 0
+        @equation p2 sigma * psi == v
+        @bc p2 left(psi) == 0
+        @bc p2 right(psi) == 0
+        @test BiGSTARS._discretize_n_total(p2; augment_derived=true) ==
+              discretize(p2; augment_derived=true).N_total
+        @test BiGSTARS._discretize_n_total(p2; augment_derived=true) == 2 * 12  # psi + v, 12 cheb pts
+        @test BiGSTARS._discretize_n_total(p2; augment_derived=false) == 12     # psi only (no augmentation)
+    end
+
+    @testset "discretize row_range == restrict_cache_rows(full)" begin
+        function mk_plain()
+            dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+            p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+            @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+            @bc p left(u) == 0
+            @bc p right(u) == 0
+            p
+        end
+        function mk_multi()   # two equations → two row-blocks, exercises equation skipping
+            dom = Domain(x=FourierTransformed(), y=Fourier(8,[0.0,1.0]), z=Chebyshev(8,[0.0,1.0]))
+            p = EVP(dom, variables=[:w,:zeta], eigenvalue=:sigma)
+            @equation p sigma * w == -dz(dz(w)) - dx(dx(w)) + zeta
+            @equation p sigma * zeta == dz(w) - dy(dy(zeta))
+            @bc p left(w) == 0;       @bc p right(w) == 0
+            @bc p left(dz(zeta)) == 0; @bc p right(dz(zeta)) == 0
+            p
+        end
+        function mk_aug()     # derived var → augmentation path
+            dom = Domain(z=Chebyshev(N=12, lower=0.0, upper=1.0))
+            p = EVP(dom, variables=[:psi], eigenvalue=:sigma)
+            @derive p v dz(dz(v)) = psi
+            @derive_bc p v left(v) == 0
+            @derive_bc p v right(v) == 0
+            @equation p sigma * psi == v
+            @bc p left(psi) == 0
+            @bc p right(psi) == 0
+            p
+        end
+        function mk_dynbc()   # dynamic BC with an x-derivative → a non-() B key absent from all eqs
+            dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+            p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+            @equation p sigma * u == -dz(dz(u)) - dx(dx(u))          # eqs carry only x-power 0 and 2
+            @bc p left(u) == 0
+            @bc p right(sigma * dx(u) + dz(u)) == 0                   # dynamic; dx(u) → B key x-power 1
+            p
+        end
+        function mk_legacy()  # augment_derived=false → non-empty derived_caches; 2 blocks → skip path
+            dom = Domain(x=FourierTransformed(), y=Fourier(8,[0.0,1.0]), z=Chebyshev(8,[0.0,1.0]))
+            p = EVP(dom, variables=[:w,:zeta], eigenvalue=:sigma)
+            @derive p v dx(dx(v)) + dy(dy(v)) = dy(dz(w)) - dx(zeta)
+            @equation p sigma * w == v - dz(dz(w))
+            @equation p sigma * zeta == dz(w)
+            @bc p left(w) == 0; @bc p right(w) == 0
+            @bc p left(dz(zeta)) == 0; @bc p right(dz(zeta)) == 0
+            p
+        end
+
+        for (mk, aug, k) in ((mk_plain, true, 1.3), (mk_multi, true, 0.7), (mk_aug, true, 0.0), (mk_dynbc, true, 0.7), (mk_legacy, false, 1.0))
+            full = discretize(mk(); augment_derived=aug)
+            N = full.N_total
+            for (rs, re) in ((0, N), (0, cld(N,2)), (cld(N,2), N), (N-1, N), (N, N))
+                ref = BiGSTARS.restrict_cache_rows(full, rs, re)
+                got = discretize(mk(); augment_derived=aug, row_range=(rs, re))
+                @test got.row_range == (rs, re)
+                @test got.N_total == N
+                @test keys(got.A_components) == keys(full.A_components)
+                @test keys(got.B_components) == keys(full.B_components)
+                for kp in keys(ref.A_components)
+                    @test got.A_components[kp] == ref.A_components[kp]
+                end
+                for kp in keys(ref.B_components)
+                    @test got.B_components[kp] == ref.B_components[kp]
+                end
+                Ag, Bg = BiGSTARS.assemble_rows(got, k, rs, re)
+                Ar, Br = BiGSTARS.assemble_rows(ref, k, rs, re)
+                @test Ag ≈ Ar && Bg ≈ Br
+            end
+        end
+    end
+
+    @testset "assemble rejects a restricted cache" begin
+        dom = Domain(x=FourierTransformed(), z=Chebyshev(N=8, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dz(dz(u))
+        @bc p left(u) == 0
+        @bc p right(u) == 0
+        N = discretize(p).N_total
+        restricted = discretize(p; row_range=(0, cld(N, 2)))
+        @test_throws ArgumentError assemble(restricted, 1.0)
+    end
+
 end
