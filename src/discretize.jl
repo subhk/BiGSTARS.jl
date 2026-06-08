@@ -153,13 +153,54 @@ function _scatter_block!(buffers::Dict{KPowerKey, _COOBuf}, key::KPowerKey,
     return _scatter_block!(buffers, key, sparse(ComplexF64.(mat)), eq_idx, var_idx, N_per_var)
 end
 
-function _finalize_components(buffers::Dict{KPowerKey, _COOBuf}, N_total::Int)
+# Row-restricted scatter: like _scatter_block!, but only entries whose GLOBAL row
+# (1-based: rows[idx] + row_off) lies in the owned slice [rstart, rend) (0-based
+# half-open) are kept, remapped to the LOCAL row within the slice. Columns stay
+# global/full. Used to build only a rank's owned rows without materializing N×N.
+function _scatter_block_rows!(buffers::Dict{KPowerKey, _COOBuf}, key::KPowerKey,
+                              mat::SparseMatrixCSC{ComplexF64, Int},
+                              eq_idx::Int, var_idx::Int, N_per_var::Int,
+                              rstart::Int, rend::Int)
+    row_off = (eq_idx - 1) * N_per_var
+    col_off = (var_idx - 1) * N_per_var
+    # Skip this equation block entirely if its rows don't overlap the owned slice
+    # [rstart, rend) — half-open overlap test on the block's global row interval.
+    max(row_off, rstart) < min(row_off + N_per_var, rend) || return buffers
+    I, J, V = get!(() -> (Int[], Int[], ComplexF64[]), buffers, key)
+    rows = rowvals(mat)
+    vals = nonzeros(mat)
+    for col in 1:size(mat, 2)
+        for idx in nzrange(mat, col)
+            g = rows[idx] + row_off            # 1-based global row
+            (rstart < g <= rend) || continue   # owned ⟺ g ∈ [rstart+1, rend]
+            push!(I, g - rstart)               # 1-based local row in the slice
+            push!(J, col + col_off)            # global 1-based column
+            push!(V, vals[idx])
+        end
+    end
+    return buffers
+end
+
+# Dense overload, mirroring the dense _scatter_block!.
+function _scatter_block_rows!(buffers::Dict{KPowerKey, _COOBuf}, key::KPowerKey,
+                              mat::AbstractMatrix,
+                              eq_idx::Int, var_idx::Int, N_per_var::Int,
+                              rstart::Int, rend::Int)
+    return _scatter_block_rows!(buffers, key, sparse(ComplexF64.(mat)),
+                                eq_idx, var_idx, N_per_var, rstart, rend)
+end
+
+function _finalize_components(buffers::Dict{KPowerKey, _COOBuf}, nrows::Int, N_total::Int)
     out = Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}}()
     for (key, (I, J, V)) in buffers
-        out[key] = sparse(I, J, V, N_total, N_total)
+        out[key] = sparse(I, J, V, nrows, N_total)
     end
     return out
 end
+
+# Square (full-build) convenience: nrows == N_total.
+_finalize_components(buffers::Dict{KPowerKey, _COOBuf}, N_total::Int) =
+    _finalize_components(buffers, N_total, N_total)
 
 function Base.show(io::IO, c::DiscretizationCache)
     println(io, "DiscretizationCache")
@@ -1629,6 +1670,22 @@ end
 # ──────────────────────────────────────────────────────────────────────────────
 
 """
+    _discretize_n_total(prob; augment_derived=true) -> Int
+
+Post-augmentation system size `N_total = total_grid_size(domain) * N_vars`, computed
+WITHOUT building any operator. With `augment_derived=true`, derived variables are
+rewritten into extra unknown blocks, so this augments first to count them — matching
+`discretize`'s internal `N_total` exactly. Used by the distributed path to compute the
+PETSc row split before calling `discretize(prob; row_range=...)`.
+"""
+function _discretize_n_total(prob::EVP; augment_derived::Bool=true)
+    if augment_derived && !isempty(prob.derived_vars)
+        prob, _ = _augment_derived_problem(prob)
+    end
+    return total_grid_size(prob.domain) * length(prob.variables)
+end
+
+"""
     discretize(prob::EVP; augment_derived=true) -> DiscretizationCache
 
 Validate the problem, expand substitutions, lower derivatives, separate by k-power,
@@ -1642,7 +1699,8 @@ path that eliminates derived variables via an explicit operator inverse (a small
 but denser system). The augmented form is a singular-`B` descriptor system; `solve`
 filters the resulting infinite/spurious modes, but shift-target the physical region.
 """
-function discretize(prob::EVP; augment_derived::Bool=true)
+function discretize(prob::EVP; augment_derived::Bool=true,
+                    row_range::Union{Nothing,Tuple{Int,Int}}=nothing)
     validate_problem(prob)
 
     # Augmented (descriptor) form: rewrite derived variables into regular
@@ -1656,6 +1714,14 @@ function discretize(prob::EVP; augment_derived::Bool=true)
     N_per_var = total_grid_size(prob.domain)
     N_vars = length(prob.variables)
     N_total = N_per_var * N_vars
+
+    # Owned-row slice. nothing → full build (rstart=0, nrows=N_total): every branch
+    # below reduces to the original behavior. Set → build only [rstart,rend) (0-based).
+    rstart, rend = row_range === nothing ? (0, N_total) : row_range
+    (0 <= rstart <= rend <= N_total) ||
+        throw(ArgumentError("row_range=$(row_range) out of [0,$N_total]"))
+    nrows = rend - rstart
+    restricted = row_range !== nothing
 
     A_buffers = Dict{KPowerKey, _COOBuf}()
     B_buffers = Dict{KPowerKey, _COOBuf}()
@@ -1731,6 +1797,15 @@ function discretize(prob::EVP; augment_derived::Bool=true)
     end
 
     for (eq_idx, eq) in enumerate(prob.equations)
+        # Skip equations whose row-block does not intersect the owned slice. Equation
+        # eq_idx writes only into block row eq_idx (row_off = (eq_idx-1)*N_per_var), so
+        # its (empty-for-us) contribution can be dropped entirely — the build-time win.
+        if restricted
+            bs = (eq_idx - 1) * N_per_var
+            be = eq_idx * N_per_var
+            max(bs, rstart) < min(be, rend) || continue
+        end
+
         rhs_lowered = eq_lowered_rhs[eq_idx]
         lhs_lowered = eq_lowered_lhs[eq_idx]
         eq_order = eq_cheb_orders[eq_idx]
@@ -1744,7 +1819,10 @@ function discretize(prob::EVP; augment_derived::Bool=true)
             derived_targets = filter(v -> haskey(prob.derived_vars, v), target_vars)
 
             if !isempty(derived_targets)
-                # Store pre-discretized matrices for per-k H assembly
+                # Store pre-discretized matrices for per-k H assembly. Derived caches
+                # stay FULL; assemble_rows row-restricts them via _place_in_block_rows,
+                # so storing only owned-equation terms is consistent (non-owned rows
+                # contribute nothing to our slice anyway).
                 _store_derived_term!(derived_caches, kt, eq_idx, eq_order,
                                     prob, N_per_var, N_vars, ctx)
                 continue
@@ -1752,7 +1830,12 @@ function discretize(prob::EVP; augment_derived::Bool=true)
 
             mat = discretize_expr(kt.expr, prob, N_per_var, eq_order, ctx)
             var_idx = find_target_variable(kt.expr, prob.variables)
-            _scatter_block!(A_buffers, kt.k_powers, mat, eq_idx, var_idx, N_per_var)
+            if restricted
+                _scatter_block_rows!(A_buffers, kt.k_powers, mat, eq_idx, var_idx,
+                                     N_per_var, rstart, rend)
+            else
+                _scatter_block!(A_buffers, kt.k_powers, mat, eq_idx, var_idx, N_per_var)
+            end
         end
 
         # LHS: eigenvalue side → B matrix (also needs k-separation)
@@ -1766,14 +1849,40 @@ function discretize(prob::EVP; augment_derived::Bool=true)
 
             for kt in lhs_terms
                 mat = discretize_expr(kt.expr, prob, N_per_var, eq_order, ctx)
-                _scatter_block!(B_buffers, kt.k_powers, mat, eq_idx, lhs_var_idx, N_per_var)
+                if restricted
+                    _scatter_block_rows!(B_buffers, kt.k_powers, mat, eq_idx, lhs_var_idx,
+                                         N_per_var, rstart, rend)
+                else
+                    _scatter_block!(B_buffers, kt.k_powers, mat, eq_idx, lhs_var_idx, N_per_var)
+                end
             end
         end
         # If no eigenvalue on LHS → constraint equation, B rows stay zero
     end
 
-    A_components = _finalize_components(A_buffers, N_total)
-    B_components = _finalize_components(B_buffers, N_total)
+    # In restricted mode: ensure ALL k-power keys from every equation are present in
+    # the buffers (possibly as empty entries), even for equations whose rows were
+    # entirely skipped above. This guarantees the restricted cache has the same key
+    # set as the full build — required by restrict_cache_rows and assemble_rows.
+    # Cheap: walks already-lowered ASTs via separate_by_k_power, no discretize_expr calls.
+    if restricted
+        for eq_idx2 in 1:length(prob.equations)
+            for kt in separate_by_k_power(eq_lowered_rhs[eq_idx2])
+                target_vars = collect_var_names(kt.expr)
+                isempty(filter(v -> haskey(prob.derived_vars, v), target_vars)) || continue
+                get!(A_buffers, kt.k_powers, (Int[], Int[], ComplexF64[]))
+            end
+            lhs_low2 = eq_lowered_lhs[eq_idx2]
+            if _contains_eigenvalue(lhs_low2, prob.eigenvalue)
+                for kt in separate_by_k_power(strip_eigenvalue(lhs_low2))
+                    get!(B_buffers, kt.k_powers, (Int[], Int[], ComplexF64[]))
+                end
+            end
+        end
+    end
+
+    A_components = _finalize_components(A_buffers, nrows, N_total)
+    B_components = _finalize_components(B_buffers, nrows, N_total)
 
     # Apply BCs
     bc_info, rhs_values = build_bc_rows(prob, N_per_var, N_total)
@@ -1789,37 +1898,48 @@ function discretize(prob::EVP; augment_derived::Bool=true)
     # Collect all BC row indices for zeroing
     bc_row_indices = unique([row_idx for (row_idx, _, _, _) in bc_info])
 
-    # First, zero out ALL BC rows in ALL k-power components (both A and B)
+    # First, zero out owned BC rows in ALL k-power components (both A and B).
     for p in keys(A_components)
         for row_idx in bc_row_indices
-            A_components[p][row_idx, :] .= zero(ComplexF64)
+            lr = row_idx - rstart
+            (1 <= lr <= nrows) || continue
+            A_components[p][lr, :] .= zero(ComplexF64)
         end
     end
     for p in keys(B_components)
         for row_idx in bc_row_indices
-            B_components[p][row_idx, :] .= zero(ComplexF64)
+            lr = row_idx - rstart
+            (1 <= lr <= nrows) || continue
+            B_components[p][lr, :] .= zero(ComplexF64)
         end
     end
 
-    # Then write BC rows into the correct k-power components
+    # Then write owned BC rows into the correct k-power components.
     for (row_idx, kp, a_row, b_row) in bc_info
+        # Register the BC's k-power key in BOTH A and B regardless of row ownership, so a
+        # restricted cache has the same key set as the full build (mirrors restrict_cache_rows,
+        # which keeps every key as a sliced/zero block). Dynamic BCs can carry non-() keys that
+        # no equation term produces; those must still appear (empty) on ranks that don't own the
+        # BC row.
         if !haskey(A_components, kp)
-            A_components[kp] = spzeros(ComplexF64, N_total, N_total)
+            A_components[kp] = spzeros(ComplexF64, nrows, N_total)
         end
         if !haskey(B_components, kp)
-            B_components[kp] = spzeros(ComplexF64, N_total, N_total)
+            B_components[kp] = spzeros(ComplexF64, nrows, N_total)
         end
+        lr = row_idx - rstart
+        (1 <= lr <= nrows) || continue
         for (j, v) in enumerate(a_row)
-            v != 0.0 && (A_components[kp][row_idx, j] += ComplexF64(v))
+            v != 0.0 && (A_components[kp][lr, j] += ComplexF64(v))
         end
         for (j, v) in enumerate(b_row)
-            v != 0.0 && (B_components[kp][row_idx, j] += ComplexF64(v))
+            v != 0.0 && (B_components[kp][lr, j] += ComplexF64(v))
         end
     end
 
     return DiscretizationCache(A_components, B_components, derived_caches,
                                N_total, N_per_var, N_vars, prob.domain,
-                               derived_var_order, nothing)
+                               derived_var_order, row_range)
 end
 
 """
@@ -1897,6 +2017,10 @@ function assemble(cache::DiscretizationCache, k::Float64)
 end
 
 function _assemble(cache::DiscretizationCache, k_vals::Dict{Symbol, Float64})
+    cache.row_range === nothing ||
+        throw(ArgumentError("assemble needs a full (unrestricted) cache; got " *
+            "row_range=$(cache.row_range). Its components are row-sliced — " *
+            "use assemble_rows(cache, k, rstart, rend) instead."))
     N = cache.N_total
     A = spzeros(ComplexF64, N, N)
     for (kp, Ap) in cache.A_components
