@@ -21,7 +21,7 @@ BiGSTARSMPIExt = ["MPI", "PetscWrap", "SlepcWrap"]
 [compat]
 FFTW = "1"
 LinearAlgebra = "1.6"
-MPI = "0.16, 0.17, 0.18, 0.19"
+MPI = "0.16, 0.17, 0.18, 0.19, 0.20"
 PetscWrap = "0.1.5"
 PrecompileTools = "1"
 Printf = "1"
