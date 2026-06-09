@@ -4,7 +4,7 @@ using BiGSTARS
 using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
                 _sigma_schedule, _group_indices, _petsc_ownership, assemble_rows,
                 SolverResults, ConvergenceHistory, _keep_by_mass,
-                sort_eigenvalues!, _discretize_n_total, _union_block_nnz
+                sort_eigenvalues!, _discretize_n_total, _union_block_nnz, _union_template
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -62,12 +62,13 @@ function _fill_mat!(M, rows, rstart::Integer, rend::Integer, comm::MPI.Comm)
     return M
 end
 
-"""Refill an existing PETSc matrix `M`'s values in place for a new wavenumber: zero the
-numeric values (structure/preallocation preserved) and insert the owned-row slice `rows`.
-No reallocation — `M` must already be preallocated for the UNION pattern (see
-`_create_union_mat`), a superset of every per-k pattern."""
+"""Refill an existing PETSc matrix `M`'s values in place for a new wavenumber by INSERT-ing
+the owned-row slice `rows`. `rows` MUST carry the full UNION structure (the caller adds a
+`_union_template`, so absent-this-wavenumber entries are explicit zeros) — then INSERT_VALUES
+overwrites EVERY preallocated slot, leaving no stale values from a previous wavenumber. This
+avoids `MatZeroEntries` (unwrapped in PetscWrap 0.1.5). `M` must already be preallocated for
+the union pattern (see `_create_union_mat`); no reallocation occurs."""
 function _refill_mat!(M, rows, rstart::Integer, rend::Integer)
-    MatZeroEntries(M)
     rowptr, colind, vals = _to_csr(rows)
     _insert_rows!(M, rstart, rowptr, colind, vals)
     MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
@@ -285,6 +286,11 @@ function _solve_group_reused(cache, ks, N::Integer, comm::MPI.Comm;
     (rstartB, rendB) == (rstart, rend) ||
         error("PETSc returned different row ownership for A $((rstart, rend)) and " *
               "B $((rstartB, rendB)) — cannot assemble the pencil.")
+    # Zero-valued union templates (built once): added to each wavenumber's slice so the
+    # INSERT_VALUES refill overwrites every preallocated slot with explicit zeros where this
+    # wavenumber is absent — no stale values, no MatZeroEntries (unwrapped in PetscWrap 0.1.5).
+    tmplA = _union_template(cache.A_components, rstart, rend, N)
+    tmplB = _union_template(cache.B_components, rstart, rend, N)
     eps = EPSCreate(comm)
     EPSSetOperators(eps, A, B)
     EPSSetFromOptions(eps)
@@ -292,8 +298,8 @@ function _solve_group_reused(cache, ks, N::Integer, comm::MPI.Comm;
     out = SolverResults[]
     for k in ks
         A_rows, B_rows = assemble_rows(cache, Float64(k), rstart, rend)
-        _refill_mat!(A, A_rows, rstart, rend)
-        _refill_mat!(B, B_rows, rstart, rend)
+        _refill_mat!(A, A_rows + tmplA, rstart, rend)
+        _refill_mat!(B, B_rows + tmplB, rstart, rend)
         EPSSetOperators(eps, A, B)            # re-flag updated values (numeric refactor; ordering reused)
         push!(out, _run_sigma_schedule(eps, A, B, Float64(k), N, comm;
                                        sigma_0=sigma_0, n_tries=n_tries, Δσ₀=Δσ₀,

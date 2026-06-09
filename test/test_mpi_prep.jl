@@ -304,6 +304,27 @@ end
         end
     end
 
+    @testset "_union_template: union structure, zero values, full coverage" begin
+        dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc p left(u) == 0; @bc p right(u) == 0
+        cache = discretize(p)
+        N = cache.N_total
+        T = BiGSTARS._union_template(cache.A_components, 0, N, N)
+        @test size(T) == (N, N) && eltype(T) == ComplexF64
+        @test all(iszero, nonzeros(T))                         # all-zero values
+        Uref = sum(abs.(M) for M in values(cache.A_components))
+        @test T.colptr == Uref.colptr && T.rowval == Uref.rowval   # exactly the union structure
+        # the fix's premise: A_rows(k) + template carries the FULL union structure for every k,
+        # so an INSERT refill overwrites every preallocated slot (no stale values).
+        for k in (0.5, 7.0)
+            Ak, _ = BiGSTARS.assemble_rows(cache, k, 0, N)
+            S = Ak + T
+            @test S.colptr == T.colptr && S.rowval == T.rowval
+        end
+    end
+
     @testset "_eps_options reuse_factorization flag" begin
         base = BiGSTARS._eps_options(; nev=1, which=:LM, tol=1e-10, maxiter=300, ncv=0,
                                      mat_solver="mumps", eps_type="krylovschur")
