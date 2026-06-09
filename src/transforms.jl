@@ -14,7 +14,7 @@ function chebyshev_evaluate(c::AbstractVector, x::AbstractVector)
     N = length(c)
     T = promote_type(eltype(c), eltype(x), Float64)
     result = similar(x, T)
-    for (i, xi) in enumerate(x)
+    @inbounds for (i, xi) in enumerate(x)
         # Clenshaw recurrence for T polynomials
         b_kp1 = zero(T)
         b_kp2 = zero(T)
@@ -82,26 +82,28 @@ function differentiate(f::AbstractVector, domain::Domain, coord::Symbol;
 
         scale = 2.0 / (spec.upper - spec.lower)
 
-        # Physical values → T coefficients
+        # Physical values → T coefficients (conversion handled inside)
         x_ref = chebyshev_points(N)
-        c = chebyshev_coefficients(Float64.(f))
+        dc = chebyshev_coefficients(f)
 
         # Apply differentiation chain: D_{order-1} * ⋯ * D_0 (each scaled)
-        dc = Float64.(c)
         for p in 0:order-1
             D = differentiation_operator(p, N)
             dc = scale .* (D * dc)
         end
 
-        # dc is now in C^(order) basis — convert back to T via S_{0→order}^{-1}
+        # dc is now in C^(order) basis — convert back to T via S_{0→order}^{-1}.
+        # S is upper triangular (bandwidth 2·order): back-substitution, no dense LU.
         S = get_conversion_operator(domain, coord, 0, order)
-        c_T = Matrix(S) \ dc
+        c_T = UpperTriangular(S) \ dc
         return chebyshev_evaluate(c_T, x_ref)
 
     elseif spec isa FourierBasisSpec
         N = spec.N
         @assert length(f) == N "Input length ($(length(f))) must match grid size ($N)"
-        f_hat = fft(f) / N
+        # No 1/N–N normalization pair: fft/ifft are already inverses and the
+        # diagonal derivative operator is scale-free.
+        f_hat = fft(f)
 
         # Apply spectral filter before differentiation
         if filter !== :none
@@ -112,8 +114,7 @@ function differentiate(f::AbstractVector, domain::Domain, coord::Symbol;
         end
 
         D = fourier_diff_operator(N, spec.L, order)
-        df_hat = D * f_hat
-        result = ifft(df_hat * N)
+        result = ifft(D * f_hat)
         # Real input → real derivative (drop FFT round-off imag). Complex input
         # (e.g. a reconstructed eigenfunction) → keep the full complex derivative.
         return eltype(f) <: Real ? real.(result) : result

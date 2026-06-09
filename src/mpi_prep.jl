@@ -15,11 +15,10 @@ into CSC of `Aᵀ`, whose column storage is exactly the row storage of `A`, so t
 per-row column indices come out sorted and contiguous.
 """
 function _to_csr(A::SparseMatrixCSC)
-    At = sparse(transpose(A))          # CSC of Aᵀ == CSR of A
+    At = sparse(transpose(A))          # CSC of Aᵀ == CSR of A; fresh, so no copies needed
     rowptr = Int32.(At.colptr .- 1)    # 0-based
     colind = Int32.(At.rowval .- 1)    # 0-based column indices
-    vals = copy(At.nzval)
-    return rowptr, colind, vals
+    return rowptr, colind, At.nzval
 end
 
 """
@@ -173,13 +172,10 @@ for the singular-`B` mode filter. Pure-Julia (no PETSc), so it is CI-testable.
 function sparse_from_csr(csr)
     rowptr, colind, vals = csr
     N = length(rowptr) - 1
-    I = Int[]; J = Int[]; V = eltype(vals)[]
-    for r in 1:N
-        for k in (rowptr[r] + 1):rowptr[r + 1]
-            push!(I, r); push!(J, colind[k] + 1); push!(V, vals[k])
-        end
-    end
-    return sparse(I, J, V, N, N)
+    # The CSR arrays are exactly the CSC storage of the transpose (indices are
+    # sorted within each row by construction) — rebuild directly, no COO re-sort.
+    At = SparseMatrixCSC(N, N, Int.(rowptr) .+ 1, Int.(colind) .+ 1, Vector(vals))
+    return sparse(transpose(At))
 end
 
 """
@@ -234,7 +230,8 @@ function restrict_cache_rows(cache, rstart::Integer, rend::Integer)
     end
     return DiscretizationCache(_slice_rows(cache.A_components), _slice_rows(cache.B_components),
         cache.derived_caches, cache.N_total, cache.N_per_var, cache.N_vars,
-        cache.domain, cache.derived_var_order, (Int(rstart), Int(rend)))
+        cache.domain, cache.derived_var_order, (Int(rstart), Int(rend)),
+        ReconstructMemo())
 end
 
 """
@@ -259,21 +256,45 @@ function assemble_rows(cache, k::Float64,
     sliced = cache.row_range === nothing          # full cache → slice; restricted → use as-is
     k_vals = _k_values(cache, k)
     nrows = rend - rstart
+    N_per_var = cache.N_per_var
 
-    A_rows = spzeros(ComplexF64, nrows, N)
-    for (kp, Ap) in cache.A_components
-        c = _k_coeff(kp, k_vals); c == 0.0 && continue
-        A_rows = A_rows + c * (sliced ? Ap[(rstart + 1):rend, :] : Ap)
+    # Accumulate scaled COO triplets per pencil and build each with ONE sparse()
+    # call (duplicates summed), instead of a fresh full-size sparse `+` per
+    # component. With a full cache the row restriction happens during the
+    # triplet walk — no intermediate row-slice matrix is materialized.
+    function _gather(components)
+        I = Int[]; J = Int[]; V = ComplexF64[]
+        for (kp, M) in components
+            c = _k_coeff(kp, k_vals); c == 0.0 && continue
+            rows = rowvals(M); vals = nonzeros(M)
+            for col in 1:size(M, 2)
+                for idx in nzrange(M, col)
+                    g = rows[idx]
+                    if sliced
+                        (rstart < g <= rend) || continue
+                        push!(I, g - rstart)
+                    else
+                        push!(I, g)
+                    end
+                    push!(J, col)
+                    push!(V, c == 1.0 ? vals[idx] : c * vals[idx])
+                end
+            end
+        end
+        return sparse(I, J, V, nrows, N)
     end
+    A_rows = _gather(cache.A_components)
+    B_rows = _gather(cache.B_components)
 
-    B_rows = spzeros(ComplexF64, nrows, N)
-    for (kp, Bp) in cache.B_components
-        c = _k_coeff(kp, k_vals); c == 0.0 && continue
-        B_rows = B_rows + c * (sliced ? Bp[(rstart + 1):rend, :] : Bp)
-    end
-
+    AI = Int[]; AJ = Int[]; AV = ComplexF64[]
     for (_, dc) in cache.derived_caches
         isempty(dc.terms) && continue
+        # Skip H(k) entirely (block inverses — the dominant cost) when none of this
+        # derived variable's equation row-blocks intersect the owned slice.
+        any(dc.terms) do (eq_idx, _, total_kp, _, _)
+            bs = (eq_idx - 1) * N_per_var
+            max(bs, rstart) < min(bs + N_per_var, rend) && _k_coeff(total_kp, k_vals) != 0.0
+        end || continue
         op_k = dc.op_k0
         for (kp, mat) in dc.op_k_components
             c = _k_coeff(kp, k_vals); c == 0.0 && continue
@@ -282,11 +303,27 @@ function assemble_rows(cache, k::Float64,
         H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
         for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
             w = _k_coeff(total_kp, k_vals); w == 0.0 && continue
-            combined = coeff_mat * H_k * rhs_mat
-            A_rows = A_rows + w * _place_in_block_rows(combined, eq_idx, var_idx,
-                                                       cache.N_per_var, cache.N_vars,
-                                                       rstart, rend)
+            # Restrict to the owned rows BEFORE the triple product: only the owned
+            # slice of coeff_mat enters, so per-rank work/memory for derived terms
+            # scales with the owned row count, not the full block size.
+            bs = (eq_idx - 1) * N_per_var
+            lo = max(bs, rstart); hi = min(bs + N_per_var, rend)
+            lo < hi || continue
+            combined = (coeff_mat[(lo - bs + 1):(hi - bs), :] * H_k) * rhs_mat
+            row_off = lo - rstart
+            col_off = (var_idx - 1) * N_per_var
+            rows = rowvals(combined); vals = nonzeros(combined)
+            for col in 1:size(combined, 2)
+                for idx in nzrange(combined, col)
+                    push!(AI, rows[idx] + row_off)
+                    push!(AJ, col + col_off)
+                    push!(AV, w * vals[idx])
+                end
+            end
         end
+    end
+    if !isempty(AV)
+        A_rows = A_rows + sparse(AI, AJ, AV, nrows, N)
     end
     return A_rows, B_rows
 end
@@ -304,10 +341,7 @@ function _assemble_B_full(cache, k::Float64)
             "row_range=$(cache.row_range). Its B_components are row-sliced — use assemble_rows."))
     k_vals = _k_values(cache, k)
     N = cache.N_total
-    B = spzeros(ComplexF64, N, N)
-    for (kp, Bp) in cache.B_components
-        c = _k_coeff(kp, k_vals); c == 0.0 && continue
-        B = B + c * Bp
-    end
-    return B
+    I = Int[]; J = Int[]; V = ComplexF64[]
+    _append_component_triplets!(I, J, V, cache.B_components, k_vals)
+    return sparse(I, J, V, N, N)
 end

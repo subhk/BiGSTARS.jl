@@ -6,6 +6,20 @@
 #  Cache type
 # ──────────────────────────────────────────────────────────────────────────────
 
+"""
+Mutable memo carried by a `DiscretizationCache` so `reconstruct` does not
+rebuild the (eigenvector-independent) inverse operator and RHS matrices for
+every eigenvector. `rhs` is k-independent; `Hk` is keyed by `(field, k)` and
+size-capped because each H(k) is a near-dense N_per_var² matrix.
+"""
+struct ReconstructMemo
+    rhs::Dict{Symbol, Vector{Tuple{Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}}}}
+    Hk::Dict{Tuple{Symbol, Float64}, SparseMatrixCSC{ComplexF64, Int}}
+end
+ReconstructMemo() = ReconstructMemo(
+    Dict{Symbol, Vector{Tuple{Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}}}}(),
+    Dict{Tuple{Symbol, Float64}, SparseMatrixCSC{ComplexF64, Int}}())
+
 """Pre-computed info for a derived variable, used to rebuild H(k) during assembly."""
 struct DerivedVarCache
     # The operator matrix WITHOUT the k² term (k-independent part only)
@@ -31,6 +45,9 @@ struct DiscretizationCache
     domain::Domain
     derived_var_order::Vector{Symbol}
     row_range::Union{Nothing, Tuple{Int, Int}}
+    # Memo for `reconstruct`: per-field RHS term matrices (k-independent) and
+    # H(k) per (field, k). H(k) is near-dense, so the H memo is size-capped.
+    reconstruct_memo::ReconstructMemo
 end
 
 const FieldMultiplyCacheKey = Tuple{Symbol, Symbol, Union{Nothing, Symbol}}
@@ -70,7 +87,8 @@ function DiscretizationCache(A_components::Dict{KPowerKey, SparseMatrixCSC{Compl
                              N_total::Int, N_per_var::Int, N_vars::Int, domain::Domain,
                              derived_var_order::Vector{Symbol}=Symbol[])
     return DiscretizationCache(A_components, B_components, derived_caches,
-                               N_total, N_per_var, N_vars, domain, derived_var_order, nothing)
+                               N_total, N_per_var, N_vars, domain, derived_var_order, nothing,
+                               ReconstructMemo())
 end
 
 function _k_coeff(key::KPowerKey, k_vals::Dict{Symbol, Float64})
@@ -193,6 +211,15 @@ function _scatter_block_rows!(buffers::Dict{KPowerKey, _COOBuf}, key::KPowerKey,
                               rstart::Int, rend::Int)
     return _scatter_block_rows!(buffers, key, sparse(ComplexF64.(mat)),
                                 eq_idx, var_idx, N_per_var, rstart, rend)
+end
+
+# Zero (and drop) all stored entries in the given rows — one O(nnz) pass.
+function _zero_sparse_rows!(M::SparseMatrixCSC{ComplexF64, Int}, rows::Set{Int})
+    rv = rowvals(M); vals = nonzeros(M)
+    for idx in eachindex(vals)
+        (rv[idx] in rows) && (vals[idx] = zero(ComplexF64))
+    end
+    return dropzeros!(M)
 end
 
 function _finalize_components(buffers::Dict{KPowerKey, _COOBuf}, nrows::Int, N_total::Int)
@@ -484,9 +511,17 @@ function discretize_expr_in_T(expr::ExprNode, prob::EVP, N_per_var::Int,
                 D_chain_1d = ComplexF64(scale) .* differentiation_operator(p, N) * D_chain_1d
             end
 
-            # D_chain maps T → C^(order). Convert back to T via S^{-1}.
-            S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
-            S_inv_1d = sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I(N)))
+            # D_chain maps T → C^(order). Convert back to T via S^{-1}
+            # (memoized per order on the build context — dense O(N³) solve).
+            S_inv_1d = if !isnothing(ctx)
+                get!(ctx.sinv_1d_cache, order) do
+                    S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
+                    sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N, N))
+                end
+            else
+                S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
+                sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N, N))
+            end
 
             # Lift the combined 1D operator to full grid (Kronecker product)
             op_1d = S_inv_1d * D_chain_1d
@@ -552,10 +587,7 @@ function _build_2d_field_multiply(f_vec::AbstractVector, domain::Domain,
     f_physical = reshape(Float64.(f_vec), N_z, N_y)
 
     # FFT along y for each z-point → f_hat[iz, m] (complex Fourier coefficients)
-    f_hat = zeros(ComplexF64, N_z, N_y)
-    for iz in 1:N_z
-        f_hat[iz, :] = fft(f_physical[iz, :]) / N_y
-    end
+    f_hat = fft(f_physical, 2) ./ N_y
 
     # For each Fourier mode shift Δm, compute Chebyshev coefficients of f̂_Δm(z)
     # and build M_z(f̂_Δm) — the N_z × N_z Chebyshev multiplication operator
@@ -589,10 +621,7 @@ function _build_2d_field_multiply_banded(f_vec::AbstractVector, domain::Domain,
     N_y = domain.coords[fourier_dim].N
 
     f_physical = reshape(Float64.(f_vec), N_z, N_y)
-    f_hat = zeros(ComplexF64, N_z, N_y)
-    for iz in 1:N_z
-        f_hat[iz, :] = fft(f_physical[iz, :]) / N_y
-    end
+    f_hat = fft(f_physical, 2) ./ N_y
 
     Mz_blocks = Vector{SparseMatrixCSC{ComplexF64, Int}}(undef, N_y)
     for dm in 0:N_y-1
@@ -1050,20 +1079,22 @@ function _sparse_block_inverse(op::AbstractMatrix, domain::Domain;
     N_y = domain.coords[fourier_dim].N
     @assert N_y * N_z == N
 
-    # Check if operator is block-diagonal (each N_z × N_z block is independent)
+    # Check if operator is block-diagonal (each N_z × N_z block is independent).
+    # Accumulate per-block ‖·‖² directly from the sparse structure — O(nnz),
+    # no densification of the full operator.
+    op_sp = op isa SparseMatrixCSC{ComplexF64, Int} ? op : sparse(ComplexF64.(op))
     is_block_diag = true
-    op_dense = Matrix(op)
-    for m1 in 0:N_y-1
-        for m2 in 0:N_y-1
-            m1 == m2 && continue
-            rs = m1 * N_z + 1; re = rs + N_z - 1
-            cs = m2 * N_z + 1; ce = cs + N_z - 1
-            if norm(op_dense[rs:re, cs:ce]) > 1e-12
-                is_block_diag = false
-                break
+    let rows = rowvals(op_sp), vals = nonzeros(op_sp), tol2 = 1e-12^2
+        offnorm2 = zeros(Float64, N_y, N_y)
+        for col in 1:N
+            m2 = (col - 1) ÷ N_z + 1
+            for idx in nzrange(op_sp, col)
+                m1 = (rows[idx] - 1) ÷ N_z + 1
+                m1 == m2 && continue
+                offnorm2[m1, m2] += abs2(vals[idx])
             end
         end
-        is_block_diag || break
+        is_block_diag = all(<=(tol2), offnorm2)
     end
 
     # Build BC rows for boundary bordering (if any)
@@ -1079,11 +1110,18 @@ function _sparse_block_inverse(op::AbstractMatrix, domain::Domain;
     end
 
     if is_block_diag
-        H = spzeros(ComplexF64, N, N)
+        block = Matrix{ComplexF64}(undef, N_z, N_z)  # reused dense buffer
+        rows = rowvals(op_sp); vals = nonzeros(op_sp)
+        H_blocks = Vector{SparseMatrixCSC{ComplexF64, Int}}(undef, N_y)
+        zero_block = spzeros(ComplexF64, N_z, N_z)
         for m in 0:N_y-1
             rs = m * N_z + 1
-            re = rs + N_z - 1
-            block = copy(op_dense[rs:re, rs:re])
+            fill!(block, zero(ComplexF64))
+            for col in rs:rs+N_z-1
+                for idx in nzrange(op_sp, col)
+                    block[rows[idx] - rs + 1, col - rs + 1] = vals[idx]
+                end
+            end
 
             # Apply boundary bordering: replace last rows with BC rows
             for (i, bc_row) in enumerate(bc_rows_1d)
@@ -1091,15 +1129,19 @@ function _sparse_block_inverse(op::AbstractMatrix, domain::Domain;
                 block[row_idx, :] = ComplexF64.(bc_row)
             end
 
-            if abs(det(block)) < 1e-14
-                continue  # still singular after BCs → skip (e.g., m=0 at k=0)
+            # One LU does both the singularity test (via det of the factors,
+            # matching the old abs(det) < 1e-14 skip) and the inverse.
+            F = lu!(block, check=false)
+            if !issuccess(F) || abs(det(F)) < 1e-14
+                H_blocks[m + 1] = zero_block  # still singular after BCs (e.g., m=0 at k=0)
+                continue
             end
-            H[rs:re, rs:re] = sparse(block \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+            H_blocks[m + 1] = sparse(inv(F))
         end
-        return H
+        return blockdiag(H_blocks...)
     else
         # Non-block-diagonal: fall back to dense inverse
-        return sparse(op_dense \ Matrix(ComplexF64(1.0) * I, N, N))
+        return sparse(Matrix(op_sp) \ Matrix(ComplexF64(1.0) * I, N, N))
     end
 end
 
@@ -1125,9 +1167,17 @@ function _discretize_operator(expr::ExprNode, dummy::Union{Symbol,Nothing}, prob
             for p in 0:order-1
                 D_chain_1d = ComplexF64(scale) .* differentiation_operator(p, N_z) * D_chain_1d
             end
-            # D_chain maps T→C^(order). Convert back to T with S^{-1}:
-            S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
-            S_inv_1d = sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+            # D_chain maps T→C^(order). Convert back to T with S^{-1}
+            # (memoized per order on the build context — dense O(N³) solve):
+            S_inv_1d = if !isnothing(ctx)
+                get!(ctx.sinv_1d_cache, order) do
+                    S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
+                    sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+                end
+            else
+                S_1d = ComplexF64.(get_conversion_operator(domain, coord, 0, order))
+                sparse(Matrix(S_1d) \ Matrix(ComplexF64(1.0) * I, N_z, N_z))
+            end
             D_T_1d = S_inv_1d * D_chain_1d  # T→T derivative operator
             D_full = _lift_to_2d(D_T_1d, coord, domain)
             return D_full * _discretize_operator(inner, dummy, prob, N_per_var, ctx)
@@ -1790,7 +1840,6 @@ function discretize(prob::EVP; augment_derived::Bool=true,
     # and k² coefficient (-1 from dx²). H(k) = (op_k0 + k² * coeff * I)^{-1}
     # is recomputed per-wavenumber during assemble.
     derived_caches = Dict{Symbol, DerivedVarCache}()
-    derived_H_k0 = Dict{Symbol, AbstractMatrix}()  # H at k=0 for discretize-time use
 
     for (dname, dvar) in prob.derived_vars
         op_expr = expand_substitutions(
@@ -1822,8 +1871,6 @@ function discretize(prob::EVP; augment_derived::Bool=true,
             end
         end
 
-        H_k0 = _sparse_block_inverse(op_k0, prob.domain; bcs=dvar.bcs)
-        derived_H_k0[dname] = H_k0
         derived_caches[dname] = DerivedVarCache(op_k0, op_k2_coeff, op_k_components, dvar.bcs,
             Tuple{Int, Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}, SparseMatrixCSC{ComplexF64, Int}}[])
     end
@@ -1927,26 +1974,29 @@ function discretize(prob::EVP; augment_derived::Bool=true,
         end
     end
 
-    # Collect all BC row indices for zeroing
-    bc_row_indices = unique([row_idx for (row_idx, _, _, _) in bc_info])
-
-    # First, zero out owned BC rows in ALL k-power components (both A and B).
-    for p in keys(A_components)
-        for row_idx in bc_row_indices
-            lr = row_idx - rstart
-            (1 <= lr <= nrows) || continue
-            A_components[p][lr, :] .= zero(ComplexF64)
-        end
-    end
-    for p in keys(B_components)
-        for row_idx in bc_row_indices
-            lr = row_idx - rstart
-            (1 <= lr <= nrows) || continue
-            B_components[p][lr, :] .= zero(ComplexF64)
-        end
+    # Collect owned BC rows (local indices) for zeroing
+    owned_bc_rows = Set{Int}()
+    for (row_idx, _, _, _) in bc_info
+        lr = row_idx - rstart
+        (1 <= lr <= nrows) && push!(owned_bc_rows, lr)
     end
 
-    # Then write owned BC rows into the correct k-power components.
+    # First, zero out owned BC rows in ALL k-power components (both A and B) —
+    # one O(nnz) pass per component instead of a sparse row-assignment per row.
+    if !isempty(owned_bc_rows)
+        for p in keys(A_components)
+            _zero_sparse_rows!(A_components[p], owned_bc_rows)
+        end
+        for p in keys(B_components)
+            _zero_sparse_rows!(B_components[p], owned_bc_rows)
+        end
+    end
+
+    # Then write owned BC rows into the correct k-power components: gather all BC
+    # entries per key as COO triplets and add each key's sparse matrix once
+    # (element-wise sparse `+=` is an O(nnz) insertion per entry).
+    bc_bufA = Dict{KPowerKey, _COOBuf}()
+    bc_bufB = Dict{KPowerKey, _COOBuf}()
     for (row_idx, kp, a_row, b_row) in bc_info
         # Register the BC's k-power key in BOTH A and B regardless of row ownership, so a
         # restricted cache has the same key set as the full build (mirrors restrict_cache_rows,
@@ -1961,17 +2011,27 @@ function discretize(prob::EVP; augment_derived::Bool=true,
         end
         lr = row_idx - rstart
         (1 <= lr <= nrows) || continue
+        Ia, Ja, Va = get!(() -> (Int[], Int[], ComplexF64[]), bc_bufA, kp)
         for (j, v) in enumerate(a_row)
-            v != 0.0 && (A_components[kp][lr, j] += ComplexF64(v))
+            v != 0.0 && (push!(Ia, lr); push!(Ja, j); push!(Va, ComplexF64(v)))
         end
+        Ib, Jb, Vb = get!(() -> (Int[], Int[], ComplexF64[]), bc_bufB, kp)
         for (j, v) in enumerate(b_row)
-            v != 0.0 && (B_components[kp][lr, j] += ComplexF64(v))
+            v != 0.0 && (push!(Ib, lr); push!(Jb, j); push!(Vb, ComplexF64(v)))
         end
+    end
+    for (kp, (Ia, Ja, Va)) in bc_bufA
+        isempty(Va) && continue
+        A_components[kp] = A_components[kp] + sparse(Ia, Ja, Va, nrows, N_total)
+    end
+    for (kp, (Ib, Jb, Vb)) in bc_bufB
+        isempty(Vb) && continue
+        B_components[kp] = B_components[kp] + sparse(Ib, Jb, Vb, nrows, N_total)
     end
 
     return DiscretizationCache(A_components, B_components, derived_caches,
                                N_total, N_per_var, N_vars, prob.domain,
-                               derived_var_order, row_range)
+                               derived_var_order, row_range, ReconstructMemo())
 end
 
 """
@@ -2048,33 +2108,52 @@ function assemble(cache::DiscretizationCache, k::Float64)
     return _assemble(cache, _k_values(cache, k))
 end
 
+# Append the scaled triplets of every k-power component to (I, J, V). The final
+# `sparse(I, J, V, ...)` sums duplicates — identical to the old repeated sparse `+`,
+# without allocating a fresh full-size accumulator per component.
+function _append_component_triplets!(I::Vector{Int}, J::Vector{Int}, V::Vector{ComplexF64},
+                                     components::Dict{KPowerKey, SparseMatrixCSC{ComplexF64, Int}},
+                                     k_vals::Dict{Symbol, Float64})
+    total = 0
+    for (kp, M) in components
+        _k_coeff(kp, k_vals) == 0.0 && continue
+        total += nnz(M)
+    end
+    sizehint!(I, length(I) + total)
+    sizehint!(J, length(J) + total)
+    sizehint!(V, length(V) + total)
+    for (kp, M) in components
+        c = _k_coeff(kp, k_vals)
+        c == 0.0 && continue
+        rows = rowvals(M); vals = nonzeros(M)
+        for col in 1:size(M, 2)
+            for idx in nzrange(M, col)
+                push!(I, rows[idx])
+                push!(J, col)
+                push!(V, c == 1.0 ? vals[idx] : c * vals[idx])
+            end
+        end
+    end
+    return nothing
+end
+
 function _assemble(cache::DiscretizationCache, k_vals::Dict{Symbol, Float64})
     cache.row_range === nothing ||
         throw(ArgumentError("assemble needs a full (unrestricted) cache; got " *
             "row_range=$(cache.row_range). Its components are row-sliced — " *
             "use assemble_rows(cache, k, rstart, rend) instead."))
     N = cache.N_total
-    A = spzeros(ComplexF64, N, N)
-    for (kp, Ap) in cache.A_components
-        coeff = _k_coeff(kp, k_vals)
-        if coeff == 1.0
-            A = A + Ap
-        else
-            A = A + coeff * Ap
-        end
-    end
+    N_per_var = cache.N_per_var
 
-    B = spzeros(ComplexF64, N, N)
-    for (kp, Bp) in cache.B_components
-        coeff = _k_coeff(kp, k_vals)
-        if coeff == 1.0
-            B = B + Bp
-        else
-            B = B + coeff * Bp
-        end
-    end
+    AI = Int[]; AJ = Int[]; AV = ComplexF64[]
+    _append_component_triplets!(AI, AJ, AV, cache.A_components, k_vals)
 
-    # Apply derived variable terms with k-dependent H(k)
+    BI = Int[]; BJ = Int[]; BV = ComplexF64[]
+    _append_component_triplets!(BI, BJ, BV, cache.B_components, k_vals)
+    B = sparse(BI, BJ, BV, N, N)
+
+    # Apply derived variable terms with k-dependent H(k), scattered straight into
+    # the COO buffers (no full-size place_in_block temporary per term).
     for (dname, dc) in cache.derived_caches
         isempty(dc.terms) && continue
 
@@ -2088,12 +2167,23 @@ function _assemble(cache::DiscretizationCache, k_vals::Dict{Symbol, Float64})
         H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 
         for (eq_idx, var_idx, total_kp, coeff_mat, rhs_mat) in dc.terms
+            w = _k_coeff(total_kp, k_vals)
+            w == 0.0 && continue
             combined = coeff_mat * H_k * rhs_mat
-            block = place_in_block(combined, eq_idx, var_idx, cache.N_vars, cache.N_per_var)
-            A = A + _k_coeff(total_kp, k_vals) * block
+            row_off = (eq_idx - 1) * N_per_var
+            col_off = (var_idx - 1) * N_per_var
+            rows = rowvals(combined); vals = nonzeros(combined)
+            for col in 1:size(combined, 2)
+                for idx in nzrange(combined, col)
+                    push!(AI, rows[idx] + row_off)
+                    push!(AJ, col + col_off)
+                    push!(AV, w * vals[idx])
+                end
+            end
         end
     end
 
+    A = sparse(AI, AJ, AV, N, N)
     return A, B
 end
 
