@@ -43,11 +43,7 @@ end
 """
 function sort_evals(λs::AbstractVector, χ::AbstractMatrix, which::String; sorting::String="lm")
     @assert which in ("M", "I", "R")
-    by_func = Dict(
-        "M" => abs,
-        "I" => imag,
-        "R" => real
-    )[which]
+    by_func = which == "M" ? abs : which == "I" ? imag : real
 
     idx = sortperm(λs, by=by_func, rev=(sorting == "lm"))
     return λs[idx], χ[:, idx]
@@ -81,18 +77,9 @@ function remove_evals(λs, χ, lower, higher, which)
 
     @assert which ∈ ["M", "I", "R"]
 
-    if which == "I" # imaginary part
-        arg = findall( (lower .≤ imag(λs)) .& (imag(λs) .≤ higher) )
-    end
+    f = which == "I" ? imag : which == "R" ? real : abs
+    arg = findall(λ -> lower ≤ f(λ) ≤ higher, λs)
 
-    if which == "R" # real part
-        arg = findall( (lower .≤ real(λs)) .& (real(λs) .≤ higher) )
-    end
-    
-    if which == "M" # absolute magnitude
-        arg = findall( (lower .≤ abs.(λs)) .& (abs.(λs) .≤ higher) )
-    end
-    
     χ  = χ[:,arg]
     λs = λs[arg]
 

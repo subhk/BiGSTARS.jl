@@ -75,10 +75,10 @@ back to the inputs), so callers always get a usable result.
 """
 function _filter_physical_modes(λ::AbstractVector, Χ::AbstractMatrix, B; rtol::Float64=1e-6)
     (isempty(λ) || size(Χ, 2) == 0) && return λ, Χ
+    BX = B * Χ   # one sparse×dense product instead of a mat-vec (+ temp) per mode
     masses = Vector{Float64}(undef, size(Χ, 2))
     @inbounds for i in 1:size(Χ, 2)
-        χ = view(Χ, :, i)
-        masses[i] = norm(B * χ) / max(norm(χ), eps())   # norm(χ) computed once
+        masses[i] = norm(view(BX, :, i)) / max(norm(view(Χ, :, i)), eps())
     end
     scale = maximum(masses)
     scale == 0.0 && return λ, Χ
