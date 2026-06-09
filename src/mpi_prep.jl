@@ -82,17 +82,14 @@ function _csr_block_nnz_split(rowptr::AbstractVector{<:Integer},
 end
 
 """
-    _union_block_nnz(components, rstart, rend, N) -> (d_nnz, o_nnz)
+    _union_pattern(components, rstart, rend, N) -> SparseMatrixCSC{Float64,Int}
 
-PETSc `d_nnz`/`o_nnz` for the UNION sparsity pattern of all k-power `components`
-(`Dict{KPowerKey,SparseMatrixCSC}`) over the owned global rows `[rstart,rend)`. Every
-per-wavenumber matrix is `Σ c_p(k)·components[p]`, whose pattern ⊆ this union — so a Mat
-preallocated from these counts covers every wavenumber's per-k pattern (no mid-insert growth
-when refilling values in place). Uses `abs.` accumulation so additive overlap never cancels
-the pattern; may over-count by structural zeros (conservative — safe for preallocation).
-Pure-Julia (no PETSc/MPI), unit-tested directly.
+Union sparsity pattern of all k-power `components` (`Dict{KPowerKey,SparseMatrixCSC}`) over
+the owned global rows `[rstart,rend)`, as an `nrows×N` real sparse matrix (positive values via
+`abs.` accumulation — so additive overlap never cancels a structural nonzero). Every
+per-wavenumber matrix is `Σ c_p(k)·components[p]`, whose pattern ⊆ this union. Pure-Julia.
 """
-function _union_block_nnz(components, rstart::Integer, rend::Integer, N::Integer)
+function _union_pattern(components, rstart::Integer, rend::Integer, N::Integer)
     nrows = rend - rstart
     nrows ≥ 0 || throw(ArgumentError("rend ($rend) < rstart ($rstart)"))
     U = spzeros(Float64, nrows, N)
@@ -100,8 +97,36 @@ function _union_block_nnz(components, rstart::Integer, rend::Integer, N::Integer
         block = size(M, 1) == nrows ? M : M[(rstart + 1):rend, :]   # restricted vs full cache
         U = U + abs.(block)
     end
+    return U
+end
+
+"""
+    _union_block_nnz(components, rstart, rend, N) -> (d_nnz, o_nnz)
+
+PETSc `d_nnz`/`o_nnz` for the union pattern (see [`_union_pattern`](@ref)) — so a Mat
+preallocated from these counts covers every wavenumber's per-k pattern (no mid-insert growth
+when refilling values in place). May over-count by structural zeros (conservative — safe for
+preallocation). Pure-Julia.
+"""
+function _union_block_nnz(components, rstart::Integer, rend::Integer, N::Integer)
+    U = _union_pattern(components, rstart, rend, N)
     rowptr, colind, _ = _to_csr(U)
-    return _csr_block_nnz_split(rowptr, colind, 0, nrows, rstart, rend)
+    return _csr_block_nnz_split(rowptr, colind, 0, rend - rstart, rstart, rend)
+end
+
+"""
+    _union_template(components, rstart, rend, N) -> SparseMatrixCSC{ComplexF64,Int}
+
+The union pattern (see [`_union_pattern`](@ref)) with all-zero `ComplexF64` values. Adding it
+to a per-wavenumber owned-row slice forces the slice to carry the FULL union structure
+(explicit zeros where that wavenumber's own entries are absent), so an `INSERT_VALUES` refill
+overwrites every union slot — no stale values from a previous wavenumber, and no need for
+`MatZeroEntries` (which PetscWrap 0.1.5 does not wrap). Pure-Julia.
+"""
+function _union_template(components, rstart::Integer, rend::Integer, N::Integer)
+    U = _union_pattern(components, rstart, rend, N)
+    return SparseMatrixCSC(size(U, 1), size(U, 2), U.colptr, U.rowval,
+                           zeros(ComplexF64, length(U.nzval)))
 end
 
 """
