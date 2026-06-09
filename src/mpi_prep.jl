@@ -82,6 +82,29 @@ function _csr_block_nnz_split(rowptr::AbstractVector{<:Integer},
 end
 
 """
+    _union_block_nnz(components, rstart, rend, N) -> (d_nnz, o_nnz)
+
+PETSc `d_nnz`/`o_nnz` for the UNION sparsity pattern of all k-power `components`
+(`Dict{KPowerKey,SparseMatrixCSC}`) over the owned global rows `[rstart,rend)`. Every
+per-wavenumber matrix is `Σ c_p(k)·components[p]`, whose pattern ⊆ this union — so a Mat
+preallocated from these counts covers every wavenumber's per-k pattern (no mid-insert growth
+when refilling values in place). Uses `abs.` accumulation so additive overlap never cancels
+the pattern; may over-count by structural zeros (conservative — safe for preallocation).
+Pure-Julia (no PETSc/MPI), unit-tested directly.
+"""
+function _union_block_nnz(components, rstart::Integer, rend::Integer, N::Integer)
+    nrows = rend - rstart
+    nrows ≥ 0 || throw(ArgumentError("rend ($rend) < rstart ($rstart)"))
+    U = spzeros(Float64, nrows, N)
+    for (_, M) in components
+        block = size(M, 1) == nrows ? M : M[(rstart + 1):rend, :]   # restricted vs full cache
+        U = U + abs.(block)
+    end
+    rowptr, colind, _ = _to_csr(U)
+    return _csr_block_nnz_split(rowptr, colind, 0, nrows, rstart, rend)
+end
+
+"""
     _group_indices(nk, ngroups, group_id) -> Vector{Int}
 
 1-based indices of `1:nk` assigned to group `group_id` (0-based) under a
@@ -139,7 +162,7 @@ const _WHICH_OPT = Dict(
 )
 
 """
-    _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type) -> String
+    _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type, reuse_factorization=false) -> String
 
 Build the PETSc/SLEPc options-database string that configures one distributed
 solve: Krylov-Schur EPS, shift-and-invert ST, with a parallel LU (direct)
@@ -148,7 +171,8 @@ is set per attempt via `EPSSetTarget`, so the static options stay invariant acro
 σ attempts and wavenumbers. Pure-Julia (no PETSc), so it is unit-tested while CI
 verifies the solve.
 """
-function _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type)
+function _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type,
+                      reuse_factorization::Bool=false)
     haskey(_WHICH_OPT, which) || throw(ArgumentError("unsupported which=$which"))
     opts = "-eps_type $(eps_type) " *
            "-eps_gen_non_hermitian " *                # generalized non-Hermitian pencil (EPS_GNHEP)
@@ -160,6 +184,11 @@ function _eps_options(; nev, which, tol, maxiter, ncv, mat_solver, eps_type)
            "-st_pc_type lu " *
            "-st_pc_factor_mat_solver_type $(mat_solver) "
     ncv > 0 && (opts *= "-eps_ncv $(ncv) ")
+    if reuse_factorization
+        # Reuse the LU ordering/fill across re-factorizations of a same-pattern operator
+        # (the k-sweep keeps the sparsity pattern fixed); MUMPS then redoes numeric only.
+        opts *= "-st_pc_factor_reuse_ordering true -st_pc_factor_reuse_fill true "
+    end
     return opts
 end
 
