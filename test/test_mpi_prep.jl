@@ -270,6 +270,50 @@ end
         @test BiGSTARS._keep_by_mass([0.0, 0.0]) == [1, 2]          # all-zero → keep all (fallback)
         @test BiGSTARS._keep_by_mass([1.0, 0.0, 1.0]) == [1, 3]     # exact-zero dropped
     end
+
+    @testset "_union_block_nnz covers every per-k pattern" begin
+        dom = Domain(x=FourierTransformed(), z=Chebyshev(N=12, lower=0.0, upper=1.0))
+        p = EVP(dom, variables=[:u], eigenvalue=:sigma)
+        @equation p sigma * u == -dx(dx(u)) - dz(dz(u))
+        @bc p left(u) == 0; @bc p right(u) == 0
+        cache = discretize(p)
+        N = cache.N_total
+        d, o = BiGSTARS._union_block_nnz(cache.A_components, 0, N, N)
+        @test length(d) == N && length(o) == N
+        @test all(==(0), o)                                   # single rank ⇒ all columns diagonal
+        for k in (0.5, 1.0, 7.0)
+            Ak, _ = BiGSTARS.assemble_rows(cache, k, 0, N)
+            rp, _, _ = BiGSTARS._to_csr(Ak)
+            for r in 1:N
+                @test d[r] + o[r] >= rp[r + 1] - rp[r]        # union ⊇ per-k pattern
+            end
+        end
+        Uref = sum(abs.(M) for M in values(cache.A_components))
+        rpu, _, _ = BiGSTARS._to_csr(Uref)
+        for r in 1:N
+            @test d[r] + o[r] == rpu[r + 1] - rpu[r]          # exactly the OR of all components
+        end
+        # sub-range (multi-rank scenario): exercises the M[rstart+1:rend,:] slice branch and
+        # a partial diagonal column block ⇒ some off-diagonal counts must be nonzero.
+        rs, re = 0, cld(N, 2)
+        ds, os = BiGSTARS._union_block_nnz(cache.A_components, rs, re, N)
+        @test length(ds) == re - rs && length(os) == re - rs
+        @test any(>(0), os)                                   # owned cols [0,N/2) ⇒ remote cols exist
+        for (lr, gr) in enumerate(rs:(re - 1))
+            @test ds[lr] + os[lr] == rpu[gr + 2] - rpu[gr + 1]   # union row nnz, sliced row gr (0-based)
+        end
+    end
+
+    @testset "_eps_options reuse_factorization flag" begin
+        base = BiGSTARS._eps_options(; nev=1, which=:LM, tol=1e-10, maxiter=300, ncv=0,
+                                     mat_solver="mumps", eps_type="krylovschur")
+        @test !occursin("reuse_ordering", base)
+        on = BiGSTARS._eps_options(; nev=1, which=:LM, tol=1e-10, maxiter=300, ncv=0,
+                                   mat_solver="mumps", eps_type="krylovschur",
+                                   reuse_factorization=true)
+        @test occursin("-st_pc_factor_reuse_ordering true", on)
+        @test occursin("-st_pc_factor_reuse_fill true", on)
+    end
 end
 
 @testset "_petsc_ownership matches PETSC_DECIDE split" begin

@@ -4,7 +4,7 @@ using BiGSTARS
 using BiGSTARS: _to_csr, _csr_block_nnz_split, _eps_options,
                 _sigma_schedule, _group_indices, _petsc_ownership, assemble_rows,
                 SolverResults, ConvergenceHistory, _keep_by_mass,
-                sort_eigenvalues!, _discretize_n_total
+                sort_eigenvalues!, _discretize_n_total, _union_block_nnz
 using MPI
 using PetscWrap
 using SlepcWrap
@@ -60,6 +60,32 @@ function _fill_mat!(M, rows, rstart::Integer, rend::Integer, comm::MPI.Comm)
     MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
     MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
     return M
+end
+
+"""Refill an existing PETSc matrix `M`'s values in place for a new wavenumber: zero the
+numeric values (structure/preallocation preserved) and insert the owned-row slice `rows`.
+No reallocation — `M` must already be preallocated for the UNION pattern (see
+`_create_union_mat`), a superset of every per-k pattern."""
+function _refill_mat!(M, rows, rstart::Integer, rend::Integer)
+    MatZeroEntries(M)
+    rowptr, colind, vals = _to_csr(rows)
+    _insert_rows!(M, rstart, rowptr, colind, vals)
+    MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
+    MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
+    return M
+end
+
+"""Create a distributed PETSc matrix preallocated ONCE for the union of all `components`'
+k-power patterns (constant across the sweep), so values can be refilled per wavenumber with
+`_refill_mat!` without growing rows. Returns `(M, rstart, rend)` (owned 0-based row range)."""
+function _create_union_mat(components, N::Integer, comm::MPI.Comm)
+    M = MatCreate(comm)
+    MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    MatSetFromOptions(M)
+    rstart, rend = MatGetOwnershipRange(M)
+    d_nnz, o_nnz = _union_block_nnz(components, rstart, rend, N)
+    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || MatSetUp(M)
+    return M, rstart, rend
 end
 
 """Build distributed PETSc A and B for one wavenumber, each rank assembling only
@@ -165,22 +191,19 @@ end
 # ------------------------------------------------------------------------------
 
 """
-    _solve_one_adaptive(cache, k, N, comm; sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+    _run_sigma_schedule(eps, A, B, k, N, comm; sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
         -> SolverResults
 
-Build the distributed pencil once, then sweep the σ schedule. Each attempt
-retargets SLEPc via `EPSSetTarget` and re-solves; rank 0 filters spurious modes,
-sorts nearest σ, and decides whether to stop (successive |Δλ₁| < ϵ). The stop
-flag is BROADCAST so every rank's control flow is identical — required, or the
-collective `EPSSolve`/`MatDestroy` calls desync and deadlock.
+Sweep the adaptive-σ schedule on a CALLER-OWNED, already-configured `eps` (operators set,
+`EPSSetFromOptions` done) and assembled `A`,`B`. Reuses `eps` across σ attempts via
+`EPSSetTarget`. Does NOT create/destroy `eps`/`A`/`B`. The stop flag is broadcast so every
+rank's control flow is identical (else collective `EPSSolve` desyncs/deadlocks).
 """
-function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
+function _run_sigma_schedule(eps, A, B, k, N::Integer, comm::MPI.Comm;
                              sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
     rank = MPI.Comm_rank(comm)
     t0 = MPI.Wtime()
-    A, B = _build_petsc_mats_local(cache, k, N, comm)
     schedule = _sigma_schedule(sigma_0, n_tries, Δσ₀, incre)
-
     hist = ConvergenceHistory()
     λ_prev = nothing
     best_λ = ComplexF64[]
@@ -188,14 +211,10 @@ function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
     final_shift = Float64(sigma_0)
 
     for σ in schedule
-        eps = EPSCreate(comm)
-        EPSSetOperators(eps, A, B)
         EPSSetTarget(eps, PetscScalar(σ))
-        EPSSetFromOptions(eps)
         EPSSolve(eps)
         nconv = EPSGetConverged(eps)
         λ, Χ, masses = _gather_eigenpairs(eps, A, B, nconv, N, comm)
-        EPSDestroy(eps)
 
         stop = false
         if rank == 0
@@ -221,14 +240,11 @@ function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
                 verbose && @printf("  ✗ σ=%.6f  no convergence\n", σ)
             end
         end
-        stop = MPI.bcast(stop, 0, comm)   # collective: identical control flow on every rank
+        stop = MPI.bcast(stop, 0, comm)
         stop && break
     end
 
     solve_time = MPI.Wtime() - t0
-    MatDestroy(A)
-    MatDestroy(B)
-
     if rank == 0
         hist.final_shift = final_shift
         converged = !isempty(best_λ)
@@ -238,6 +254,56 @@ function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
         return SolverResults(ComplexF64[], zeros(ComplexF64, 0, 0), false, :Slepc,
                              final_shift, 0, solve_time, ConvergenceHistory())
     end
+end
+
+"""Non-reuse path (default): build per-k `A`,`B`, create a fresh `eps`, run the σ schedule,
+tear everything down. Behavior matches the prior per-k solve."""
+function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
+                             sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+    A, B = _build_petsc_mats_local(cache, k, N, comm)
+    eps = EPSCreate(comm)
+    EPSSetOperators(eps, A, B)
+    EPSSetFromOptions(eps)
+    r = _run_sigma_schedule(eps, A, B, k, N, comm;
+                            sigma_0=sigma_0, n_tries=n_tries, Δσ₀=Δσ₀, incre=incre, ϵ=ϵ,
+                            verbose=verbose)
+    EPSDestroy(eps)
+    MatDestroy(A)
+    MatDestroy(B)
+    return r
+end
+
+"""Reuse path: preallocate `A`,`B` ONCE for the union pattern and create one `eps`, then per
+wavenumber in `ks` refill values in place and run the σ schedule on the same objects. With
+`-st_pc_factor_reuse_ordering` MUMPS reuses the LU ordering across wavenumbers. Returns one
+`SolverResults` per entry of `ks` (in order). Requires `isempty(cache.derived_caches)` —
+enforced by the `reuse_factorization` guard in `solve`."""
+function _solve_group_reused(cache, ks, N::Integer, comm::MPI.Comm;
+                             sigma_0, n_tries, Δσ₀, incre, ϵ, verbose)
+    A, rstart, rend = _create_union_mat(cache.A_components, N, comm)
+    B, rstartB, rendB = _create_union_mat(cache.B_components, N, comm)
+    (rstartB, rendB) == (rstart, rend) ||
+        error("PETSc returned different row ownership for A $((rstart, rend)) and " *
+              "B $((rstartB, rendB)) — cannot assemble the pencil.")
+    eps = EPSCreate(comm)
+    EPSSetOperators(eps, A, B)
+    EPSSetFromOptions(eps)
+
+    out = SolverResults[]
+    for k in ks
+        A_rows, B_rows = assemble_rows(cache, Float64(k), rstart, rend)
+        _refill_mat!(A, A_rows, rstart, rend)
+        _refill_mat!(B, B_rows, rstart, rend)
+        EPSSetOperators(eps, A, B)            # re-flag updated values (numeric refactor; ordering reused)
+        push!(out, _run_sigma_schedule(eps, A, B, Float64(k), N, comm;
+                                       sigma_0=sigma_0, n_tries=n_tries, Δσ₀=Δσ₀,
+                                       incre=incre, ϵ=ϵ, verbose=verbose))
+    end
+
+    EPSDestroy(eps)
+    MatDestroy(A)
+    MatDestroy(B)
+    return out
 end
 
 # ------------------------------------------------------------------------------
@@ -250,10 +316,12 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
                         tol::Real=1e-10, maxiter::Integer=300, ncv::Integer=0,
                         mat_solver::Symbol=:mumps, eps_type::Symbol=:krylovschur,
                         n_tries::Integer=8, Δσ₀::Real=0.2, incre::Real=1.2, ϵ::Real=1e-5,
-                        ngroups::Integer=1, manage_init::Bool=true, verbose::Bool=false)
+                        ngroups::Integer=1, manage_init::Bool=true,
+                        reuse_factorization::Bool=false, verbose::Bool=false)
     opts = _eps_options(; nev=Int(nev), which=which, tol=Float64(tol),
                         maxiter=Int(maxiter), ncv=Int(ncv),
-                        mat_solver=String(mat_solver), eps_type=String(eps_type))
+                        mat_solver=String(mat_solver), eps_type=String(eps_type),
+                        reuse_factorization=reuse_factorization)
 
     # MPI.jl populates COMM_WORLD only through its own MPI.Init(); the C-level
     # MPI_Init PETSc runs inside SlepcInitialize does NOT. Init MPI.jl first, then
@@ -279,6 +347,13 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
         end
     end
     _assert_complex_scalars()
+
+    if reuse_factorization && !isempty(cache.derived_caches)
+        error("solve: reuse_factorization=true is not supported for caches with derived-variable " *
+              "terms (non-empty derived_caches, i.e. discretize(...; augment_derived=false) with " *
+              "@derive vars) — their dense H(k) block is not in the union preallocation. " *
+              "Use augment_derived=true (the default) or reuse_factorization=false.")
+    end
 
     world = MPI.COMM_WORLD
     P = MPI.Comm_size(world)
@@ -308,15 +383,30 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
 
     # Each group solves its round-robin subset, sequentially, distributed on group_comm.
     local_pairs = Tuple{Int,SolverResults}[]
-    for i in _group_indices(nk, ngroups, group_id)
-        N = cache.N_total                          # replicated; no assemble-on-root, no bcast
+    idxs = _group_indices(nk, ngroups, group_id)
+    N = cache.N_total                              # replicated; no assemble-on-root, no bcast
+    if reuse_factorization
         verbose && grank == 0 &&
-            println("solve: group $(group_id)  k=$(k_values[i])  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
-        r = _solve_one_adaptive(cache, Float64(k_values[i]), N, group_comm;
+            println("solve: group $(group_id)  reuse_factorization  $(length(idxs)) k-values  N=$(N)")
+        rs = _solve_group_reused(cache, [Float64(k_values[i]) for i in idxs], N, group_comm;
                         sigma_0=Float64(sigma_0), n_tries=Int(n_tries),
                         Δσ₀=Float64(Δσ₀), incre=Float64(incre), ϵ=Float64(ϵ),
                         verbose=verbose)
-        grank == 0 && push!(local_pairs, (i, r))
+        if grank == 0
+            for (j, i) in enumerate(idxs)
+                push!(local_pairs, (i, rs[j]))
+            end
+        end
+    else
+        for i in idxs
+            verbose && grank == 0 &&
+                println("solve: group $(group_id)  k=$(k_values[i])  N=$(N)  σ₀=$(sigma_0)  nev=$(nev)")
+            r = _solve_one_adaptive(cache, Float64(k_values[i]), N, group_comm;
+                            sigma_0=Float64(sigma_0), n_tries=Int(n_tries),
+                            Δσ₀=Float64(Δσ₀), incre=Float64(incre), ϵ=Float64(ϵ),
+                            verbose=verbose)
+            grank == 0 && push!(local_pairs, (i, r))
+        end
     end
 
     # Collect group-root results to global rank 0 (point-to-point over WORLD).
