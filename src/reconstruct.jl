@@ -97,7 +97,7 @@ function _evaluate_expr(expr::ExprNode, prob::EVP, cache::DiscretizationCache,
         if expr.name in prob.variables
             var_idx = findfirst(==(expr.name), prob.variables)
             start = (var_idx - 1) * N_per_var + 1
-            return ComplexF64.(eigvec[start:start+N_per_var-1])
+            return ComplexF64.(@view eigvec[start:start+N_per_var-1])
         elseif haskey(prob.derived_vars, expr.name)
             # Derived variable: reconstruct via inverse operator
             return reconstruct(cache, prob, eigvec, k, expr.name)
@@ -251,7 +251,7 @@ function reconstruct(cache::DiscretizationCache, prob::EVP,
         n_real = cache.N_vars - length(cache.derived_var_order)
         di = findfirst(==(field_name), cache.derived_var_order)
         blk = (n_real + di - 1) * cache.N_per_var
-        return ComplexF64.(eigvec[blk+1 : blk + cache.N_per_var])
+        return ComplexF64.(@view eigvec[blk+1 : blk + cache.N_per_var])
     end
 
     haskey(prob.derived_vars, field_name) ||
@@ -270,32 +270,46 @@ function reconstruct(cache::DiscretizationCache, prob::EVP,
         end
     end
 
-    # Build H(k) for this wavenumber
-    op_k = dc.op_k0
-    for (kp, mat) in dc.op_k_components
-        coeff = _k_coeff(kp, k_vals)
-        coeff == 0.0 && continue
-        op_k = op_k + coeff * mat
+    # H(k) and the discretized RHS term matrices depend only on (field, k) — not
+    # on the eigenvector. Memoize them on the cache so reconstructing many
+    # eigenvectors (reconstruct_all, evaluate_field) pays the block inverses and
+    # the DSL lowering once per (field, k) instead of once per eigenvector.
+    memo = cache.reconstruct_memo
+    H_k = get!(memo.Hk, (field_name, k)) do
+        # H(k) is near-dense (N_per_var²); cap the memo so a k-sweep can't hoard memory.
+        length(memo.Hk) >= 8 && empty!(memo.Hk)
+        op_k = dc.op_k0
+        for (kp, mat) in dc.op_k_components
+            coeff = _k_coeff(kp, k_vals)
+            coeff == 0.0 && continue
+            op_k = op_k + coeff * mat
+        end
+        _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
     end
-    H_k = _sparse_block_inverse(op_k, cache.domain; bcs=dc.bcs)
 
-    # Expand and lower the RHS expression
-    rhs_expanded = expand_substitutions(dvar.rhs, prob.substitutions)
-    rhs_lowered = lower_derivatives(rhs_expanded, prob.domain)
-    rhs_distributed = distribute_products(rhs_lowered)
-    rhs_additive = separate_additive_terms(rhs_distributed)
+    # Expand, lower, and discretize the RHS terms (k-independent) — memoized per field.
+    rhs_terms = get!(memo.rhs, field_name) do
+        rhs_expanded = expand_substitutions(dvar.rhs, prob.substitutions)
+        rhs_lowered = lower_derivatives(rhs_expanded, prob.domain)
+        rhs_distributed = distribute_products(rhs_lowered)
+        rhs_additive = separate_additive_terms(rhs_distributed)
+        terms = Tuple{Int, KPowerKey, SparseMatrixCSC{ComplexF64, Int}}[]
+        for rhs_term in rhs_additive
+            rhs_k_powers, rhs_reduced = extract_k_powers(rhs_term)
+            rhs_mat = _discretize_operator(rhs_reduced, nothing, prob, N_per_var)
+            var_idx = find_target_variable(rhs_reduced, prob.variables)
+            push!(terms, (var_idx, rhs_k_powers, sparse(ComplexF64.(rhs_mat))))
+        end
+        terms
+    end
 
     # Accumulate: result = H(k) * Σ (prod(k_i^p_i) * rhs_op * var_coeffs)
     rhs_vec = zeros(ComplexF64, N_per_var)
 
-    for rhs_term in rhs_additive
-        rhs_k_powers, rhs_reduced = extract_k_powers(rhs_term)
-        rhs_mat = _discretize_operator(rhs_reduced, nothing, prob, N_per_var)
-        var_idx = find_target_variable(rhs_reduced, prob.variables)
-
+    for (var_idx, rhs_k_powers, rhs_mat) in rhs_terms
         # Extract this variable's coefficients from the eigenvector
         var_start = (var_idx - 1) * N_per_var + 1
-        var_coeffs = eigvec[var_start:var_start+N_per_var-1]
+        var_coeffs = @view eigvec[var_start:var_start+N_per_var-1]
 
         rhs_vec .+= _k_coeff(rhs_k_powers, k_vals) .* (rhs_mat * var_coeffs)
     end

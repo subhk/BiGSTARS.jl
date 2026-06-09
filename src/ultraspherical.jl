@@ -151,22 +151,26 @@ function multiplication_operator(f_coeffs::AbstractVector, N::Int; tol::Float64=
     # Pad or truncate f_coeffs to work with
     nf = length(f_coeffs)
 
+    # Hoist the tolerance filter out of the O(N·nf) loop and fix the eltype.
+    nzc = Tuple{Int, Float64}[]
+    for k in 1:nf
+        fk = f_coeffs[k]
+        abs(fk) < tol && continue
+        push!(nzc, (k - 1, Float64(fk)))
+    end
+
     rows = Int[]
     cols = Int[]
     vals = Float64[]
+    sizehint!(rows, 2 * N * length(nzc))
+    sizehint!(cols, 2 * N * length(nzc))
+    sizehint!(vals, 2 * N * length(nzc))
 
     # Column j corresponds to multiplication by T_{j-1}
     for j in 1:N
         n = j - 1  # T_n index (0-based)
 
-        for k in 1:nf
-            m = k - 1  # f coefficient index (0-based), coefficient f_coeffs[k]
-            fk = f_coeffs[k]
-
-            if abs(fk) < tol
-                continue
-            end
-
+        for (m, fk) in nzc
             # T_m * T_n = (T_{|m-n|} + T_{m+n}) / 2
             # Contribution to row |m-n|+1 and row m+n+1
 
@@ -262,14 +266,18 @@ function ultraspherical_multiplication_operator(f_coeffs::AbstractVector, N::Int
         M = M + a[2] * T_cur
         for m in 3:d
             T_next = 2 * (J * T_cur) - T_prev
-            M = M + a[m] * T_next
+            # The recurrence must still advance for interior near-zero
+            # coefficients, but their axpy into M can be skipped.
+            if abs(a[m]) > tol
+                M = M + a[m] * T_next
+            end
             T_prev = T_cur
             T_cur  = T_next
             droptol!(T_cur, tol)
         end
     end
 
-    Msl = sparse(M[1:N, 1:N])
+    Msl = M[1:N, 1:N]   # sparse slice already returns a fresh SparseMatrixCSC
     droptol!(Msl, tol)
     return Msl
 end
@@ -322,6 +330,16 @@ where '' means the first and last terms are halved.
 
 The returned vector has length N, where c[k] is the coefficient of T_{k-1}.
 """
+# Memoized DCT-I plans per length: FFTW.r2r without a plan re-plans the
+# transform on every call, and this runs O(N_y) times per y-varying field.
+const _dct1_plan_cache = Dict{Int, FFTW.r2rFFTWPlan{Float64}}()
+
+function _dct1_plan(N::Int)
+    return get!(_dct1_plan_cache, N) do
+        FFTW.plan_r2r(Vector{Float64}(undef, N), FFTW.REDFT00)
+    end
+end
+
 function chebyshev_coefficients(f_values::AbstractVector)
     N = length(f_values)
     @assert N >= 2 "Need at least 2 values"
@@ -332,9 +350,10 @@ function chebyshev_coefficients(f_values::AbstractVector)
     # The Chebyshev coefficient c_k (double-prime sum) satisfies:
     #   c_k = Y_k / (N-1), with c_0 and c_{N-1} halved.
     n = N - 1
-    Y = FFTW.r2r(Float64.(f_values), FFTW.REDFT00)
+    x = f_values isa Vector{Float64} ? f_values : Float64.(f_values)
+    coeffs = _dct1_plan(N) * x   # out-of-place: x is not mutated
 
-    coeffs = Y ./ n
+    coeffs ./= n
     coeffs[1] /= 2.0
     coeffs[N] /= 2.0
 
