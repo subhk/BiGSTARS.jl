@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Equation DSL · BiGSTARS.jl</title><meta name="title" content="Equation DSL · BiGSTARS.jl"/><meta property="og:title" content="Equation DSL · BiGSTARS.jl"/><meta property="twitter:title" content="Equation DSL · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://subhk.github.io/BiGSTARS.jl/stable/equation_dsl/"/><meta property="twitter:url" content="https://subhk.github.io/BiGSTARS.jl/stable/equation_dsl/"/><link rel="canonical" href="https://subhk.github.io/BiGSTARS.jl/stable/equation_dsl/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/bigstars.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../installation_instructions/">Installation instructions</a></li><li class="is-active"><a class="tocitem" href>Equation DSL</a><ul class="internal"><li><a class="tocitem" href="#Domain-Setup"><span>Domain Setup</span></a></li><li><a class="tocitem" href="#Problem-Definition"><span>Problem Definition</span></a></li><li><a class="tocitem" href="#Substitutions"><span>Substitutions</span></a></li><li><a class="tocitem" href="#Equations"><span>Equations</span></a></li><li><a class="tocitem" href="#Derived-Variables"><span>Derived Variables</span></a></li><li><a class="tocitem" href="#Boundary-Conditions"><span>Boundary Conditions</span></a></li><li><a class="tocitem" href="#Discretize-and-Solve"><span>Discretize and Solve</span></a></li><li><a class="tocitem" href="#Post-Processing-with-@compute"><span>Post-Processing with <code>@compute</code></span></a></li><li><a class="tocitem" href="#Differentiating-Background-Profiles"><span>Differentiating Background Profiles</span></a></li><li><a class="tocitem" href="#Complete-Example-(Eady-Problem)"><span>Complete Example (Eady Problem)</span></a></li><li><a class="tocitem" href="#Complete-Example-(Stone-1971-with-Derived-Variables)"><span>Complete Example (Stone 1971 with Derived Variables)</span></a></li></ul></li><li><a class="tocitem" href="../matrices/">Spectral Operators</a></li><li><a class="tocitem" href="../method/">Eigenvalue Solver</a></li><li><a class="tocitem" href="../mpi/">Distributed (MPI)</a></li><li><a class="tocitem" href="../performance/">Performance &amp; Sparsity</a></li><li><a class="tocitem" href="../basic_functionality/">Utility functions</a></li><li><a class="tocitem" href="../modules/BiGSTARS/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../literated/Eady/">Eady</a></li><li><a class="tocitem" href="../literated/Stone1971/">Stone (1971)</a></li><li><a class="tocitem" href="../literated/rRBC/">Rotating RBC</a></li></ul></li><li><a class="tocitem" href="../visualization/">Visualization</a></li><li><a class="tocitem" href="../contributing/">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Equation DSL</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Equation DSL</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/docs/src/equation_dsl.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Equation-DSL"><a class="docs-heading-anchor" href="#Equation-DSL">Equation DSL</a><a id="Equation-DSL-1"></a><a class="docs-heading-anchor-permalink" href="#Equation-DSL" title="Permalink"></a></h1><p>BiGSTARS.jl provides a symbolic DSL for defining eigenvalue problems. Users write governing equations in physical-space notation, and the package automatically discretizes them into sparse GEVP matrices.</p><h2 id="Domain-Setup"><a class="docs-heading-anchor" href="#Domain-Setup">Domain Setup</a><a id="Domain-Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Domain-Setup" title="Permalink"></a></h2><p>Declare coordinates with named directions and discretization types:</p><pre><code class="language-julia hljs">domain = Domain(
+    x = FourierTransformed(),        # wavenumber direction
+    y = Fourier(60, [0, 1]),         # periodic, N=60, domain [0, 1)
+    z = Chebyshev(30, [0, 1])        # bounded, N=30, domain [0, 1]
+)</code></pre><h3 id="Coordinate-Types"><a class="docs-heading-anchor" href="#Coordinate-Types">Coordinate Types</a><a id="Coordinate-Types-1"></a><a class="docs-heading-anchor-permalink" href="#Coordinate-Types" title="Permalink"></a></h3><table><tr><th style="text-align: right">Type</th><th style="text-align: right">Constructor forms</th><th style="text-align: right">Produces</th></tr><tr><td style="text-align: right"><code>FourierTransformed()</code></td><td style="text-align: right"><code>FourierTransformed()</code></td><td style="text-align: right">named wavenumber multiplication, e.g. <code>dx(A) -&gt; im*k_x*A</code></td></tr><tr><td style="text-align: right">Fourier (periodic)</td><td style="text-align: right"><code>Fourier(N, [a, b])</code> or <code>Fourier(N=..., L=...)</code></td><td style="text-align: right">Diagonal Fourier operator, wavenumbers scaled by <code>2pi/(b-a)</code></td></tr><tr><td style="text-align: right">Chebyshev (bounded)</td><td style="text-align: right"><code>Chebyshev(N, [a, b])</code> or <code>Chebyshev(N=..., lower=..., upper=...)</code></td><td style="text-align: right">Sparse ultraspherical operator, derivatives scaled by <code>2/(b-a)</code></td></tr></table><p>All derivatives are automatically scaled to the physical domain. For example, <code>dz(psi)</code> on <code>Chebyshev(30, [0, 1])</code> applies the chain rule factor <code>2/(1-0) = 2</code> to the reference-domain derivative.</p><p>Multiple <code>FourierTransformed()</code> directions are allowed. A derivative in each transformed coordinate gets its own wavenumber symbol:</p><pre><code class="language-julia hljs">domain = Domain(
+    x = FourierTransformed(),
+    y = FourierTransformed(),
+    z = Chebyshev(30, [0, 1])
+)
+
+# Internally:
+# dx(A) -&gt; im*k_x*A
+# dy(A) -&gt; im*k_y*A</code></pre><p>This matters for operators such as <code>dx(dx(A)) + dy(dy(A))</code>: BiGSTARS keeps the <code>k_x^2</code> and <code>k_y^2</code> terms separate instead of collapsing them into one total power of <code>k</code>.</p><h3 id="Meshgrid-for-2D-Fields"><a class="docs-heading-anchor" href="#Meshgrid-for-2D-Fields">Meshgrid for 2D Fields</a><a id="Meshgrid-for-2D-Fields-1"></a><a class="docs-heading-anchor-permalink" href="#Meshgrid-for-2D-Fields" title="Permalink"></a></h3><p>For problems with spatially varying background fields:</p><pre><code class="language-julia hljs">Y, Z = meshgrid(domain, :y, :z)   # N_z x N_y matrices
+U = @. Z - 0.5 + 0.1 * sin(2*pi*Y)  # 2D field
+prob[:U] = vec(U)  # flatten with z-fastest ordering</code></pre><h2 id="Problem-Definition"><a class="docs-heading-anchor" href="#Problem-Definition">Problem Definition</a><a id="Problem-Definition-1"></a><a class="docs-heading-anchor-permalink" href="#Problem-Definition" title="Permalink"></a></h2><p>Create an eigenvalue problem and declare variables and parameters:</p><pre><code class="language-julia hljs">prob = EVP(domain, variables=[:psi, :b], eigenvalue=:sigma)
+
+# Background fields
+Z = gridpoints(domain, :z)
+prob[:U] = Z .- 0.5       # 1D field (z-only)
+prob[:E] = 1e-12           # scalar parameter
+
+# 2D fields
+Y, Z = meshgrid(domain, :y, :z)
+prob[:B] = vec(@. Ri * Z - Y)  # 2D field, flattened</code></pre><p>Parameters can be: scalars (<code>Number</code>), 1D fields (<code>Vector</code> of length N<em>z), 2D fields (<code>Vector</code> of length N</em>y*N<em>z), or pre-computed operator matrices (<code>AbstractMatrix</code> of size N</em>per<em>var x N</em>per_var).</p><h2 id="Substitutions"><a class="docs-heading-anchor" href="#Substitutions">Substitutions</a><a id="Substitutions-1"></a><a class="docs-heading-anchor-permalink" href="#Substitutions" title="Permalink"></a></h2><p>Define reusable operator shorthand:</p><pre><code class="language-julia hljs">@substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + dz(dz(A))
+@substitution D4(A)  = Lap(Lap(A))</code></pre><h2 id="Equations"><a class="docs-heading-anchor" href="#Equations">Equations</a><a id="Equations-1"></a><a class="docs-heading-anchor-permalink" href="#Equations" title="Permalink"></a></h2><p>Write equations using <code>dx()</code>, <code>dy()</code>, <code>dz()</code> for derivatives:</p><pre><code class="language-julia hljs"># Standard eigenvalue equation:
+@equation sigma * Lap(psi) = U * dx(Lap(psi)) - E * Lap(Lap(psi))
+
+# Coupled system:
+@equation sigma * Lap(psi) = U * dx(Lap(psi)) + dz(b)
+@equation sigma * b        = U * dx(b) - E * Lap(b)
+
+# Constraint equation (no eigenvalue — B matrix rows are zero):
+@equation 0 = dz(w) + E * D2(zeta)</code></pre><h2 id="Derived-Variables"><a class="docs-heading-anchor" href="#Derived-Variables">Derived Variables</a><a id="Derived-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Derived-Variables" title="Permalink"></a></h2><p>Define auxiliary variables implicitly via <code>Op(v) = rhs</code>. By default the variable is <strong>augmented</strong> into the system — kept as a sparse unknown governed by its defining equation, so the assembled operator stays sparse (no dense inverse). Pass <code>augment_derived=false</code> to <code>discretize</code> for the legacy path that eliminates <code>v</code> via the explicit operator inverse <code>Op⁻¹</code> (smaller system, denser). Two forms are supported:</p><p><strong>Form 1: Named operator</strong> (requires a <code>@substitution</code>):</p><pre><code class="language-julia hljs">@substitution Dh2(A) = dx(dx(A)) + dy(dy(A))
+@derive Dh2_v = -dy(dz(w)) + dx(zeta)</code></pre><p><strong>Form 2: Inline operator</strong> (no separate <code>@substitution</code> needed):</p><pre><code class="language-julia hljs">@derive v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)</code></pre><p>Both define <code>v</code> by <code>Op(v) = rhs</code>. The variable <code>v</code> can then be used freely in equations:</p><pre><code class="language-julia hljs">@equation sigma * b = dBdz * w + dBdy * v + U * dx(b) - E * D2(b)</code></pre><p>Form 2 works with any linear operator expression — derivatives, parameter coefficients, combinations:</p><pre><code class="language-julia hljs">@derive v 3*dz(dz(v)) + alpha*v = dz(w)   # general operator</code></pre><h3 id="Boundary-Conditions-for-Derived-Variables"><a class="docs-heading-anchor" href="#Boundary-Conditions-for-Derived-Variables">Boundary Conditions for Derived Variables</a><a id="Boundary-Conditions-for-Derived-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-Conditions-for-Derived-Variables" title="Permalink"></a></h3><p>When the operator has a null space (e.g., <code>dz(dz(v)) = rhs</code> is undetermined up to <code>a + bz</code>), add BCs with <code>@derive_bc</code>:</p><pre><code class="language-julia hljs">@derive v dz(dz(v)) = source_field
+@derive_bc v left(v) = 0
+@derive_bc v right(v) = 0</code></pre><p>For operators like <code>Dh2 = dx² + dy²</code> that are invertible per Fourier mode, no BCs are needed.</p><p>The inverse is computed per-wavenumber using sparse block-diagonal inversion (O(N<em>y * N</em>z^3) per k), correctly handling k-dependent operators like <code>Dh2 = dx^2 + dy^2 = -k^2 + dy^2</code>.</p><h2 id="Boundary-Conditions"><a class="docs-heading-anchor" href="#Boundary-Conditions">Boundary Conditions</a><a id="Boundary-Conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-Conditions" title="Permalink"></a></h2><h3 id="Algebraic-BCs-(no-eigenvalue)"><a class="docs-heading-anchor" href="#Algebraic-BCs-(no-eigenvalue)">Algebraic BCs (no eigenvalue)</a><a id="Algebraic-BCs-(no-eigenvalue)-1"></a><a class="docs-heading-anchor-permalink" href="#Algebraic-BCs-(no-eigenvalue)" title="Permalink"></a></h3><pre><code class="language-julia hljs">@bc left(psi) = 0                    # Dirichlet
+@bc right(dz(psi)) = 0              # Neumann
+@bc left(3*psi + dz(psi)) = 0       # Robin
+@bc right(dz(dz(psi))) = 0          # Higher-order
+@bc left(psi + b) = 0               # Coupled</code></pre><h3 id="Dynamic-BCs-(eigenvalue-dependent)"><a class="docs-heading-anchor" href="#Dynamic-BCs-(eigenvalue-dependent)">Dynamic BCs (eigenvalue-dependent)</a><a id="Dynamic-BCs-(eigenvalue-dependent)-1"></a><a class="docs-heading-anchor-permalink" href="#Dynamic-BCs-(eigenvalue-dependent)" title="Permalink"></a></h3><p>When a BC contains the eigenvalue symbol, the DSL automatically splits it into A-side and B-side rows:</p><pre><code class="language-julia hljs"># Eady buoyancy boundary condition:
+@bc left(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+@bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0</code></pre><p>For multiple Chebyshev directions, use coordinate-qualified form: <code>left(expr, :z)</code>.</p><h2 id="Discretize-and-Solve"><a class="docs-heading-anchor" href="#Discretize-and-Solve">Discretize and Solve</a><a id="Discretize-and-Solve-1"></a><a class="docs-heading-anchor-permalink" href="#Discretize-and-Solve" title="Permalink"></a></h2><pre><code class="language-julia hljs"># Discretize once
+cache = discretize(prob)
+
+# Solve over wavenumbers
+k_values = range(0.1, 5.0, length=50)
+results = solve(cache, k_values; sigma_0=0.02, method=:Krylov)
+
+# Parallel (requires julia -t auto):
+results = solve(cache, k_values; sigma_0=0.02, parallel=true)
+
+# For problems without wavenumber direction:
+results = solve(cache; sigma_0=0.02)</code></pre><h3 id="Manual-Assembly"><a class="docs-heading-anchor" href="#Manual-Assembly">Manual Assembly</a><a id="Manual-Assembly-1"></a><a class="docs-heading-anchor-permalink" href="#Manual-Assembly" title="Permalink"></a></h3><p>For a single transformed direction, pass the scalar wavenumber:</p><pre><code class="language-julia hljs">cache = discretize(prob)
+A, B = assemble(cache, 1.0)</code></pre><p>For multiple transformed directions, use keyword assembly. Keyword names must match transformed coordinate names:</p><pre><code class="language-julia hljs">domain = Domain(
+    x = FourierTransformed(),
+    y = FourierTransformed(),
+    z = Chebyshev(30, [0, 1])
+)
+
+cache = discretize(prob)
+A, B = assemble(cache; k_x=1.0, k_y=0.5)
+
+# Short coordinate aliases are also accepted:
+A, B = assemble(cache; x=1.0, y=0.5)</code></pre><p>Unknown keywords are rejected so typos fail loudly:</p><pre><code class="language-julia hljs">assemble(cache; kx=1.0)  # error: use k_x or x</code></pre><div class="admonition is-info" id="Note-1ad7a46e9b3f0396"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-1ad7a46e9b3f0396" title="Permalink"></a></header><div class="admonition-body"><p><code>solve(cache, k_values; ...)</code> is the high-level sweep API for one scalar wavenumber applied to every transformed direction. For genuinely independent <code>k_x, k_y, ...</code> scans, call <code>assemble(cache; k_x=..., k_y=...)</code> and then use <code>EigenSolver</code> directly.</p></div></div><h3 id="Inspecting-the-Cache"><a class="docs-heading-anchor" href="#Inspecting-the-Cache">Inspecting the Cache</a><a id="Inspecting-the-Cache-1"></a><a class="docs-heading-anchor-permalink" href="#Inspecting-the-Cache" title="Permalink"></a></h3><pre><code class="language-julia hljs">cache = discretize(prob)
+println(cache)  # shows size, k-powers, sparsity
+A, B = assemble(cache, 1.0)  # single transformed direction</code></pre><h2 id="Post-Processing-with-@compute"><a class="docs-heading-anchor" href="#Post-Processing-with-@compute">Post-Processing with <code>@compute</code></a><a id="Post-Processing-with-@compute-1"></a><a class="docs-heading-anchor-permalink" href="#Post-Processing-with-@compute" title="Permalink"></a></h2><p>After solving, evaluate any expression on the eigenvector — same DSL syntax:</p><pre><code class="language-julia hljs">results = solve(cache, [0.1]; sigma_0=0.02)
+@compute_setup cache results[1].eigenvectors[:, 1] 0.1
+
+@compute v = -dy(dz(w)) + dx(zeta)
+@compute u = -dx(dz(w)) - dy(zeta)
+@compute KE = u * u + v * v</code></pre><p>See <a href="../visualization/#Post-Processing-and-Visualization">Post-Processing and Visualization</a> for details.</p><h2 id="Differentiating-Background-Profiles"><a class="docs-heading-anchor" href="#Differentiating-Background-Profiles">Differentiating Background Profiles</a><a id="Differentiating-Background-Profiles-1"></a><a class="docs-heading-anchor-permalink" href="#Differentiating-Background-Profiles" title="Permalink"></a></h2><p>Use <code>differentiate</code> to compute derivatives of known background fields spectrally:</p><pre><code class="language-julia hljs">z = gridpoints(domain, :z)
+U = @. tanh(10 * (z - 0.5))
+prob[:Uz]  = differentiate(U, domain, :z)
+prob[:Uzz] = differentiate(U, domain, :z; order=2)</code></pre><p>For Fourier directions, optional spectral filtering prevents Gibbs ringing:</p><pre><code class="language-julia hljs">prob[:Vy] = differentiate(V, domain, :y; filter=:exp)</code></pre><h2 id="Complete-Example-(Eady-Problem)"><a class="docs-heading-anchor" href="#Complete-Example-(Eady-Problem)">Complete Example (Eady Problem)</a><a id="Complete-Example-(Eady-Problem)-1"></a><a class="docs-heading-anchor-permalink" href="#Complete-Example-(Eady-Problem)" title="Permalink"></a></h2><pre><code class="language-julia hljs">using BiGSTARS
+
+domain = Domain(
+    x = FourierTransformed(),
+    y = Fourier(60, [0, 1]),
+    z = Chebyshev(30, [0, 1])
+)
+
+prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)
+
+Z = gridpoints(domain, :z)
+prob[:U]    = Z .- 0.5
+prob[:E]    = 1e-12
+prob[:dBdy] = -ones(length(Z))
+
+@substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + dz(dz(A))
+
+@equation sigma * Lap(psi) = U * dx(Lap(psi)) - E * Lap(Lap(psi))
+
+# Dynamic BCs (eigenvalue-dependent buoyancy condition):
+@bc left(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+@bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+
+cache = discretize(prob)
+results = solve(cache, [0.1]; sigma_0=0.02, method=:Krylov)</code></pre><h2 id="Complete-Example-(Stone-1971-with-Derived-Variables)"><a class="docs-heading-anchor" href="#Complete-Example-(Stone-1971-with-Derived-Variables)">Complete Example (Stone 1971 with Derived Variables)</a><a id="Complete-Example-(Stone-1971-with-Derived-Variables)-1"></a><a class="docs-heading-anchor-permalink" href="#Complete-Example-(Stone-1971-with-Derived-Variables)" title="Permalink"></a></h2><pre><code class="language-julia hljs">using BiGSTARS
+
+domain = Domain(
+    x = FourierTransformed(),
+    y = Fourier(24, [0, 1]),
+    z = Chebyshev(20, [0, 1])
+)
+
+prob = EVP(domain, variables=[:w, :zeta, :b], eigenvalue=:sigma)
+
+Z = gridpoints(domain, :z)
+prob[:U]    = Z .- 0.5
+prob[:dUdz] = ones(length(Z))
+prob[:dBdy] = -ones(length(Z))
+prob[:dBdz] = ones(length(Z))
+prob[:E]    = 1e-8
+prob[:eps2] = 0.01
+prob[:eps2inv] = 100.0
+
+@substitution D2(A)  = dx(dx(A)) + dy(dy(A)) + eps2inv * dz(dz(A))
+@substitution Dh2(A) = dx(dx(A)) + dy(dy(A))
+@substitution D4(A)  = D2(D2(A))
+
+# Derived variable: v = cross-front velocity
+@derive Dh2_v = -dy(dz(w)) + dx(zeta)
+# Or equivalently with inline operator:
+#   @derive v dx(dx(v)) + dy(dy(v)) = -dy(dz(w)) + dx(zeta)
+
+@equation sigma * eps2 * D2(w) = -eps2 * U * dx(D2(w)) + eps2 * E * D4(w) - dz(zeta) + Dh2(b)
+@equation sigma * zeta = dUdz * dy(w) + dz(w) - U * dx(zeta) + E * D2(zeta)
+@equation sigma * b = -dBdz * w - dBdy * v - U * dx(b) + E * D2(b)
+
+@bc left(w) = 0;          @bc right(w) = 0
+@bc left(dz(dz(w))) = 0;  @bc right(dz(dz(w))) = 0
+@bc left(dz(zeta)) = 0;   @bc right(dz(zeta)) = 0
+@bc left(dz(b)) = 0;      @bc right(dz(b)) = 0
+
+cache = discretize(prob)
+results = solve(cache, [0.1]; sigma_0=0.02, method=:Krylov)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../installation_instructions/">« Installation instructions</a><a class="docs-footer-nextpage" href="../matrices/">Spectral Operators »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 31 May 2026 22:58">Sunday 31 May 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

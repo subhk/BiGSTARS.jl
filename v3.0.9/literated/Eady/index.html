@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Eady · BiGSTARS.jl</title><meta name="title" content="Eady · BiGSTARS.jl"/><meta property="og:title" content="Eady · BiGSTARS.jl"/><meta property="twitter:title" content="Eady · BiGSTARS.jl"/><meta name="description" content="Documentation for BiGSTARS.jl."/><meta property="og:description" content="Documentation for BiGSTARS.jl."/><meta property="twitter:description" content="Documentation for BiGSTARS.jl."/><meta property="og:url" content="https://subhk.github.io/BiGSTARS.jl/stable/literated/Eady/"/><meta property="twitter:url" content="https://subhk.github.io/BiGSTARS.jl/stable/literated/Eady/"/><link rel="canonical" href="https://subhk.github.io/BiGSTARS.jl/stable/literated/Eady/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/bigstars.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">BiGSTARS.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../installation_instructions/">Installation instructions</a></li><li><a class="tocitem" href="../../equation_dsl/">Equation DSL</a></li><li><a class="tocitem" href="../../matrices/">Spectral Operators</a></li><li><a class="tocitem" href="../../method/">Eigenvalue Solver</a></li><li><a class="tocitem" href="../../mpi/">Distributed (MPI)</a></li><li><a class="tocitem" href="../../performance/">Performance &amp; Sparsity</a></li><li><a class="tocitem" href="../../basic_functionality/">Utility functions</a></li><li><a class="tocitem" href="../../modules/BiGSTARS/">API Reference</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>Eady</a><ul class="internal"><li><a class="tocitem" href="#Introduction"><span>Introduction</span></a></li><li><a class="tocitem" href="#Basic-state"><span>Basic state</span></a></li><li><a class="tocitem" href="#Governing-equations"><span>Governing equations</span></a></li><li><a class="tocitem" href="#Normal-mode-solutions"><span>Normal-mode solutions</span></a></li><li><a class="tocitem" href="#Generalized-eigenvalue-problem"><span>Generalized eigenvalue problem</span></a></li><li><a class="tocitem" href="#Implementation-using-the-BiGSTARS-equation-DSL"><span>Implementation using the BiGSTARS equation DSL</span></a></li><li><a class="tocitem" href="#Load-required-packages"><span>Load required packages</span></a></li><li><a class="tocitem" href="#1.-Domain"><span>1. Domain</span></a></li><li><a class="tocitem" href="#2.-Problem"><span>2. Problem</span></a></li><li><a class="tocitem" href="#3.-Parameters-and-background-state"><span>3. Parameters and background state</span></a></li><li><a class="tocitem" href="#4.-Substitutions"><span>4. Substitutions</span></a></li><li><a class="tocitem" href="#5.-Governing-equation-(interior-QG-PV)"><span>5. Governing equation (interior QG PV)</span></a></li><li><a class="tocitem" href="#6.-Boundary-conditions"><span>6. Boundary conditions</span></a></li><li><a class="tocitem" href="#7.-Discretize"><span>7. Discretize</span></a></li><li><a class="tocitem" href="#8.-Solve-over-wavenumbers-with-adaptive-shift"><span>8. Solve over wavenumbers with adaptive shift</span></a></li></ul></li><li><a class="tocitem" href="../Stone1971/">Stone (1971)</a></li><li><a class="tocitem" href="../rRBC/">Rotating RBC</a></li></ul></li><li><a class="tocitem" href="../../visualization/">Visualization</a></li><li><a class="tocitem" href="../../contributing/">Contributor&#39;s Guide</a></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Eady</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Eady</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/subhk/BiGSTARS.jl/blob/main/examples/Eady.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h3 id="Baroclinic-instability-of-a-2D-front-based-on-Eady-(1949)"><a class="docs-heading-anchor" href="#Baroclinic-instability-of-a-2D-front-based-on-Eady-(1949)">Baroclinic instability of a 2D front based on Eady (1949)</a><a id="Baroclinic-instability-of-a-2D-front-based-on-Eady-(1949)-1"></a><a class="docs-heading-anchor-permalink" href="#Baroclinic-instability-of-a-2D-front-based-on-Eady-(1949)" title="Permalink"></a></h3><h2 id="Introduction"><a class="docs-heading-anchor" href="#Introduction">Introduction</a><a id="Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction" title="Permalink"></a></h2><p>Eady (1949) (<a href="../../references/#eady1949long">Eady, 1949</a>) showed that in a uniformly sheared, stratified layer between two rigid lids on an <span>$f$</span>-plane, two counter-propagating Rossby edge waves can phase lock and convert available potential energy into kinetic energy, producing baroclinic eddies that grow fastest at wavelengths about four deformation radii and on timescales of a few days.</p><h2 id="Basic-state"><a class="docs-heading-anchor" href="#Basic-state">Basic state</a><a id="Basic-state-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-state" title="Permalink"></a></h2><p>The basic state is given by</p><p class="math-container">\[\begin{align}
+    B(y, z) &amp;= \text{Ri}\, z - y, \\
+    U(y, z) &amp;= z - {1}/{2},
+\end{align}\]</p><p>where <span>$\text{Ri}$</span> is the Richardson number, and <span>$N^2 = \text{Ri}$</span> is the stratification.</p><h2 id="Governing-equations"><a class="docs-heading-anchor" href="#Governing-equations">Governing equations</a><a id="Governing-equations-1"></a><a class="docs-heading-anchor-permalink" href="#Governing-equations" title="Permalink"></a></h2><p>The non-dimensional form of the linearized version of the QG PV perturbation equation under the <span>$f$</span>-plane approximation can be expressed as,</p><p class="math-container">\[\begin{align}
+    \frac{\partial q^\text{qg}}{\partial t} + U \frac{\partial q^\text{qg}}{\partial x} + \frac{\partial \psi}{\partial x}
+    \frac{\partial Q^\text{qg}}{\partial y} = \text{E} \, \nabla_h^2 q^\text{qg},
+\,\,\,\,\,\,\  \text{for} \,\,\, 0 &lt; z &lt;1,
+\end{align}\]</p><p>where <span>$q^\text{qg}$</span> is the perturbation QG PV, and it is defined as</p><p class="math-container">\[\begin{align}
+    q^\text{qg} = \nabla_h^2 \psi^\text{qg} +
+    \frac{\partial}{\partial z}
+    \left(\frac{1}{N^2} \frac{\partial \psi^\text{qg}}{\partial z}\right),
+\end{align}\]</p><p>The variable <span>$\psi^\text{qg}$</span> describes the QG perturbation streamfunction with <span>$u^\text{qg}=-\partial_y \psi^\text{qg}$</span> and <span>$v^\text{qg}=\partial_x \psi^\text{qg}$</span>. The variable <span>$Q^\text{qg}$</span> describes the QG PV of the basic state, which is defined as (<a href="../../references/#pedlosky2013geophysical">Pedlosky, 2013</a>)</p><p class="math-container">\[\begin{align}
+    Q^\text{qg} = -\frac{\partial U}{\partial y} + \frac{\partial}{\partial z}\left(\frac{B}{N^2} \right),
+\end{align}\]</p><p>and the cross-front gradient of <span>$Q^\text{qg}$</span> is defined as</p><p class="math-container">\[\begin{align}
+    \frac{\partial Q^\text{qg}}{\partial y} = - \frac{\partial}{\partial z}\left(\frac{\partial_z U}{N^2} \right).
+\end{align}\]</p><p>The linearized perturbation buoyancy equation at the top and the bottom boundary is</p><p class="math-container">\[\begin{align}
+    \frac{\partial b^\text{qg}}{\partial t} + U \frac{\partial b^\text{qg}}{\partial x}
+      + \frac{\partial \psi^\text{qg}}{\partial x}
+    \frac{\partial B}{\partial y} = 0,
+    \,\,\,\,\,\,\ \text{at} \, z=0 \,\ \text{and} \,\, 1,
+\end{align}\]</p><p>where <span>$b^\text{qg}=\partial_z \psi^\text{qg}$</span>.</p><h2 id="Normal-mode-solutions"><a class="docs-heading-anchor" href="#Normal-mode-solutions">Normal-mode solutions</a><a id="Normal-mode-solutions-1"></a><a class="docs-heading-anchor-permalink" href="#Normal-mode-solutions" title="Permalink"></a></h2><p>Next, we seek normal-mode solutions for <span>$\psi^\text{qg}$</span> and <span>$q^\text{qg}$</span> in the form of</p><p class="math-container">\[\begin{align}
+    [\psi^\text{qg}, q^\text{qg}] = \mathfrak{R}\big([\widetilde{\psi}^\text{qg},
+  \widetilde{q}^\text{qg}] \big)(y, z) e^{i kx-\sigma t},
+\end{align}\]</p><p>where <span>$\widetilde{\psi}^\text{qg}$</span>, <span>$\widetilde{q}^\text{qg}$</span> are the eigenfunctions of <span>$\psi^\text{qg}$</span> and <span>$q^\text{qg}$</span>, respectively. In terms of streamfunction <span>$\psi^\text{qg}$</span>,</p><p class="math-container">\[\begin{align}
+    [(\sigma + i k U) - \text{E}] \mathscr{L}\widetilde{\psi}^\text{qg}
+  + i k \partial_y Q^\text{qg} \widetilde{\psi}^\text{qg} &amp;= 0, \,\,\,\,\  \text{for} \,\, 0 &lt; z &lt;1,
+\\
+    (\sigma + i k U_{-})\partial_z \widetilde{\psi}^\text{qg}_{-}
+  + i k \partial_y B_{-} \widetilde{\psi}^\text{qg}_{-} &amp;= 0, \,\,\,\,\, \text{at} \,\, z = 0,
+\\
+    (\sigma + i k U_{+})\partial_z \widetilde{\psi}^\text{qg}_{+}
+  + i k \partial_y B_{+} \widetilde{\psi}^\text{qg}_{+} &amp;= 0, \,\,\,\,\, \text{at} \,\, z = 1,
+\end{align}\]</p><p>where <span>$\mathscr{L}$</span> is a linear operator, and is defined as <span>$\mathscr{L} \equiv \mathcal{D}_h^2 + 1/N^2 \partial_z^2$</span>, where <span>$\mathcal{D}_h^2 = (\partial_y^2 - k^2)$</span>. The subscripts <span>$-,+$</span> denote the values of the fields at <span>$z=0$</span> and <span>$z=1$</span>, respectively.</p><h2 id="Generalized-eigenvalue-problem"><a class="docs-heading-anchor" href="#Generalized-eigenvalue-problem">Generalized eigenvalue problem</a><a id="Generalized-eigenvalue-problem-1"></a><a class="docs-heading-anchor-permalink" href="#Generalized-eigenvalue-problem" title="Permalink"></a></h2><p>The above set of equations can be cast into a generalized eigenvalue problem</p><p class="math-container">\[\begin{align}
+ AX= \lambda BX,
+\end{align}\]</p><p>where <span>$\lambda$</span> is the eigenvalue, and <span>$X$</span> is the eigenvector.</p><h2 id="Implementation-using-the-BiGSTARS-equation-DSL"><a class="docs-heading-anchor" href="#Implementation-using-the-BiGSTARS-equation-DSL">Implementation using the BiGSTARS equation DSL</a><a id="Implementation-using-the-BiGSTARS-equation-DSL-1"></a><a class="docs-heading-anchor-permalink" href="#Implementation-using-the-BiGSTARS-equation-DSL" title="Permalink"></a></h2><p>The DSL allows us to write the equations in physical-space notation. The <code>dx()</code> operator is automatically converted to <code>im*k</code> multiplication, and the discretization is performed once with k-separated caching for efficient wavenumber sweeps.</p><h2 id="Load-required-packages"><a class="docs-heading-anchor" href="#Load-required-packages">Load required packages</a><a id="Load-required-packages-1"></a><a class="docs-heading-anchor-permalink" href="#Load-required-packages" title="Permalink"></a></h2><pre><code class="language-julia hljs">using BiGSTARS
+using Printf</code></pre><h2 id="1.-Domain"><a class="docs-heading-anchor" href="#1.-Domain">1. Domain</a><a id="1.-Domain-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Domain" title="Permalink"></a></h2><p>x is the along-front direction (Fourier-transformed → wavenumber k) y is the cross-front direction (Fourier, periodic) z is the vertical direction (Chebyshev, rigid lids at 0 and 1)</p><pre><code class="language-julia hljs">domain = Domain(
+    x = FourierTransformed(),
+    y = Fourier(60, [0, 1]),
+    z = Chebyshev(30, [0, 1])
+)</code></pre><pre><code class="nohighlight hljs">Domain(x=FourierTransformed(), y=Fourier(N=60, [0.0,1.0]), z=Chebyshev(N=30, [0.0,1.0]))</code></pre><h2 id="2.-Problem"><a class="docs-heading-anchor" href="#2.-Problem">2. Problem</a><a id="2.-Problem-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Problem" title="Permalink"></a></h2><pre><code class="language-julia hljs">prob = EVP(domain, variables=[:psi], eigenvalue=:sigma)</code></pre><pre><code class="nohighlight hljs">EVP Problem
+  Domain: Domain(x=FourierTransformed(), y=Fourier(N=60, [0.0,1.0]), z=Chebyshev(N=30, [0.0,1.0]))
+  Variables: [:psi]
+  Eigenvalue: sigma
+  Parameters: 
+  Equations: 0
+  BCs: 0 (0 dynamic)
+  Substitutions: 
+</code></pre><h2 id="3.-Parameters-and-background-state"><a class="docs-heading-anchor" href="#3.-Parameters-and-background-state">3. Parameters and background state</a><a id="3.-Parameters-and-background-state-1"></a><a class="docs-heading-anchor-permalink" href="#3.-Parameters-and-background-state" title="Permalink"></a></h2><pre><code class="language-julia hljs">Y, Z = gridpoints(domain, :y, :z)
+H  = 1.0
+Ri = 1.0
+
+prob[:U]    = Z .- 0.5 * H     # along-front velocity: U(z) = z - 1/2
+prob[:Ri]   = Ri               # Richardson number
+prob[:E]    = 1e-12            # Ekman number (hyperviscosity)
+prob[:dBdy] = -ones(length(Z)) # dB/dy = -1 for Eady basic state</code></pre><pre><code class="nohighlight hljs">30-element Vector{Float64}:
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0
+ -1.0</code></pre><p>Background PV gradient (zero for the Eady problem)</p><pre><code class="language-julia hljs">prob[:dQdy] = zeros(length(Z))</code></pre><pre><code class="nohighlight hljs">30-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0</code></pre><h2 id="4.-Substitutions"><a class="docs-heading-anchor" href="#4.-Substitutions">4. Substitutions</a><a id="4.-Substitutions-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Substitutions" title="Permalink"></a></h2><p>QG PV operator: Lap = dx² + dy² + (1/Ri)<em>dz² For Eady with constant N² = Ri: Lap(A) = dx(dx(A)) + dy(dy(A)) + (1/Ri)</em>dz(dz(A))</p><pre><code class="language-julia hljs">@substitution Lap(A) = dx(dx(A)) + dy(dy(A)) + Ri * dz(dz(A))</code></pre><pre><code class="nohighlight hljs">BiGSTARS.Substitution(:Lap, [:A], ((dx(dx(A)) + dy(dy(A))) + (Ri * dz(dz(A)))))</code></pre><h2 id="5.-Governing-equation-(interior-QG-PV)"><a class="docs-heading-anchor" href="#5.-Governing-equation-(interior-QG-PV)">5. Governing equation (interior QG PV)</a><a id="5.-Governing-equation-(interior-QG-PV)-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Governing-equation-(interior-QG-PV)" title="Permalink"></a></h2><p>sigma * Lap(psi) = U * dx(Lap(psi)) + dQdy * dx(psi) - E * Lap(Lap(psi))</p><pre><code class="language-julia hljs">@equation sigma * Lap(psi) = U * dx(Lap(psi)) + dQdy * dx(psi) - E * Lap(Lap(psi))</code></pre><pre><code class="nohighlight hljs">1-element Vector{BiGSTARS.Equation}:
+ BiGSTARS.Equation((sigma * Lap(psi)), (((U * dx(Lap(psi))) + (dQdy * dx(psi))) - (E * Lap(Lap(psi)))))</code></pre><h2 id="6.-Boundary-conditions"><a class="docs-heading-anchor" href="#6.-Boundary-conditions">6. Boundary conditions</a><a id="6.-Boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Boundary-conditions" title="Permalink"></a></h2><p>Eady BCs: linearized buoyancy equation at z=0 and z=1 sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi) = 0 These are eigenvalue-dependent (dynamic) BCs — the DSL detects sigma and puts the sigma side into the B matrix, the rest into A.</p><pre><code class="language-julia hljs">@bc left(sigma * dz(psi)  + U * dx(dz(psi)) + dBdy * dx(psi)) = 0
+@bc right(sigma * dz(psi) + U * dx(dz(psi)) + dBdy * dx(psi)) = 0</code></pre><pre><code class="nohighlight hljs">2-element Vector{BiGSTARS.BoundaryCondition}:
+ BiGSTARS.BoundaryCondition(:left, :z, (((sigma * dz(psi)) + (U * dx(dz(psi)))) + (dBdy * dx(psi))), 0.0, true)
+ BiGSTARS.BoundaryCondition(:right, :z, (((sigma * dz(psi)) + (U * dx(dz(psi)))) + (dBdy * dx(psi))), 0.0, true)</code></pre><h2 id="7.-Discretize"><a class="docs-heading-anchor" href="#7.-Discretize">7. Discretize</a><a id="7.-Discretize-1"></a><a class="docs-heading-anchor-permalink" href="#7.-Discretize" title="Permalink"></a></h2><pre><code class="language-julia hljs">cache = discretize(prob)</code></pre><pre><code class="nohighlight hljs">DiscretizationCache
+  System size: 1800 x 1800 (1 variables, 1800 per var)
+  A components (k-powers): [0, 1, 2, 3, 4]
+  B components (k-powers): [0, 1, 2]
+  Total nnz: 69107 (1.07% dense)
+</code></pre><h2 id="8.-Solve-over-wavenumbers-with-adaptive-shift"><a class="docs-heading-anchor" href="#8.-Solve-over-wavenumbers-with-adaptive-shift">8. Solve over wavenumbers with adaptive shift</a><a id="8.-Solve-over-wavenumbers-with-adaptive-shift-1"></a><a class="docs-heading-anchor-permalink" href="#8.-Solve-over-wavenumbers-with-adaptive-shift" title="Permalink"></a></h2><pre><code class="language-julia hljs">function solve_eady(cache, k_values, Ri)
+    growth_rates = zeros(length(k_values))
+    sigma_shift = 0.02
+
+    for (i, k_val) in enumerate(k_values)
+        A, B = assemble(cache, Float64(k_val))
+        solver = EigenSolver(A, B; σ₀=sigma_shift, method=:Krylov, nev=1, which=:LR, sortby=:R)
+        try
+            solve!(solver; verbose=false)
+            λ, _ = get_results(solver)
+            growth_rates[i] = real(λ[1])
+            sigma_shift = real(λ[1])  ## adapt shift for next wavenumber
+        catch
+            growth_rates[i] = NaN
+        end
+    end
+
+    # Results
+    valid_idx = findall(!isnan, growth_rates)
+    if !isempty(valid_idx)
+        idx_max = valid_idx[argmax(growth_rates[valid_idx])]
+        @printf &quot;Most unstable wavenumber: k = %.3f\n&quot; k_values[idx_max]
+        @printf &quot;Maximum growth rate: sigma = %.6f\n&quot; growth_rates[idx_max]
+    else
+        println(&quot;No wavenumber converged.&quot;)
+    end
+
+    # Compare with analytical Eady solution
+    println(&quot;\nComparison with Eady (1949) analytical solution:&quot;)
+    for k_test in [0.1, 0.5, 1.0, 1.5]
+        mu = k_test * sqrt(Ri)
+        arg1 = coth(0.5mu) - 0.5mu
+        arg2 = 0.5mu - tanh(0.5mu)
+        sigma_theory = arg1 * arg2 &gt; 0 ? (1.0 / sqrt(Ri)) * sqrt(arg1 * arg2) : 0.0
+        idx = argmin(abs.(collect(k_values) .- k_test))
+        @printf &quot;  k=%.1f: numerical=%.6f, analytical=%.6f\n&quot; k_test growth_rates[idx] sigma_theory
+    end
+
+    return growth_rates
+end
+
+k_values = [0.1]
+growth_rates = solve_eady(cache, k_values, Ri)</code></pre><pre><code class="nohighlight hljs">1-element Vector{Float64}:
+ 0.028829034442766237</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../modules/BiGSTARS/">« API Reference</a><a class="docs-footer-nextpage" href="../Stone1971/">Stone (1971) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 31 May 2026 23:53">Sunday 31 May 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
