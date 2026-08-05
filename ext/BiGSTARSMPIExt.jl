@@ -23,14 +23,79 @@ using Printf: @printf
 # transform per attempt via EPSSetTarget until the eigenvalue at the shift is
 # stable. Eigenvectors are gathered to rank 0, where SolverResults is built.
 #
-# API target: PetscWrap 0.1.5 / SlepcWrap 0.1.x. The static solver options enter
-# the PETSc options database via SlepcInitialize(opts) at init time (no programmatic
-# nev/tol/ST setters in these wrappers); only the numeric σ target is set per
-# attempt, programmatically, via the wrapped EPSSetTarget. With -st_type sinvert,
-# SLEPc uses the EPS target as the shift, so STSetShift (unwrapped) is not needed.
-# Runtime numerics (convergence, eigenvector layout) are verified by the mpi.yml
-# CI job on a complex PETSc/SLEPc, not locally.
+# API target: PetscWrap 0.1.5 or 0.2.x, SlepcWrap 0.1.x (see the shim block below).
+# The static solver options enter the PETSc options database via SlepcInitialize(opts)
+# at init time (no programmatic nev/tol/ST setters in these wrappers); only the numeric
+# σ target is set per attempt, programmatically, via the wrapped EPSSetTarget. With
+# -st_type sinvert, SLEPc uses the EPS target as the shift, so STSetShift (unwrapped)
+# is not needed. Runtime numerics (convergence, eigenvector layout) are verified by the
+# mpi.yml CI job on a complex PETSc/SLEPc, not locally.
 # ==============================================================================
+
+# ------------------------------------------------------------------------------
+# PetscWrap 0.1.5 / 0.2.x name shim
+#
+# PetscWrap 0.2 renamed its whole C-style surface to method-style names on wrapper
+# types: MatCreate → create(Mat, comm), MatSetValues → setValues, VecGetArray →
+# getArray, and so on. Only the NAMES changed — argument orders are identical,
+# getOwnershipRange is still 0-based, and getArray still returns (array, ref) — so
+# one binding layer covers both generations with no behavioral difference.
+#
+# Both are supported deliberately. Registry SlepcWrap 0.1.3 pins PetscWrap 0.1.5
+# (and MPI ≤ 0.19), which is what mpi.yml resolves, so 0.1.5 is the generation the
+# numerics are CI-verified against. Running on PetscWrap 0.2 additionally requires a
+# SlepcWrap fork, since upstream SlepcWrap has no 0.2-compatible release.
+#
+# `isdefined` is resolved when this extension is precompiled, against the PetscWrap
+# already loaded, so @static compiles away to the branch that matches it.
+# ------------------------------------------------------------------------------
+@static if isdefined(PetscWrap, :createVecs)          # PetscWrap ≥ 0.2
+    _pw_mat_create(comm)                = PetscWrap.create(PetscWrap.Mat, comm)
+    _pw_set_sizes(M, m, n, Mg, Ng)      = PetscWrap.setSizes(M, m, n, Mg, Ng)
+    _pw_set_from_options(M)             = PetscWrap.setFromOptions(M)
+    _pw_ownership_range(M)              = PetscWrap.getOwnershipRange(M)
+    _pw_set_up(M)                       = PetscWrap.setUp(M)
+    _pw_set_values(M, m, rows, n, cols, vals, mode) =
+        PetscWrap.setValues(M, m, rows, n, cols, vals, mode)
+    _pw_assembly_begin(M)               = PetscWrap.assemblyBegin(M, MAT_FINAL_ASSEMBLY)
+    _pw_assembly_end(M)                 = PetscWrap.assemblyEnd(M, MAT_FINAL_ASSEMBLY)
+    _pw_create_vecs(A)                  = PetscWrap.createVecs(A)
+    _pw_mat_mult(A, x, y)               = PetscWrap.mult(A, x, y)
+    _pw_mat_destroy(A)                  = PetscWrap.destroy(A)
+    _pw_vec_duplicate(v)                = PetscWrap.duplicate(v)
+    _pw_vec_get_array(v)                = PetscWrap.getArray(v)
+    _pw_vec_restore_array(v, ref)       = PetscWrap.restoreArray(v, ref)
+    _pw_vec_destroy(v)                  = PetscWrap.destroy(v)
+
+    const _PW_HAS_SEQ_PREALLOC = isdefined(PetscWrap, :SeqAIJSetPreallocation)
+    const _PW_HAS_MPI_PREALLOC = isdefined(PetscWrap, :MPIAIJSetPreallocation)
+    _pw_seq_prealloc(M, nnz)     = PetscWrap.SeqAIJSetPreallocation(M, PetscInt(0), nnz)
+    _pw_mpi_prealloc(M, d, o)    = PetscWrap.MPIAIJSetPreallocation(M, PetscInt(0), d,
+                                                                    PetscInt(0), o)
+else                                                   # PetscWrap 0.1.x
+    _pw_mat_create(comm)                = PetscWrap.MatCreate(comm)
+    _pw_set_sizes(M, m, n, Mg, Ng)      = PetscWrap.MatSetSizes(M, m, n, Mg, Ng)
+    _pw_set_from_options(M)             = PetscWrap.MatSetFromOptions(M)
+    _pw_ownership_range(M)              = PetscWrap.MatGetOwnershipRange(M)
+    _pw_set_up(M)                       = PetscWrap.MatSetUp(M)
+    _pw_set_values(M, m, rows, n, cols, vals, mode) =
+        PetscWrap.MatSetValues(M, m, rows, n, cols, vals, mode)
+    _pw_assembly_begin(M)               = PetscWrap.MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
+    _pw_assembly_end(M)                 = PetscWrap.MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
+    _pw_create_vecs(A)                  = PetscWrap.MatCreateVecs(A)
+    _pw_mat_mult(A, x, y)               = PetscWrap.MatMult(A, x, y)
+    _pw_mat_destroy(A)                  = PetscWrap.MatDestroy(A)
+    _pw_vec_duplicate(v)                = PetscWrap.VecDuplicate(v)
+    _pw_vec_get_array(v)                = PetscWrap.VecGetArray(v)
+    _pw_vec_restore_array(v, ref)       = PetscWrap.VecRestoreArray(v, ref)
+    _pw_vec_destroy(v)                  = PetscWrap.VecDestroy(v)
+
+    const _PW_HAS_SEQ_PREALLOC = isdefined(PetscWrap, :MatSeqAIJSetPreallocation)
+    const _PW_HAS_MPI_PREALLOC = isdefined(PetscWrap, :MatMPIAIJSetPreallocation)
+    _pw_seq_prealloc(M, nnz)     = PetscWrap.MatSeqAIJSetPreallocation(M, PetscInt(0), nnz)
+    _pw_mpi_prealloc(M, d, o)    = PetscWrap.MatMPIAIJSetPreallocation(M, PetscInt(0), d,
+                                                                       PetscInt(0), o)
+end
 
 # SLEPc/PETSc may only be initialized once per process. Track init + the options
 # string. The static options enter the database at init; the per-attempt σ target
@@ -55,10 +120,10 @@ end
 function _fill_mat!(M, rows, rstart::Integer, rend::Integer, comm::MPI.Comm)
     rowptr, colind, vals = _to_csr(rows)                       # CSR of the local slice
     d_nnz, o_nnz = _csr_block_nnz_split(rowptr, colind, 0, rend - rstart, rstart, rend)
-    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || MatSetUp(M)
+    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || _pw_set_up(M)
     _insert_rows!(M, rstart, rowptr, colind, vals)            # global rows rstart..rend-1
-    MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
-    MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
+    _pw_assembly_begin(M)
+    _pw_assembly_end(M)
     return M
 end
 
@@ -66,13 +131,14 @@ end
 the owned-row slice `rows`. `rows` MUST carry the full UNION structure (the caller adds a
 `_union_template`, so absent-this-wavenumber entries are explicit zeros) — then INSERT_VALUES
 overwrites EVERY preallocated slot, leaving no stale values from a previous wavenumber. This
-avoids `MatZeroEntries` (unwrapped in PetscWrap 0.1.5). `M` must already be preallocated for
-the union pattern (see `_create_union_mat`); no reallocation occurs."""
+needs no zero-out pass, so it works on PetscWrap 0.1.5, which leaves `MatZeroEntries`
+unwrapped. `M` must already be preallocated for the union pattern (see `_create_union_mat`);
+no reallocation occurs."""
 function _refill_mat!(M, rows, rstart::Integer, rend::Integer)
     rowptr, colind, vals = _to_csr(rows)
     _insert_rows!(M, rstart, rowptr, colind, vals)
-    MatAssemblyBegin(M, MAT_FINAL_ASSEMBLY)
-    MatAssemblyEnd(M, MAT_FINAL_ASSEMBLY)
+    _pw_assembly_begin(M)
+    _pw_assembly_end(M)
     return M
 end
 
@@ -80,29 +146,29 @@ end
 k-power patterns (constant across the sweep), so values can be refilled per wavenumber with
 `_refill_mat!` without growing rows. Returns `(M, rstart, rend)` (owned 0-based row range)."""
 function _create_union_mat(components, N::Integer, comm::MPI.Comm)
-    M = MatCreate(comm)
-    MatSetSizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
-    MatSetFromOptions(M)
-    rstart, rend = MatGetOwnershipRange(M)
+    M = _pw_mat_create(comm)
+    _pw_set_sizes(M, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    _pw_set_from_options(M)
+    rstart, rend = _pw_ownership_range(M)
     d_nnz, o_nnz = _union_block_nnz(components, rstart, rend, N)
-    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || MatSetUp(M)
+    _prealloc!(M, MPI.Comm_size(comm), d_nnz, o_nnz) || _pw_set_up(M)
     return M, rstart, rend
 end
 
 """Build distributed PETSc A and B for one wavenumber, each rank assembling only
 its owned rows locally from its row-restricted cache (no rank-0 full matrix, no scatter)."""
 function _build_petsc_mats_local(cache, k, N::Integer, comm::MPI.Comm)
-    A = MatCreate(comm)
-    MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
-    MatSetFromOptions(A)
-    rstart, rend = MatGetOwnershipRange(A)                    # 0-based [rstart,rend)
+    A = _pw_mat_create(comm)
+    _pw_set_sizes(A, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    _pw_set_from_options(A)
+    rstart, rend = _pw_ownership_range(A)                     # 0-based [rstart,rend)
     A_rows, B_rows = assemble_rows(cache, Float64(k), rstart, rend)
     _fill_mat!(A, A_rows, rstart, rend, comm)
 
-    B = MatCreate(comm)
-    MatSetSizes(B, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
-    MatSetFromOptions(B)
-    rstartB, rendB = MatGetOwnershipRange(B)
+    B = _pw_mat_create(comm)
+    _pw_set_sizes(B, PETSC_DECIDE, PETSC_DECIDE, PetscInt(N), PetscInt(N))
+    _pw_set_from_options(B)
+    rstartB, rendB = _pw_ownership_range(B)
     (rstartB, rendB) == (rstart, rend) ||                    # same N+comm ⇒ same layout
         error("PETSc returned different row ownership for A $((rstart, rend)) and " *
               "B $((rstartB, rendB)) with identical size/comm — cannot assemble the pencil.")
@@ -112,14 +178,13 @@ end
 
 function _prealloc!(M, nproc::Integer, d_nnz, o_nnz)
     if nproc == 1
-        if isdefined(PetscWrap, :MatSeqAIJSetPreallocation)
-            PetscWrap.MatSeqAIJSetPreallocation(M, PetscInt(0), PetscInt.(d_nnz))
+        if _PW_HAS_SEQ_PREALLOC
+            _pw_seq_prealloc(M, PetscInt.(d_nnz))
             return true
         end
     else
-        if isdefined(PetscWrap, :MatMPIAIJSetPreallocation)
-            PetscWrap.MatMPIAIJSetPreallocation(M, PetscInt(0), PetscInt.(d_nnz),
-                                                PetscInt(0), PetscInt.(o_nnz))
+        if _PW_HAS_MPI_PREALLOC
+            _pw_mpi_prealloc(M, PetscInt.(d_nnz), PetscInt.(o_nnz))
             return true
         end
     end
@@ -135,7 +200,7 @@ function _insert_rows!(M, rstart::Integer, local_rowptr, local_colind, local_val
         row  = PetscInt(rstart + r - 1)            # global 0-based row
         cols = PetscInt.(local_colind[k0:k1])      # global 0-based columns
         vs   = PetscScalar.(local_vals[k0:k1])
-        MatSetValues(M, PetscInt(1), [row], PetscInt(length(cols)), cols, vs, INSERT_VALUES)
+        _pw_set_values(M, PetscInt(1), [row], PetscInt(length(cols)), cols, vs, INSERT_VALUES)
     end
     return M
 end
@@ -146,7 +211,7 @@ end
 
 function _gather_eigenpairs(eps, A, B, nconv::Integer, N::Integer, comm::MPI.Comm)
     rank = MPI.Comm_rank(comm)
-    rstart, rend = MatGetOwnershipRange(A)
+    rstart, rend = _pw_ownership_range(A)
     nlocal = rend - rstart
     counts = Cint.(MPI.Allgather(Int(nlocal), comm))
 
@@ -154,19 +219,19 @@ function _gather_eigenpairs(eps, A, B, nconv::Integer, N::Integer, comm::MPI.Com
     Χ = rank == 0 ? Matrix{ComplexF64}(undef, N, nconv) : zeros(ComplexF64, 0, 0)
     masses = Vector{Float64}(undef, nconv)         # replicated on every rank (via Allreduce)
 
-    vr, vi = MatCreateVecs(A)
-    Bvr = VecDuplicate(vr)
+    vr, vi = _pw_create_vecs(A)
+    Bvr = _pw_vec_duplicate(vr)
     for ie in 0:(nconv - 1)
         vpr, vpi, _, _ = EPSGetEigenpair(eps, ie, vr, vi)
-        local_arr, local_ref = VecGetArray(vr)     # this rank's owned entries
+        local_arr, local_ref = _pw_vec_get_array(vr)  # this rank's owned entries
         sendbuf = Vector{ComplexF64}(local_arr)
         nv2 = sum(abs2, local_arr)                 # ‖vr‖² (local part)
-        VecRestoreArray(vr, local_ref)             # restore before MatMult uses vr
+        _pw_vec_restore_array(vr, local_ref)       # restore before the matvec uses vr
 
-        MatMult(B, vr, Bvr)                         # distributed B·vr
-        bl, bref = VecGetArray(Bvr)
+        _pw_mat_mult(B, vr, Bvr)                    # distributed B·vr
+        bl, bref = _pw_vec_get_array(Bvr)
         nb2 = sum(abs2, bl)                         # ‖B vr‖² (local part)
-        VecRestoreArray(Bvr, bref)
+        _pw_vec_restore_array(Bvr, bref)
 
         nv2g = MPI.Allreduce(nv2, +, comm)         # collective (every rank)
         nb2g = MPI.Allreduce(nb2, +, comm)
@@ -181,9 +246,9 @@ function _gather_eigenpairs(eps, A, B, nconv::Integer, N::Integer, comm::MPI.Com
             MPI.Gatherv!(sendbuf, nothing, 0, comm)
         end
     end
-    VecDestroy(Bvr)
-    VecDestroy(vr)
-    VecDestroy(vi)
+    _pw_vec_destroy(Bvr)
+    _pw_vec_destroy(vr)
+    _pw_vec_destroy(vi)
     return λ, Χ, masses
 end
 
@@ -269,8 +334,8 @@ function _solve_one_adaptive(cache, k, N::Integer, comm::MPI.Comm;
                             sigma_0=sigma_0, n_tries=n_tries, Δσ₀=Δσ₀, incre=incre, ϵ=ϵ,
                             verbose=verbose)
     EPSDestroy(eps)
-    MatDestroy(A)
-    MatDestroy(B)
+    _pw_mat_destroy(A)
+    _pw_mat_destroy(B)
     return r
 end
 
@@ -288,7 +353,8 @@ function _solve_group_reused(cache, ks, N::Integer, comm::MPI.Comm;
               "B $((rstartB, rendB)) — cannot assemble the pencil.")
     # Zero-valued union templates (built once): added to each wavenumber's slice so the
     # INSERT_VALUES refill overwrites every preallocated slot with explicit zeros where this
-    # wavenumber is absent — no stale values, no MatZeroEntries (unwrapped in PetscWrap 0.1.5).
+    # wavenumber is absent — no stale values, and no zero-out pass, which PetscWrap 0.1.5
+    # could not provide anyway (MatZeroEntries unwrapped there).
     tmplA = _union_template(cache.A_components, rstart, rend, N)
     tmplB = _union_template(cache.B_components, rstart, rend, N)
     eps = EPSCreate(comm)
@@ -307,8 +373,8 @@ function _solve_group_reused(cache, ks, N::Integer, comm::MPI.Comm;
     end
 
     EPSDestroy(eps)
-    MatDestroy(A)
-    MatDestroy(B)
+    _pw_mat_destroy(A)
+    _pw_mat_destroy(B)
     return out
 end
 
@@ -337,7 +403,7 @@ function BiGSTARS.solve(cache::BiGSTARS.DiscretizationCache,
         if !_SLEPC_INITED[]
             # SlepcInitialize is *documented* to call PetscInitialize, but with some
             # SLEPc/SlepcWrap builds PETSc is left uninitialized (PetscInitialized()
-            # == false), so the first MatCreate fails with PETSc error 98 (wrong state).
+            # == false), so the first matrix creation fails with PETSc error 98 (wrong state).
             # Initialize PETSc explicitly first (idempotent — SlepcInitialize skips
             # re-init when PETSc is already up), then SLEPc.
             PetscInitialize(opts)
