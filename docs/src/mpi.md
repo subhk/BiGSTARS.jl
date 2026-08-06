@@ -16,6 +16,27 @@ which activates when `MPI`, `PetscWrap`, and `SlepcWrap` are all imported.
   works everywhere, but **solving** requires the complex PETSc/SLEPc build above;
   without it `solve` raises an install hint.
 
+### PetscWrap 0.1.5 vs 0.2
+
+PetscWrap 0.2 renamed its entire C-style API to method-style names (`MatCreate` →
+`create(Mat, comm)`, `VecGetArray` → `getArray`, …). The extension supports both
+generations — it binds the right names when it precompiles — so no user code changes.
+
+Which generation you get is decided by SlepcWrap, not by BiGSTARS:
+
+| | PetscWrap | MPI.jl | SlepcWrap |
+|---|---|---|---|
+| Registry resolve (**CI-verified**) | 0.1.5 | ≤ 0.19 | registry 0.1.3 |
+| PetscWrap 0.2 stack | 0.2.x | 0.20 | **fork required** |
+
+Registered SlepcWrap 0.1.3 pins `PetscWrap = "0.1.5"`, and upstream SlepcWrap has had
+no release since January 2023, so nothing published works against PetscWrap 0.2. A 0.2
+stack therefore needs a locally patched SlepcWrap that aliases the renamed PetscWrap
+names (`PetscMat`/`PetscVec` → `Mat`/`Vec`, `MatCreateVecs` → `createVecs`,
+`VecGetArray`/`VecRestoreArray` → `getArray`/`restoreArray`). The `mpi.yml` job
+resolves the registry stack, so **0.1.5 is the generation the numerics are actually
+verified against**; treat a 0.2 stack as working but unverified upstream.
+
 ## Usage
 
 ```julia
