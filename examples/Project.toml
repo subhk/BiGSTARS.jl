@@ -12,4 +12,5 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 [compat]
 CairoMakie = "0.15.10"
 MPI = "0.20.26"
+PetscWrap = "0.2.2"
 SlepcWrap = "0.1.3"
